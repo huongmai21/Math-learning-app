@@ -1,0 +1,484 @@
+.study-corner-page {
+  display: flex;
+  padding: 20px;
+  max-width: 1280px;
+  margin: 0 auto;
+  background: #f6f8fa;
+  min-height: calc(100vh - 70px);
+}
+
+.main-content {
+  flex: 1;
+  margin-left: 90px;
+  display: flex;
+  gap: 20px;
+}
+
+.exercise-tab,
+.study-tab,
+.share-tab,
+.bookmarks-tab,
+.notifications-tab {
+  display: flex;
+  gap: 20px;
+  width: 100%;
+}
+
+.exercise-left,
+.study-left,
+.share-left {
+  flex: 2;
+}
+
+.exercise-right,
+.study-right,
+.share-right {
+  flex: 1;
+  min-width: 250px;
+}
+
+.filters {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  align-items: center;
+}
+
+.grade-filter,
+.subject-filter,
+.status-filter {
+  flex: 1;
+}
+
+.filters select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #d1d5da;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 14px;
+}
+
+.post-question-btn,
+.search-btn,
+.image-search-btn,
+.ai-search-btn,
+.ai-image-search-btn {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background: #0366d6;
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.post-question-btn:hover,
+.search-btn:hover,
+.image-search-btn:hover,
+.ai-search-btn:hover,
+.ai-image-search-btn:hover {
+  background: #005cc5;
+}
+
+.post-form,
+.solution-box,
+.ai-result-box {
+  background: #fff;
+  padding: 20px;
+  border: 1px solid #d1d5da;
+  border-radius: 6px;
+  margin-bottom: 20px;
+}
+
+.post-form h3,
+.solution-box h3,
+.ai-result-box h3,
+.search-results h3,
+.post-list h3,
+.trending-topics h3,
+.who-to-follow h3 {
+  margin: 0 0 15px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #24292e;
+}
+
+.post-form input,
+.post-form textarea,
+.search-bar input,
+.comment-form input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d1d5da;
+  border-radius: 6px;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.post-form textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.post-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.post-actions label {
+  padding: 6px 12px;
+  border: 1px solid #d1d5da;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.post-actions button,
+.comment-form button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  background: #2da44e;
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.post-actions button.cancel-btn {
+  background: #fafbfc;
+  color: #24292e;
+  border: 1px solid #d1d5da;
+}
+
+.post-actions button:hover,
+.comment-form button:hover {
+  background: #2c974b;
+}
+
+.post-actions button.cancel-btn:hover {
+  background: #ebedf0;
+}
+
+.post-attachments {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.post-attachments img {
+  max-width: 100px;
+  max-height: 100px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.exercise-list,
+.search-results,
+.post-list,
+.bookmarks-tab,
+.notifications-tab {
+  background: #fff;
+  padding: 20px;
+  border: 1px solid #d1d5da;
+  border-radius: 6px;
+}
+
+.exercise-item,
+.post-item,
+.bookmark-item,
+.notification-item {
+  padding: 15px;
+  margin-bottom: 10px;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  background: #fff;
+  transition: all 0.2s ease;
+}
+
+.exercise-item:hover,
+.post-item:hover,
+.bookmark-item:hover,
+.notification-item:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.exercise-item.selected {
+  border-color: #0366d6;
+  box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.15);
+}
+
+.exercise-item h4,
+.post-item h4,
+.bookmark-item h4 {
+  margin: 0 0 5px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.exercise-item p,
+.post-item p,
+.bookmark-item p,
+.notification-item p {
+  margin: 5px 0;
+  font-size: 14px;
+  color: #586069;
+}
+
+.post-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.post-avatar,
+.follow-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.post-author {
+  font-weight: 600;
+  color: #24292e;
+}
+
+.post-time {
+  font-size: 12px;
+  color: #586069;
+  margin-left: 10px;
+}
+
+.post-image {
+  max-width: 100%;
+  border-radius: 6px;
+  margin-top: 10px;
+}
+
+.post-actions button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: #586069;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.post-actions button:hover {
+  color: #0366d6;
+}
+
+.post-actions button i.bookmarked {
+  color: #0366d6;
+}
+
+.comments-section {
+  margin-top: 10px;
+}
+
+.comment-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 10px;
+  border-top: 1px solid #e1e4e8;
+}
+
+.comment-author {
+  font-weight: 600;
+  color: #24292e;
+}
+
+.comment-content {
+  flex: 1;
+  color: #586069;
+}
+
+.comment-time {
+  font-size: 12px;
+  color: #586069;
+}
+
+.comment-form {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.search-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.trending-topics,
+.who-to-follow {
+  background: #fff;
+  padding: 20px;
+  border: 1px solid #d1d5da;
+  border-radius: 6px;
+  margin-bottom: 20px;
+}
+
+.topic-item,
+.follow-item {
+  padding: 10px;
+  margin-bottom: 10px;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+}
+
+.follow-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.follow-username {
+  font-weight: 600;
+  color: #24292e;
+}
+
+.follow-bio {
+  font-size: 12px;
+  color: #586069;
+}
+
+.follow-btn,
+.unfollow-btn {
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.follow-btn {
+  background: #2da44e;
+  color: #fff;
+}
+
+.unfollow-btn {
+  background: #fafbfc;
+  color: #24292e;
+  border: 1px solid #d1d5da;
+}
+
+.follow-btn:hover {
+  background: #2c974b;
+}
+
+.unfollow-btn:hover {
+  background: #ebedf0;
+}
+
+.pagination {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.pagination button {
+  padding: 6px 12px;
+  border: 1px solid #d1d5da;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.pagination button:disabled {
+  background: #ebedf0;
+  cursor: not-allowed;
+}
+
+.pagination span {
+  padding: 6px 12px;
+  font-size: 14px;
+}
+
+.ai-result-box ul {
+  margin-top: 10px;
+  padding-left: 20px;
+}
+
+.ai-result-box li {
+  margin-bottom: 5px;
+  color: #586069;
+}
+
+.notification-item span {
+  font-size: 12px;
+  color: #586069;
+}
+
+@media (max-width: 768px) {
+  .study-corner-page {
+    flex-direction: column;
+  }
+
+  .main-content {
+    margin-left: 0;
+    margin-top: 70px;
+  }
+
+  .exercise-tab,
+  .study-tab,
+  .share-tab {
+    flex-direction: column;
+  }
+
+  .exercise-right,
+  .study-right,
+  .share-right {
+    min-width: 100%;
+  }
+
+  .filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .post-question-btn,
+  .search-btn,
+  .image-search-btn,
+  .ai-search-btn,
+  .ai-image-search-btn {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .post-form input,
+  .post-form textarea,
+  .search-bar input,
+  .comment-form input {
+    font-size: 12px;
+  }
+
+  .post-actions button,
+  .comment-form button {
+    font-size: 12px;
+  }
+
+  .exercise-item h4,
+  .post-item h4,
+  .bookmark-item h4 {
+    font-size: 14px;
+  }
+
+  .exercise-item p,
+  .post-item p,
+  .bookmark-item p,
+  .notification-item p {
+    font-size: 12px;
+  }
+}

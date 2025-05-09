@@ -1,0 +1,376 @@
+/* src/styles/LogReg.css */
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap");
+
+/* Wrapper để bao quanh background và container */
+.auth-wrapper {
+  position: relative;
+  width: 100%;
+  min-height: 100vh; /* Trừ đi chiều cao của Navbar */
+  padding-top: 0px; 
+  box-sizing: border-box;
+  overflow: hidden; /* Ngăn thanh cuộn trong auth-wrapper */
+  display: flex; /* Sử dụng flex để căn giữa */
+  justify-content: center;
+  align-items: center;
+}
+
+/* Background */
+.background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: url("../../assets/images/background.jpg") no-repeat;
+  background-size: cover;
+  background-position: center;
+  filter: blur(10px);
+  z-index: 1; /* Đặt background phía sau container */
+}
+
+/* Container */
+.container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 75%;
+  height: 550px;
+  background: url("../../assets/images/background.jpg") no-repeat;
+  background-size: cover;
+  background-position: center;
+  border-radius: 10px;
+  z-index: 2; /* Đặt container phía trên background */
+}
+
+/* Content (bên trái) */
+.container .content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 58%;
+  height: 100%;
+  background: transparent;
+  padding: 80px;
+  color: #e4e4e4;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.content .logo {
+  font-size: 30px;
+}
+
+.text-sci h2 {
+  font-size: 40px;
+  line-height: 1;
+}
+
+.text-sci h2 span {
+  font-size: 25px;
+}
+
+.text-sci p {
+  font-size: 16px;
+  margin: 20px 0;
+}
+
+.social-icons a i {
+  font-size: 22px;
+  color: #e4e4e4;
+  margin-right: 10px;
+  transition: 0.5s ease;
+}
+
+.social-icons a:hover i {
+  transform: scale(1.2);
+}
+
+/* Logreg-box (bên phải) */
+.container .logreg-box {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 42%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.logreg-box .form-box {
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+  color: #e4e4e4;
+  padding: 20px;
+}
+
+.logreg-box .form-box.login {
+  transform: translateX(0);
+  transition: transform 0.6s ease;
+  transition-delay: 0.7s;
+}
+
+.logreg-box.active .form-box.login {
+  transform: translateX(100%);
+  transition-delay: 0s;
+}
+
+.logreg-box .form-box.register {
+  transform: translateX(100%);
+  transition: transform 0.5s ease;
+  transition-delay: 0s;
+}
+
+.logreg-box.active .form-box.register {
+  transform: translateX(0);
+  transition-delay: 0.7s;
+}
+
+.form-box.active {
+  display: block;
+}
+
+.form-box h2 {
+  font-size: 32px;
+  text-align: center;
+  color: #e4e4e4;
+  margin-bottom: 1.5rem;
+}
+
+.input-box {
+  position: relative;
+  margin-bottom: 1.5rem;
+}
+
+.input-box select {
+  width: 100%;
+  padding: 0.75rem 0.75rem 0.75rem 2.5rem;
+  border: 2px solid #ddd;
+  border-radius: 25px;
+  background: rgba(255, 255, 255, 0.8) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='5' viewBox='0 0 10 5'><path d='M0 0h10L5 5z' fill='%23333'/></svg>")
+    no-repeat right 10px center;
+  font-size: 0.8rem;
+  transition: border-color 0.3s ease;
+  appearance: none;
+}
+
+.input-box select + .icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.input-box .icon {
+  position: absolute;
+  top: 50%;
+  left: 10px;
+  transform: translateY(-50%);
+  font-size: 20px;
+  color: #ccc;
+}
+
+.input-box .icon i {
+  display: inline-block !important;
+  color: #333 !important;
+}
+
+.input-box input {
+  width: 100%;
+  padding: 0.75rem 0.75rem 0.75rem 2.5rem;
+  border: 2px solid #ddd;
+  border-radius: 25px;
+  font-size: 1rem;
+  background: rgba(255, 255, 255, 0.8);
+  transition: border-color 0.3s ease;
+}
+
+.input-box input:focus {
+  outline: none;
+  border-color: #ff6f61;
+  box-shadow: 0 0 5px rgba(255, 111, 97, 0.5);
+}
+
+.remember-forgot {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #e4e4e4;
+  margin-bottom: 1rem;
+}
+
+.remember-forgot a {
+  color: #ff6f61;
+  text-decoration: none;
+}
+
+.remember-forgot a:hover {
+  text-decoration: underline;
+}
+
+.btn {
+  width: 100%;
+  padding: 0.75rem;
+  background: linear-gradient(45deg, #ff6f61, #ff9a8b);
+  color: white;
+  font-size: 1rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.btn:hover {
+  background: linear-gradient(45deg, #ff9a8b, #ff6f61);
+}
+
+.login-register {
+  text-align: center;
+  margin-top: 1rem;
+  color: #ff6f61;
+}
+
+.login-register a {
+  color: #ff6f61;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+.login-register a:hover {
+  text-decoration: underline;
+}
+
+/* Dropdown */
+.dropdown {
+  position: relative;
+  width: 150px;
+  height: 45px;
+  color: #fff;
+  font-size: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 5px;
+  cursor: pointer;
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+  margin-right: 30px;
+}
+
+.dropdown .left-icon,
+.dropdown .right-icon {
+  position: relative;
+  top: 2px;
+  display: inline-block;
+  width: 10px;
+  height: 3px;
+  background: #fff;
+  border-radius: 40px;
+  transition: 0.5s;
+}
+
+.dropdown .left-icon {
+  left: 5px;
+  transform: rotate(45deg);
+}
+
+.dropdown.active .left-icon {
+  transform: rotate(135deg);
+}
+
+.dropdown .right-icon {
+  transform: rotate(-45deg);
+}
+
+.dropdown.active .right-icon {
+  transform: rotate(-135deg);
+}
+
+.dropdown .items {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  margin-top: 5px;
+  overflow: hidden;
+  visibility: hidden;
+  transition: 0.5s;
+}
+
+.dropdown.active .items {
+  visibility: visible;
+}
+
+.dropdown .items a {
+  position: relative;
+  left: 100%;
+  display: flex;
+  font-size: 16px;
+  color: #ff6f61;
+  text-decoration: none;
+  border-radius: 5px;
+  padding: 10px 15px;
+  margin-top: 2.5px;
+  z-index: 1;
+  overflow: hidden;
+  transition: 0.5s;
+  transition-delay: calc(60ms * var(--i));
+}
+
+.dropdown.active .items a {
+  left: 0;
+}
+
+.dropdown .items a:hover {
+  color: #fff;
+}
+
+.dropdown .items a span {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #ff9a8b;
+  z-index: -1;
+  border-radius: inherit;
+  transform: rotate(160deg);
+  transform-origin: right;
+  transition: 0.5s;
+}
+
+.dropdown .items a:hover span {
+  transform: rotate(0deg);
+}
+
+
+.remember-forgot button,
+.login-register button {
+  background: none;
+  border: none;
+  color: #ff6f61;
+  cursor: pointer;
+  font-size: 14px;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.remember-forgot button:hover,
+.login-register button:hover {
+  color: #ff9a8b;
+}
+
+/* Thêm style cho thông báo lỗi */
+.error {
+  color: #ff6f61;
+  text-align: center;
+  margin-bottom: 1rem;
+}

@@ -1,0 +1,123 @@
+/* src/styles/ExamList.css */
+.exam-list-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.filters {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.filters select,
+.filters button {
+  padding: 8px;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+  font-size: 14px;
+}
+
+.filters button {
+  background: #ff6f61;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+
+.filters button:hover {
+  background: #e65b50;
+}
+
+.exam-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.exam-card {
+  background: var(--settings-content-bg);
+  padding: 15px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+}
+
+.exam-card:hover {
+  transform: translateY(-5px);
+}
+
+.exam-card h3 {
+  margin: 0 0 10px;
+  font-size: 18px;
+  color: var(--text-color);
+}
+
+.exam-card p {
+  margin: 5px 0;
+  font-size: 14px;
+  color: var(--text-color);
+}
+
+.exam-card button,
+.exam-card .btn {
+  margin: 5px 0;
+  padding: 8px 12px;
+  border-radius: 5px;
+  border: none;
+  background: #ff6f61;
+  color: #fff;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.exam-card button:hover,
+.exam-card .btn:hover {
+  background: #e65b50;
+}
+
+.recommended-exams {
+  margin-bottom: 20px;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.pagination a {
+  padding: 8px 12px;
+  border-radius: 5px;
+  background: var(--menu-item-bg);
+  color: var(--text-color);
+  text-decoration: none;
+}
+
+.pagination a.active {
+  background: #ff6f61;
+  color: #fff;
+}
+
+.exam-card .leaderboard-list {
+  margin-top: 10px;
+}
+
+@media (max-width: 768px) {
+  .exam-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .filters {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 480px) {
+  .exam-grid {
+    grid-template-columns: 1fr;
+  }
+}
