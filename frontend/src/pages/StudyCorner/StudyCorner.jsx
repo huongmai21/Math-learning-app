@@ -38,7 +38,7 @@ const StudyCorner = () => {
   const [selectedExercise, setSelectedExercise] = useState(null);
   const [showPostForm, setShowPostForm] = useState(false);
   const [aiSearchResult, setAiSearchResult] = useState(null);
-  const [bookmarks, setBookmarks] = useState([]);
+  const [bookmarks, setLibraryItems] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [aiLoading, setAiLoading] = useState(false);
@@ -73,7 +73,7 @@ const StudyCorner = () => {
         );
 
         const bookmarksData = await getPosts({ bookmarked: true });
-        setBookmarks(
+        setLibraryItems(
           Array.isArray(bookmarksData.data) ? bookmarksData.data : []
         );
 
@@ -265,14 +265,14 @@ const StudyCorner = () => {
     }
   };
 
-  const handleBookmark = async (post) => {
+  const handleLibraryItem = async (post) => {
     try {
       await bookmarkPost(post._id);
       if (bookmarks.some((b) => b._id === post._id)) {
-        setBookmarks((prev) => prev.filter((b) => b._id !== post._id));
+        setLibraryItems((prev) => prev.filter((b) => b._id !== post._id));
         toast.success("Đã xóa khỏi bookmark!");
       } else {
-        setBookmarks((prev) => [...prev, post]);
+        setLibraryItems((prev) => [...prev, post]);
         toast.success("Đã thêm vào bookmark!");
       }
     } catch (error) {
@@ -573,7 +573,7 @@ const StudyCorner = () => {
                           <i className="fa-solid fa-heart"></i>{" "}
                           {exercise.likes?.length || 0}
                         </button>
-                        <button onClick={() => handleBookmark(exercise)}>
+                        <button onClick={() => handleLibraryItem(exercise)}>
                           <i
                             className={`fa-solid fa-bookmark ${
                               bookmarks.some((b) => b._id === exercise._id)
@@ -792,7 +792,7 @@ const StudyCorner = () => {
                           <i className="fa-solid fa-heart"></i>{" "}
                           {result.likes?.length || 0}
                         </button>
-                        <button onClick={() => handleBookmark(result)}>
+                        <button onClick={() => handleLibraryItem(result)}>
                           <i
                             className={`fa-solid fa-bookmark ${
                               bookmarks.some((b) => b._id === result._id)
@@ -926,7 +926,7 @@ const StudyCorner = () => {
                           <i className="fa-solid fa-share"></i>{" "}
                           {post.shares || 0}
                         </button>
-                        <button onClick={() => handleBookmark(post)}>
+                        <button onClick={() => handleLibraryItem(post)}>
                           <i
                             className={`fa-solid fa-bookmark ${
                               bookmarks.some((b) => b._id === post._id)
@@ -1039,7 +1039,7 @@ const StudyCorner = () => {
         )}
         {activeTab === "bookmarks" && (
           <div className="bookmarks-tab">
-            <h3>Bookmarks</h3>
+            <h3>LibraryItems</h3>
             {bookmarks.length > 0 ? (
               bookmarks.map((bookmark) => (
                 <div key={bookmark._id} className="bookmark-item">
@@ -1059,7 +1059,7 @@ const StudyCorner = () => {
                       <i className="fa-solid fa-heart"></i>{" "}
                       {bookmark.likes?.length || 0}
                     </button>
-                    <button onClick={() => handleBookmark(bookmark)}>
+                    <button onClick={() => handleLibraryItem(bookmark)}>
                       <i className="fa-solid fa-bookmark bookmarked"></i>
                     </button>
                   </div>

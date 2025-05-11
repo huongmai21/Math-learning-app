@@ -2,16 +2,16 @@ import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   getDocumentById,
-  addBookmark,
-  removeBookmark,
-  checkBookmark,
+  addLibraryItem,
+  removeLibraryItem,
+  checkLibraryItem,
 } from "../../services/documentService";
 import "./Document.css";
 
 const DocumentDetail = () => {
   const { id } = useParams();
   const [document, setDocument] = useState(null);
-  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [isLibraryItemed, setIsLibraryItemed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -20,8 +20,8 @@ const DocumentDetail = () => {
       try {
         const doc = await getDocumentById(id);
         setDocument(doc);
-        const bookmarkStatus = await checkBookmark(id);
-        setIsBookmarked(bookmarkStatus.isBookmarked);
+        const bookmarkStatus = await checkLibraryItem(id);
+        setIsLibraryItemed(bookmarkStatus.isLibraryItemed);
       } catch (err) {
         setError("Không thể tải tài liệu!");
       } finally {
@@ -38,14 +38,14 @@ const DocumentDetail = () => {
     }
   }, [document]);
 
-  const handleBookmark = async () => {
+  const handleLibraryItem = async () => {
     try {
-      if (isBookmarked) {
-        await removeBookmark(id);
-        setIsBookmarked(false);
+      if (isLibraryItemed) {
+        await removeLibraryItem(id);
+        setIsLibraryItemed(false);
       } else {
-        await addBookmark({ documentId: id });
-        setIsBookmarked(true);
+        await addLibraryItem({ documentId: id });
+        setIsLibraryItemed(true);
       }
     } catch (err) {
       setError("Không thể cập nhật bookmark!");
@@ -65,8 +65,8 @@ const DocumentDetail = () => {
             Lượt xem: {document.views} | Lượt tải: {document.downloads}
           </p>
           <p>Ngày đăng: {new Date(document.uploadedAt).toLocaleDateString()}</p>
-          <button onClick={handleBookmark} className="bookmark-button">
-            {isBookmarked ? "Bỏ Bookmark" : "Bookmark"}
+          <button onClick={handleLibraryItem} className="bookmark-button">
+            {isLibraryItemed ? "Bỏ LibraryItem" : "LibraryItem"}
           </button>
         </div>
         <div className="doc-content" style={{ backgroundSize: "140px" }}>

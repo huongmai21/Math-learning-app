@@ -1,5 +1,5 @@
 const Document = require("../models/Document");
-const Bookmark = require("../models/Bookmark");
+const LibraryItem = require("../models/LibraryItem");
 
 exports.getAllDocuments = async (req, res) => {
   try {

@@ -18,10 +18,9 @@ exports.getUserActivity = asyncHandler(async (req, res, next) => {
 
   const activities = await UserActivity.find({
     userId,
-    date: { $regex: `^${year}` }, // Lọc theo năm
+    date: { $regex: `^${year}` },
   });
 
-  // Tạo dữ liệu cho heatmap giống GitHub
   const startDate = new Date(`${year}-01-01`);
   const endDate = new Date(`${year}-12-31`);
   const fullActivity = [];
@@ -46,7 +45,7 @@ exports.getUserActivity = asyncHandler(async (req, res, next) => {
 });
 
 exports.updateProfile = asyncHandler(async (req, res, next) => {
-  const { username, email } = req.body;
+  const { username, email, bio } = req.body;
   const user = await User.findById(req.user.id);
 
   if (!user) {
@@ -55,13 +54,30 @@ exports.updateProfile = asyncHandler(async (req, res, next) => {
 
   let avatarUrl = user.avatar;
   if (req.files && req.files.avatar) {
-    const result = await cloudinary.uploader.upload(req.files.avatar[0].path);
-    avatarUrl = result.secure_url;
+    try {
+      const file = req.files.avatar[0];
+      const result = await cloudinary.uploader.upload(file.path, {
+        folder: "avatars",
+        transformation: [
+          {
+            width: 100,
+            height: 100,
+            crop: "fill",
+            quality: "auto",
+            fetch_format: "auto",
+          },
+        ],
+      });
+      avatarUrl = result.secure_url;
+    } catch (error) {
+      return next(new ErrorResponse("Upload ảnh thất bại", 500));
+    }
   }
 
   user.username = username || user.username;
   user.email = email || user.email;
   user.avatar = avatarUrl;
+  user.bio = bio || user.bio;
 
   await user.save();
 

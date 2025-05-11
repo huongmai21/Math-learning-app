@@ -97,7 +97,7 @@ exports.sharePost = asyncHandler(async (req, res, next) => {
   res.status(200).json({ success: true, data: post });
 });
 
-// Bookmark a post
+// LibraryItem a post
 exports.bookmarkPost = asyncHandler(async (req, res, next) => {
   const post = await Post.findById(req.params.id);
   if (!post) {

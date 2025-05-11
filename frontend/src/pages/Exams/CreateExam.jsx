@@ -53,7 +53,7 @@ const CreateExam = () => {
 
     const token = localStorage.getItem('token');
     try {
-      const response = await fetch('http://localhost:3000/exams/create', {
+      const response = await fetch('http://localhost:5000/exams/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

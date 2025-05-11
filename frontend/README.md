@@ -42,3 +42,18 @@ frontend/
 ├── tailwind.config.js
 ├── vite.config.js
 └── README.md
+
+**3. Danh sách package và mục đích**
+- npm install cloudinary 
+-  "framer-motion"
+    "react"
+    "react-dom"
+    "react-helmet"
+    "react-redux"
+    "react-router-dom"
+    "react-toastify"
+    "redux"
+    "socket.io-client"
+
+- date-fns (dùng để format datetime trong Profile.jsx)
+- react-chartjs-2 chart.js vẽ biểu đồ

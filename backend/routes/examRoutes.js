@@ -2,8 +2,8 @@
 const express = require("express");
 const router = express.Router();
 const examController = require("../controllers/examController");
-const authenticateToken = require("../middleware/authMiddleware");
-const checkRole = require("../middleware/roleMiddleware");
+const {authenticateToken,checkRole} = require("../middleware/authMiddleware");
+// const checkRole = require("../middleware/roleMiddleware");
 
 // Routes không yêu cầu quyền cụ thể
 router.get("/", examController.getAllExams);

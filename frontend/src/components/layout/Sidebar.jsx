@@ -1,6 +1,5 @@
 import React from "react";
 import { Tooltip } from "react-tooltip";
-import "./Sidebar.css";
 
 const Sidebar = ({ activeTab, onTabChange, user, tabs }) => {
   const defaultTabs = [
@@ -40,12 +39,16 @@ const Sidebar = ({ activeTab, onTabChange, user, tabs }) => {
       : defaultTabs;
 
   return (
-    <div className="sidebar-left">
-      <ul>
+    <div className="fixed top-[70px] left-5 w-[60px] h-[calc(100vh-90px)] bg-white rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.08)] flex flex-col items-center py-2 z-[900] md:top-[70px] md:left-5 md:w-[60px] md:h-[calc(100vh-90px)] md:flex-col md:items-center md:py-2 sm:bottom-0 sm:top-auto sm:left-0 sm:w-full sm:h-[60px] sm:flex-row sm:justify-center sm:rounded-none sm:shadow-[0_-2px_10px_rgba(0,0,0,0.08)] sm:py-1">
+      <ul className="flex flex-col w-full sm:flex-row sm:gap-2 sm:justify-around sm:w-full">
         {tabList.map((tab) => (
           <li
             key={tab.id}
-            className={activeTab === tab.id ? "active" : ""}
+            className={`flex justify-center p-4 sm:p-2 cursor-pointer text-[#6e7681] text-xl sm:text-lg transition-all duration-300 ${
+              activeTab === tab.id
+                ? "bg-[#f6f8fa] text-[#ff6f61] rounded-lg sm:rounded-md"
+                : "hover:bg-[#f6f8fa] hover:text-[#ff6f61]"
+            }`}
             onClick={() => onTabChange(tab.id)}
             data-tooltip-id={`${tab.id}-tab`}
             data-tooltip-content={tab.label}
@@ -59,7 +62,7 @@ const Sidebar = ({ activeTab, onTabChange, user, tabs }) => {
           key={tab.id}
           id={`${tab.id}-tab`}
           place="right"
-          style={{ zIndex: 1000 }}
+          className="z-[1000] bg-[#333] text-white text-sm rounded-md px-2 py-1"
         />
       ))}
     </div>

@@ -1,11 +1,9 @@
-// src/components/AuthForm/AuthForm.jsx
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import {refreshUser, login, clearError } from "../../redux/authSlice";
-
-// import { login } from '../../services/authService';
-// import { useAuth } from '../../hooks/useAuth';
+import { refreshUser, login, clearError } from "../../redux/slices/authSlice";
+import { register } from "../../services/authService";
+import { toast } from "react-toastify";
 import "./LogReg.css";
 
 const AuthForm = () => {
@@ -17,6 +15,11 @@ const AuthForm = () => {
     password: "",
     role: "",
   });
+  const [errors, setErrors] = useState({
+    username: "",
+    email: "",
+    password: "",
+  });
   const [isLogin, setIsLogin] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
@@ -25,14 +28,14 @@ const AuthForm = () => {
     const pathname = location.pathname;
     setIsLogin(pathname === "/auth/login");
     dispatch(clearError());
+    setErrors({ username: "", email: "", password: "" }); // Reset errors khi chuyển form
   }, [location.pathname, dispatch]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prevData) => ({
-      ...prevData,
-      [name]: value,
-    }));
+    setFormData((prevData) => ({ ...prevData, [name]: value }));
+    // Reset lỗi khi người dùng thay đổi input
+    setErrors((prevErrors) => ({ ...prevErrors, [name]: "" }));
   };
 
   const handleSubmit = async (e) => {
@@ -40,34 +43,51 @@ const AuthForm = () => {
 
     if (isLogin) {
       try {
-        await dispatch(login({ email: formData.email, password: formData.password })).unwrap();
-        await dispatch(refreshUser()).unwrap(); // 👈 gọi lại để đảm bảo user được cập nhật chuẩn
-
-        navigate("/");
+        await dispatch(
+          login({
+            email: formData.email,
+            password: formData.password,
+          })
+        ).unwrap();
+        console.log("Login result:", loginResult);
+        // Đợi token được lưu
+        const token = localStorage.getItem("token");
+        if (token) {
+          const refreshedUser = await dispatch(refreshUser()).unwrap();
+          if (refreshedUser) {
+            navigate("/", { replace: true });
+          } else {
+            toast.error(
+              "Đăng nhập thất bại (không lấy được thông tin người dùng)"
+            );
+          }
+        } else {
+          toast.error("Token không được lưu, vui lòng thử lại");
+        }
       } catch (err) {
-        // Error đã được xử lý trong slice
+        toast.error(err?.message || "Đăng nhập thất bại");
       }
     } else {
       try {
-        const response = await fetch("http://localhost:3000/auth/register", {
-          method: "POST",
-          body: JSON.stringify({
-            username: formData.username,
-            email: formData.email,
-            password: formData.password,
-            role: formData.role,
-          }),
-          headers: { "Content-Type": "application/json" },
+        const response = await register({
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+          role: formData.role,
         });
-
-        const result = await response.json();
-        if (response.ok) {
-          navigate("/auth/login");
-        } else {
-          dispatch({ type: "auth/register/rejected", payload: result.message || "Có lỗi xảy ra!" });
-        }
+        toast.success("Đăng ký thành công! Vui lòng đăng nhập.");
+        navigate("/auth/login");
       } catch (error) {
-        dispatch({ type: "auth/register/rejected", payload: "Lỗi kết nối đến server." });
+        const responseData = error.response?.data;
+        if (responseData && responseData.errors) {
+          setErrors({
+            username: responseData.errors.username || "",
+            email: responseData.errors.email || "",
+            password: responseData.errors.password || "",
+          });
+        } else {
+          toast.error("Đăng ký thất bại, vui lòng kiểm tra lại thông tin");
+        }
       }
     }
   };
@@ -82,28 +102,49 @@ const AuthForm = () => {
           </h2>
           <div className="text-sci">
             <h2>
-              Welcome!
+              <p>Welcome!</p>
               <br />
-              <span>FunMath đang chờ bạn khám phá đấy!</span>
+              <span>
+                FunMath đang chờ bạn <br />
+                khám phá đấy!
+              </span>
             </h2>
-            <p>Cùng khám phá niềm vui và đam mê trong thế giới Toán học nào!</p>
+            <p>
+              Cùng khám phá niềm vui và đam mê <br />
+              trong thế giới Toán học nào!
+            </p>
             <div className="social-icons">
-              <a href="https://www.linkedin.com" target="_blank" rel="noopener noreferrer">
+              <a
+                href="https://www.linkedin.com"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 <i className="fab fa-linkedin"></i>
               </a>
-              <a href="https://www.facebook.com" target="_blank" rel="noopener noreferrer">
+              <a
+                href="https://www.facebook.com"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 <i className="fab fa-facebook-square"></i>
               </a>
-              <a href="https://www.instagram.com" target="_blank" rel="noopener noreferrer">
+              <a
+                href="https://www.instagram.com"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 <i className="fab fa-instagram"></i>
               </a>
-              <a href="https://www.twitter.com" target="_blank" rel="noopener noreferrer">
+              <a
+                href="https://www.twitter.com"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 <i className="fab fa-twitter"></i>
               </a>
             </div>
           </div>
         </div>
-
         <div className={`logreg-box ${isLogin ? "" : "active"}`}>
           <div className={`form-box login ${isLogin ? "active" : ""}`}>
             <form onSubmit={handleSubmit}>
@@ -120,7 +161,9 @@ const AuthForm = () => {
                   value={formData.email}
                   onChange={handleChange}
                   required
+                  disabled={loading}
                 />
+                {errors.email && <p className="error">{errors.email}</p>}
               </div>
               <div className="input-box">
                 <span className="icon">
@@ -133,30 +176,39 @@ const AuthForm = () => {
                   value={formData.password}
                   onChange={handleChange}
                   required
+                  disabled={loading}
                 />
+                {errors.password && <p className="error">{errors.password}</p>}
               </div>
               <div className="remember-forgot">
                 <label>
-                  <input type="checkbox" /> Remember me
+                  <input type="checkbox" disabled={loading} /> Remember me
                 </label>
-                <button type="button" onClick={() => alert("Chức năng quên mật khẩu chưa được triển khai!")}>
+                <button
+                  type="button"
+                  onClick={() => navigate("/forgot-password")}
+                  disabled={loading}
+                >
                   Forgot password?
                 </button>
               </div>
               <button type="submit" className="btn" disabled={loading}>
-                {loading ? "Đang đăng nhập..." : "Sign In"}
+                {loading ? "Signing in..." : "Sign In"}
               </button>
               <div className="login-register">
                 <p>
                   Don't have an account?{" "}
-                  <button type="button" onClick={() => navigate("/auth/register")}>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/auth/register")}
+                    disabled={loading}
+                  >
                     Sign Up
                   </button>
                 </p>
               </div>
             </form>
           </div>
-
           <div className={`form-box register ${!isLogin ? "active" : ""}`}>
             <form onSubmit={handleSubmit}>
               <h2>Sign Up</h2>
@@ -172,7 +224,9 @@ const AuthForm = () => {
                   value={formData.username}
                   onChange={handleChange}
                   required
+                  disabled={loading}
                 />
+                {errors.username && <p className="error">{errors.username}</p>}
               </div>
               <div className="input-box">
                 <span className="icon">
@@ -185,7 +239,9 @@ const AuthForm = () => {
                   value={formData.email}
                   onChange={handleChange}
                   required
+                  disabled={loading}
                 />
+                {errors.email && <p className="error">{errors.email}</p>}
               </div>
               <div className="input-box">
                 <span className="icon">
@@ -198,7 +254,9 @@ const AuthForm = () => {
                   value={formData.password}
                   onChange={handleChange}
                   required
+                  disabled={loading}
                 />
+                {errors.password && <p className="error">{errors.password}</p>}
               </div>
               <div className="input-box">
                 <span className="icon">
@@ -209,6 +267,7 @@ const AuthForm = () => {
                   value={formData.role}
                   onChange={handleChange}
                   required
+                  disabled={loading}
                 >
                   <option value="" disabled>
                     Select your role
@@ -219,16 +278,21 @@ const AuthForm = () => {
               </div>
               <div className="remember-forgot">
                 <label>
-                  <input type="checkbox" /> I agree to the terms & conditions
+                  <input type="checkbox" required disabled={loading} /> I agree
+                  to the terms & conditions
                 </label>
               </div>
               <button type="submit" className="btn" disabled={loading}>
-                {loading ? "Đang đăng ký..." : "Sign Up"}
+                {loading ? "Signing up..." : "Sign Up"}
               </button>
               <div className="login-register">
                 <p>
                   Already have an account?{" "}
-                  <button type="button" onClick={() => navigate("/auth/login")}>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/auth/login")}
+                    disabled={loading}
+                  >
                     Sign In
                   </button>
                 </p>

@@ -1,28 +1,22 @@
+// backend/routes/newsRoutes.js
 const express = require("express");
 const router = express.Router();
-const newsController = require("../controllers/newsController");
-const authenticateToken = require("../middleware/authMiddleware");
-const checkRole = require("../middleware/roleMiddleware");
+const {
+  getAllNews,
+  getNewsById,
+  createNews,
+  updateNews,
+  deleteNews,
+} = require("../controllers/newsController");
+const {
+  authenticateToken,
+  checkRole,
+} = require("../middleware/authMiddleware");
 
-router.get("/", newsController.getAllNews);
-router.get("/:id", newsController.getNewsById);
-router.post(
-  "/create",
-  authenticateToken,
-  checkRole(["admin"]),
-  newsController.createNews
-);
-router.put(
-  "/update/:id",
-  authenticateToken,
-  checkRole(["admin"]),
-  newsController.updateNews
-);
-router.delete(
-  "/:id",
-  authenticateToken,
-  checkRole(["admin"]),
-  newsController.deleteNews
-);
+router.get("/", getAllNews);
+router.get("/:id", getNewsById);
+router.post("/create", authenticateToken, checkRole(["admin"]), createNews);
+router.put("/update/:id", authenticateToken, checkRole(["admin"]), updateNews);
+router.delete("/:id", authenticateToken, checkRole(["admin"]), deleteNews);
 
 module.exports = router;

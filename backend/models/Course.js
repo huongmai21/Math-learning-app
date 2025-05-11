@@ -1,41 +1,48 @@
-const mongoose = require('mongoose');
-const { Schema } = mongoose;
+// backend/models/Course.js
+const mongoose = require("mongoose");
 
-const courseSchema = new mongoose.Schema({
-  title: { type: String, required: true, unique: true },
-  description: { type: String},
-  instructor: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-  thumbnail: { type: String },
-  educationLevel: { 
-    type: String, 
-    enum: ['primary', 'secondary', 'highschool', 'university'] 
+const ContentSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: [true, "Vui lòng nhập tiêu đề nội dung"],
+    trim: true,
   },
-  subject: { type: String },
-  price: { type: Number, default: 0 },
-  duration: { type: String }, // e.g., "8 weeks"
-  enrolledUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],  modules: [{
-    title: String,
-    description: String,
-    lessons: [{
-      title: String,
-      content: String,
-      videoUrl: String,
-      attachments: [String],
-      quiz: { type: Schema.Types.ObjectId, ref: 'Exam' }
-    }]
-  }],
+  type: {
+    type: String,
+    enum: ["video", "document", "quiz"],
+    required: [true, "Vui lòng chọn loại nội dung"],
+  },
+  url: { type: String, required: [true, "Vui lòng nhập URL nội dung"] },
+  isPreview: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now },
-  rating: { type: Number, default: 0 },
-  reviews: [{
-    user: { type: Schema.Types.ObjectId, ref: 'User' },
-    rating: Number,
-    comment: String,
-    date: { type: Date, default: Date.now }
-  }]
 });
 
-// Thêm index cho enrolledUsers
-courseSchema.index({ enrolledUsers: 1 });
+const CourseSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: [true, "Vui lòng nhập tiêu đề khóa học"],
+    trim: true,
+  },
+  description: { type: String, trim: true },
+  price: {
+    type: Number,
+    required: [true, "Vui lòng nhập giá khóa học"],
+    min: [0, "Giá không thể âm"],
+  },
+  thumbnail: { type: String }, // Thêm thumbnail
+  instructorId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+  students: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  status: {
+    type: String,
+    enum: ["pending", "approved", "rejected"],
+    default: "pending",
+  },
+  contents: [ContentSchema],
+  createdAt: { type: Date, default: Date.now },
+});
 
-module.exports =  mongoose.model('Course', courseSchema);
+module.exports = mongoose.model("Course", CourseSchema);

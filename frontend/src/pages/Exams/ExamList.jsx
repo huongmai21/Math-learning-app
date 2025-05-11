@@ -30,7 +30,7 @@ const ExamList = () => {
         page: pageToLoad,
         limit: itemsPerPage,
       };
-      const response = await axios.get('http://localhost:3000/exams', { params });
+      const response = await axios.get('http://localhost:5000/exams', { params });
       setExams(response.data.exams);
       setTotalPages(response.data.totalPages);
       setPage(pageToLoad);
@@ -45,7 +45,7 @@ const ExamList = () => {
     loadExams();
     const fetchRecommendations = async () => {
       try {
-        const response = await axios.get('http://localhost:3000/exams/recommended');
+        const response = await axios.get('http://localhost:5000/exams/recommended');
         setRecommendedExams(response.data.recommendedExams);
       } catch (err) {
         console.error('Lỗi khi lấy bài thi gợi ý:', err);
@@ -66,7 +66,7 @@ const ExamList = () => {
 
   const handleFollow = async (examId) => {
     try {
-      await axios.post(`http://localhost:3000/exams/${examId}/follow`);
+      await axios.post(`http://localhost:5000/exams/${examId}/follow`);
       toast.success('Quan tâm bài thi thành công!');
       loadExams(page);
     } catch (err) {
@@ -77,7 +77,7 @@ const ExamList = () => {
   const fetchExamLeaderboard = async (examId) => {
     if (examLeaderboards[examId]) return;
     try {
-      const response = await axios.get(`http://localhost:3000/exams/${examId}/leaderboard`);
+      const response = await axios.get(`http://localhost:5000/exams/${examId}/leaderboard`);
       setExamLeaderboards((prev) => ({
         ...prev,
         [examId]: response.data.leaderboard,

@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const adminController = require("../controllers/adminController");
+const { authenticateToken, checkRole } = require("../middleware/authMiddleware");
 
 router.get("/admin/users", adminController.getUsers);
 router.delete("/admin/users/:id", adminController.deleteUser);

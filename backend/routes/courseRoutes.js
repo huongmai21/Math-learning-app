@@ -1,21 +1,74 @@
+// backend/routes/courseRoutes.js
 const express = require("express");
 const router = express.Router();
-const courseController = require("../controllers/courseController");
-const authenticateToken = require("../middleware/authMiddleware");
-const checkRole = require("../middleware/roleMiddleware");
-
-// Lấy danh sách khóa học của người dùng (giáo viên hoặc học sinh)
-router.get("/", authenticateToken, courseController.getCourses);
-
-// Đăng ký khóa học
-router.get("/courses/enroll", authenticateToken, courseController.enrollCourse);
-
-// Tạo khóa học mới
-router.post(
-  "/create",
+const {
+  getCourses,
+  getCourse,
+  createCourse,
+  updateCourse,
+  deleteCourse,
+  enrollCourse,
+  createPaymentIntent,
+  addCourseContent,
+  updateCourseContent,
+  deleteCourseContent,
+  updateProgress,
+  getProgress,
+  createReview,
+  getReviews,
+} = require("../controllers/courseController");
+const {
   authenticateToken,
-  checkRole(["admin", "teacher"]),
-  courseController.createCourse
+  checkRole,
+} = require("../middleware/authMiddleware");
+
+router.get("/", authenticateToken, getCourses);
+router.post(
+  "/",
+  authenticateToken,
+  checkRole(["teacher", "admin"]),
+  createCourse
 );
+router.get("/:id", authenticateToken, getCourse);
+router.put(
+  "/:id",
+  authenticateToken,
+  checkRole(["teacher", "admin"]),
+  updateCourse
+);
+router.delete(
+  "/:id",
+  authenticateToken,
+  checkRole(["teacher", "admin"]),
+  deleteCourse
+);
+router.post("/enroll", authenticateToken, enrollCourse);
+router.post("/:id/payment", authenticateToken, createPaymentIntent);
+router.post(
+  "/:id/contents",
+  authenticateToken,
+  checkRole(["teacher", "admin"]),
+  addCourseContent
+);
+router.put(
+  "/:id/contents/:contentId",
+  authenticateToken,
+  checkRole(["teacher", "admin"]),
+  updateCourseContent
+);
+router.delete(
+  "/:id/contents/:contentId",
+  authenticateToken,
+  checkRole(["teacher", "admin"]),
+  deleteCourseContent
+);
+router
+  .route("/:courseId/progress")
+  .get(authenticateToken, getProgress)
+  .post(authenticateToken, updateProgress);
+router
+  .route("/:courseId/reviews")
+  .get(authenticateToken, getReviews)
+  .post(authenticateToken, createReview);
 
 module.exports = router;

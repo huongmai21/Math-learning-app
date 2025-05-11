@@ -14,7 +14,7 @@ import Course from './Course.js';
 import Notification from './Notification.js';
 import Follow from './Follow.js';
 import UserActivity from './UserActivity';
-import Bookmark from './Bookmark.js';
+import LibraryItem from './LibraryItem.js';
 
 export {
   User,
@@ -32,5 +32,5 @@ export {
   Notification,
   Follow,
   UserActivity,
-  Bookmark
+  LibraryItem
 };

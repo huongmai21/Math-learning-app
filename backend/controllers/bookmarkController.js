@@ -1,6 +1,6 @@
-const Bookmark = require("../models/Bookmark");
+const LibraryItem = require("../models/LibraryItem");
 
-exports.addBookmark = async (req, res) => {
+exports.addLibraryItem = async (req, res) => {
   try {
     const { referenceId, referenceType } = req.body;
 
@@ -11,7 +11,7 @@ exports.addBookmark = async (req, res) => {
       });
     }
 
-    const bookmark = new Bookmark({
+    const bookmark = new LibraryItem({
       user: req.user.id,
       referenceType,
       referenceId,
@@ -39,9 +39,9 @@ exports.addBookmark = async (req, res) => {
   }
 };
 
-exports.removeBookmark = async (req, res) => {
+exports.removeLibraryItem = async (req, res) => {
   try {
-    const bookmark = await Bookmark.findOneAndDelete({
+    const bookmark = await LibraryItem.findOneAndDelete({
       user: req.user.id,
       referenceId: req.params.id,
       referenceType: "document",
@@ -67,13 +67,13 @@ exports.removeBookmark = async (req, res) => {
   }
 };
 
-exports.getUserBookmarks = async (req, res) => {
+exports.getUserLibraryItems = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 12;
     const skip = (page - 1) * limit;
 
-    const bookmarks = await Bookmark.find({
+    const bookmarks = await LibraryItem.find({
       user: req.user.id,
       referenceType: "document",
     })
@@ -86,22 +86,22 @@ exports.getUserBookmarks = async (req, res) => {
       .skip(skip)
       .limit(limit);
 
-    const total = await Bookmark.countDocuments({
+    const total = await LibraryItem.countDocuments({
       user: req.user.id,
       referenceType: "document",
     });
 
-    const filteredBookmarks = bookmarks.filter(
+    const filteredLibraryItems = bookmarks.filter(
       (bookmark) => bookmark.referenceId
     ); // Loại bỏ bookmark không hợp lệ
 
     res.status(200).json({
       success: true,
-      count: filteredBookmarks.length,
+      count: filteredLibraryItems.length,
       total,
       totalPages: Math.ceil(total / limit),
       currentPage: page,
-      bookmarks: filteredBookmarks,
+      bookmarks: filteredLibraryItems,
     });
   } catch (error) {
     res.status(500).json({
@@ -112,9 +112,9 @@ exports.getUserBookmarks = async (req, res) => {
   }
 };
 
-exports.checkBookmark = async (req, res) => {
+exports.checkLibraryItem = async (req, res) => {
   try {
-    const bookmark = await Bookmark.findOne({
+    const bookmark = await LibraryItem.findOne({
       user: req.user.id,
       referenceId: req.params.id,
       referenceType: "document",
@@ -122,7 +122,7 @@ exports.checkBookmark = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      isBookmarked: !!bookmark,
+      isLibraryItemed: !!bookmark,
     });
   } catch (error) {
     res.status(500).json({

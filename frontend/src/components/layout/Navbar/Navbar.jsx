@@ -1,9 +1,15 @@
-import React, { useState, useEffect, useRef, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { logout } from "../../../redux/authSlice";
+import { logout } from "../../../redux/slices/authSlice";
 import { toast } from "react-toastify";
 import { ThemeContext } from "../../../context/ThemeContext";
+import {
+  getNotifications,
+  deleteNotification,
+} from "../../../services/notificationService";
+import useDropdown from "../../../hooks/useDropdown";
+import "./Navbar.css";
 
 const Navbar = () => {
   const { user, loading } = useSelector((state) => state.auth);
@@ -11,55 +17,87 @@ const Navbar = () => {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useContext(ThemeContext);
 
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isDocumentsOpen, setIsDocumentsOpen] = useState(false);
-  const [isNewsOpen, setIsNewsOpen] = useState(false);
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const profileRef = useRef(null);
-  const documentsRef = useRef(null);
-  const newsRef = useRef(null);
-  const notificationsRef = useRef(null);
+  // Sử dụng custom hook cho dropdown
+  const {
+    isOpen: documentsOpen,
+    toggle: toggleDocuments,
+    ref: documentsRef,
+  } = useDropdown();
+  const { isOpen: newsOpen, toggle: toggleNews, ref: newsRef } = useDropdown();
+  const {
+    isOpen: profileOpen,
+    toggle: toggleProfile,
+    ref: profileRef,
+  } = useDropdown();
+  const {
+    isOpen: notificationsOpen,
+    toggle: toggleNotifications,
+    ref: notificationsRef,
+  } = useDropdown();
+  const {
+    isOpen: settingsOpen,
+    toggle: toggleSettings,
+    ref: settingsRef,
+  } = useDropdown();
 
-  const [notifications, setNotifications] = useState([
-    { id: 1, message: "Bài đăng mới từ bạn bè!", time: "5 phút trước" },
-    { id: 2, message: "Đề thi mới đã có!", time: "1 giờ trước" },
-  ]);
+  // Cấu hình menu
+  const menuItems = [
+    {
+      title: "Tài liệu",
+      isDropdown: true,
+      open: documentsOpen,
+      toggle: toggleDocuments,
+      ref: documentsRef,
+      items: [
+        { to: "/documents/grade1", label: "Cấp 1" },
+        { to: "/documents/grade2", label: "Cấp 2" },
+        { to: "/documents/grade3", label: "Cấp 3" },
+        { to: "/documents/university", label: "Đại học" },
+      ],
+    },
+    {
+      title: "Tin tức",
+      isDropdown: true,
+      open: newsOpen,
+      toggle: toggleNews,
+      ref: newsRef,
+      items: [
+        { to: "/news/education", label: "Thông tin giáo dục" },
+        { to: "/news/magazine", label: "Tạp chí Toán" },
+      ],
+    },
+    { title: "Khóa học", to: "/courses", isDropdown: false },
+    ...(user
+      ? [
+          { title: "Thi đấu", to: "/exams", isDropdown: false },
+          { title: "Góc học tập", to: "/study-corner", isDropdown: false },
+          { title: "Phòng học nhóm", to: "/study-room", isDropdown: false },
+        ]
+      : []),
+  ];
 
-  const handleDeleteNotification = (id) => {
-    setNotifications(notifications.filter((notif) => notif.id !== id));
-  };
-
+  // Lấy thông báo
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (profileRef.current && !profileRef.current.contains(event.target)) {
-        setIsProfileOpen(false);
-      }
-      if (
-        documentsRef.current &&
-        !documentsRef.current.contains(event.target)
-      ) {
-        setIsDocumentsOpen(false);
-      }
-      if (newsRef.current && !newsRef.current.contains(event.target)) {
-        setIsNewsOpen(false);
-      }
-      if (
-        notificationsRef.current &&
-        !notificationsRef.current.contains(event.target)
-      ) {
-        setIsNotificationsOpen(false);
+    const loadNotifications = async () => {
+      const token = localStorage.getItem("token");
+      if (user && token) {
+        // Chỉ gọi API nếu có user và token
+        try {
+          const response = await getNotifications(user._id);
+          setNotifications(response.data || []);
+        } catch (error) {
+          console.error("Error loading notifications:", error);
+          toast.error("Không thể tải thông báo", { position: "top-right" });
+        }
       }
     };
+    loadNotifications();
+  }, [user]);
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
+  // Xử lý đăng xuất
   const handleLogout = () => {
     dispatch(logout());
     toast.success("Đăng xuất thành công!", {
@@ -69,6 +107,18 @@ const Navbar = () => {
     navigate("/auth/login");
   };
 
+  // Xử lý xóa thông báo
+  const handleDeleteNotification = async (id) => {
+    try {
+      await deleteNotification(id);
+      setNotifications(notifications.filter((notif) => notif._id !== id));
+      toast.success("Xóa thông báo thành công!", { position: "top-right" });
+    } catch (error) {
+      toast.error("Không thể xóa thông báo", { position: "top-right" });
+    }
+  };
+
+  // Toggle menu di động
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
@@ -77,241 +127,180 @@ const Navbar = () => {
     "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746717237/default-avatar_ysrrdy.png";
 
   return (
-    <header className="fixed top-0 left-0 w-full bg-[#2c3e50] text-white h-16 flex items-center justify-between px-4 z-50">
-      <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-        rel="stylesheet"
-      />
-      <div className="flex items-center">
-        <Link
-          to="/"
-          className="text-2xl font-bold bg-gradient-to-r from-[#ffcccb] to-[#ff6f61] bg-clip-text text-transparent"
+    <header className="header" aria-label="Thanh điều hướng chính">
+      <div className="navbar-container">
+        <Link to="/" className="logo" aria-label="FunMath - Trang chủ" onClick={() => console.log("Navigating to Home")} //Debug
         >
-          <i className="fa-solid fa-bahai mr-2"></i>FunMath
+          <i className="fa-solid fa-bahai"></i> FunMath
         </Link>
-        <button className="md:hidden text-2xl ml-4" onClick={toggleMobileMenu}>
+        <button
+          className="hamburger"
+          onClick={toggleMobileMenu}
+          aria-label={isMobileMenuOpen ? "Đóng menu" : "Mở menu"}
+          aria-expanded={isMobileMenuOpen}
+        >
           {isMobileMenuOpen ? "✖" : "☰"}
         </button>
+        <nav
+          className={`navbar ${isMobileMenuOpen ? "active" : ""}`}
+          aria-label="Menu điều hướng"
+        >
+          {menuItems.map((item, index) =>
+            item.isDropdown ? (
+              <div
+                key={index}
+                className={`dropdown menu-item ${item.open ? "active" : ""}`}
+                ref={item.ref}
+                onClick={item.toggle}
+                aria-haspopup="true"
+                aria-expanded={item.open}
+              >
+                <span className="dropdown-title">{item.title}</span>
+                <span className="left-icon"></span>
+                <span className="right-icon"></span>
+                {item.open && (
+                  <div className="items" role="menu">
+                    {item.items.map((subItem, subIndex) => (
+                      <Link
+                        key={subIndex}
+                        to={subItem.to}
+                        style={{ "--i": subIndex + 1 }}
+                        role="menuitem"
+                      >
+                        {subItem.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link key={index} to={item.to} className="menu-item">
+                {item.title}
+              </Link>
+            )
+          )}
+        </nav>
       </div>
-
-      <nav
-        className={`md:flex items-center gap-2 ${
-          isMobileMenuOpen
-            ? "flex flex-col absolute top-16 left-0 w-full bg-[#2c3e50] p-4"
-            : "hidden md:flex"
-        }`}
-      >
-        <div
-          className="relative group"
-          ref={documentsRef}
-          onClick={() => setIsDocumentsOpen(!isDocumentsOpen)}
-        >
-          <span className="flex items-center px-3 py-2 rounded-full hover:bg-[#ff6f61] cursor-pointer font-semibold">
-            Tài liệu
-            <i
-              className={`ml-2 fa-solid fa-chevron-${
-                isDocumentsOpen ? "up" : "down"
-              }`}
-            ></i>
-          </span>
-          {isDocumentsOpen && (
-            <div className="absolute top-full left-0 mt-2 w-40 bg-[#2c3e50] rounded-md shadow-lg">
-              <Link
-                to="/documents/grade1"
-                className="block px-4 py-2 hover:bg-[#ff6f61]"
-              >
-                Cấp 1
-              </Link>
-              <Link
-                to="/documents/grade2"
-                className="block px-4 py-2 hover:bg-[#ff6f61]"
-              >
-                Cấp 2
-              </Link>
-              <Link
-                to="/documents/grade3"
-                className="block px-4 py-2 hover:bg-[#ff6f61]"
-              >
-                Cấp 3
-              </Link>
-              <Link
-                to="/documents/university"
-                className="block px-4 py-2 hover:bg-[#ff6f61]"
-              >
-                Đại học
-              </Link>
-            </div>
-          )}
-        </div>
-        <div
-          className="relative group"
-          ref={newsRef}
-          onClick={() => setIsNewsOpen(!isNewsOpen)}
-        >
-          <span className="flex items-center px-3 py-2 rounded-full hover:bg-[#ff6f61] cursor-pointer font-semibold">
-            Tin tức
-            <i
-              className={`ml-2 fa-solid fa-chevron-${
-                isNewsOpen ? "up" : "down"
-              }`}
-            ></i>
-          </span>
-          {isNewsOpen && (
-            <div className="absolute top-full left-0 mt-2 w-40 bg-[#2c3e50] rounded-md shadow-lg">
-              <Link
-                to="/news/education"
-                className="block px-4 py-2 hover:bg-[#ff6f61]"
-              >
-                Thông tin giáo dục
-              </Link>
-              <Link
-                to="/news/magazine"
-                className="block px-4 py-2 hover:bg-[#ff6f61]"
-              >
-                Tạp chí Toán
-              </Link>
-            </div>
-          )}
-        </div>
-        <Link
-          to="/courses"
-          className="px-3 py-2 rounded-full hover:bg-[#ff6f61] font-semibold"
-        >
-          Khóa học
-        </Link>
-        {user && (
-          <>
-            <Link
-              to="/exams"
-              className="px-3 py-2 rounded-full hover:bg-[#ff6f61] font-semibold"
-            >
-              Thi đấu
-            </Link>
-            <Link
-              to="/study-corner"
-              className="px-3 py-2 rounded-full hover:bg-[#ff6f61] font-semibold"
-            >
-              Góc học tập
-            </Link>
-            <Link
-              to="/study-room"
-              className="px-3 py-2 rounded-full hover:bg-[#ff6f61] font-semibold"
-            >
-              Phòng học nhóm
-            </Link>
-          </>
-        )}
-      </nav>
-
       {loading ? (
-        <div className="text-[#ff6f61]">Đang tải...</div>
+        <div className="loading">Đang tải...</div>
       ) : user ? (
-        <div className="flex items-center gap-4">
-          <div className="relative group" ref={profileRef}>
-            <div
-              className="flex items-center gap-2 cursor-pointer"
-              onClick={() => setIsProfileOpen(!isProfileOpen)}
-            >
+        <div className="user-actions">
+          <div
+            className="user-info"
+            ref={profileRef}
+            onClick={toggleProfile}
+            onMouseEnter={() => setTimeout(toggleProfile, 100)}
+            onMouseLeave={() => setTimeout(toggleProfile, 100)}
+            aria-haspopup="true"
+            aria-expanded={profileOpen}
+          >
+            <div className="avatar">
               <img
                 src={user.avatar || defaultAvatar}
-                alt="Avatar"
-                className="w-10 h-10 rounded-full border-2 border-[#ff6f61] object-cover"
+                alt={`Avatar của ${user.username}`}
+                loading="lazy"
                 onError={(e) => (e.target.src = defaultAvatar)}
               />
-              <span className="bg-gradient-to-r from-[#ff6f61] to-[#ff9a8b] bg-clip-text text-transparent font-semibold">
-                {user.username}
-              </span>
             </div>
-            {isProfileOpen && (
-              <div className="absolute top-full right-0 mt-2 w-40 bg-[#2c3e50] rounded-md shadow-lg">
+            <span className="profile-username">{user.username}</span>
+            {profileOpen &&  (
+              <div className="profile-dropdown" role="menu">
                 <Link
                   to="/users/profile"
-                  className="block px-4 py-2 hover:bg-[#ff6f61]"
+                  className="dropdown-item"
+                  role="menuitem"
                 >
                   Hồ sơ
                 </Link>
                 {(user?.role === "student" || user?.role === "teacher") && (
                   <Link
                     to="/courses/my-courses"
-                    className="block px-4 py-2 hover:bg-[#ff6f61]"
+                    className="dropdown-item"
+                    role="menuitem"
                   >
                     Khóa học của tôi
                   </Link>
                 )}
                 {user?.role === "admin" && (
-                  <Link
-                    to="/admin"
-                    className="block px-4 py-2 hover:bg-[#ff6f61]"
-                  >
+                  <Link to="/admin" className="dropdown-item" role="menuitem">
                     Quản lý hệ thống
                   </Link>
                 )}
                 <button
                   onClick={handleLogout}
-                  className="block w-full text-left px-4 py-2 hover:bg-[#ff6f61]"
+                  className="dropdown-item logout"
+                  role="menuitem"
                 >
                   Đăng xuất
                 </button>
               </div>
             )}
           </div>
-          <div className="relative" ref={notificationsRef}>
-            <div
-              className="cursor-pointer"
-              onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-            >
-              <i className="fa-solid fa-bell text-lg"></i>
-              {notifications.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-[#ff6f61] text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
-                  {notifications.length}
-                </span>
-              )}
-            </div>
-            {isNotificationsOpen && (
-              <div className="absolute top-full right-0 mt-2 w-64 bg-[#2c3e50] rounded-md shadow-lg">
+          <div
+            className="notification-container"
+            ref={notificationsRef}
+            onClick={toggleNotifications}
+            aria-label="Thông báo"
+            aria-expanded={notificationsOpen}
+          >
+            <i className="fa-solid fa-bell notification-icon"></i>
+            {notifications.length > 0 && (
+              <span className="notification-count">{notifications.length}</span>
+            )}
+            {notificationsOpen && (
+              <div className="notification-dropdown" role="menu">
                 {notifications.length > 0 ? (
                   notifications.map((notif) => (
                     <div
-                      key={notif.id}
-                      className="flex justify-between items-center px-4 py-2 border-b border-gray-600"
+                      key={notif._id}
+                      className="notification-item"
+                      role="menuitem"
                     >
-                      <div>
-                        <p>{notif.message}</p>
-                        <p className="text-xs text-gray-400">{notif.time}</p>
-                      </div>
+                      <span>{notif.message}</span>
+                      <span className="notification-time">
+                        {new Date(notif.createdAt).toLocaleTimeString("vi-VN")}
+                      </span>
                       <button
-                        onClick={() => handleDeleteNotification(notif.id)}
-                        className="text-[#ff6f61]"
+                        className="delete-notification"
+                        onClick={() => handleDeleteNotification(notif._id)}
+                        aria-label={`Xóa thông báo: ${notif.message}`}
                       >
                         ✕
                       </button>
                     </div>
                   ))
                 ) : (
-                  <div className="px-4 py-2">Không có thông báo</div>
+                  <div className="notification-item">Không có thông báo</div>
                 )}
               </div>
             )}
           </div>
-          <div className="relative">
+          <div className="settings-container" ref={settingsRef}>
             <i
-              className="fa-solid fa-gear text-lg cursor-pointer"
-              onClick={() => setIsSettingsOpen(true)}
+              className="fa-solid fa-gear settings-icon"
+              onClick={toggleSettings}
+              aria-label="Mở cài đặt"
+              aria-expanded={settingsOpen}
             ></i>
-            {isSettingsOpen && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div className="bg-[#f5f5f5] text-[#2c3e50] p-6 rounded-md w-80">
-                  <h3 className="text-lg font-semibold mb-4">Cài đặt</h3>
-                  <div className="flex justify-between items-center mb-4">
-                    <label>Thông báo</label>
-                    <input type="checkbox" defaultChecked className="h-5 w-5" />
+            {settingsOpen && (
+              <div
+                className="settings-modal"
+                role="dialog"
+                aria-labelledby="settings-title"
+              >
+                <div className="settings-content">
+                  <h3 id="settings-title">Cài đặt</h3>
+                  <div className="settings-option">
+                    <label htmlFor="notifications-toggle">Thông báo</label>
+                    <input
+                      id="notifications-toggle"
+                      type="checkbox"
+                      defaultChecked
+                    />
                   </div>
-                  <div className="flex justify-between items-center mb-4">
+                  <div className="settings-option">
                     <label>Chế độ hiển thị</label>
-                    <button
-                      onClick={toggleTheme}
-                      className="flex items-center gap-2 px-3 py-1 border border-gray-300 rounded-md"
-                    >
+                    <button className="theme-toggle" onClick={toggleTheme}>
                       <i
                         className={
                           theme === "light"
@@ -323,8 +312,9 @@ const Navbar = () => {
                     </button>
                   </div>
                   <button
-                    onClick={() => setIsSettingsOpen(false)}
-                    className="w-full bg-[#ff6f61] text-white py-2 rounded-md"
+                    className="close-settings"
+                    onClick={toggleSettings}
+                    aria-label="Đóng cài đặt"
                   >
                     Đóng
                   </button>
@@ -334,17 +324,11 @@ const Navbar = () => {
           </div>
         </div>
       ) : (
-        <div className="flex gap-2">
-          <Link
-            to="/auth/login"
-            className="px-3 py-2 border border-[#ff6f61] rounded-md hover:bg-[#ff6f61] hover:text-white"
-          >
+        <div className="auth-links">
+          <Link to="/auth/login" className="auth-link" aria-label="Đăng nhập">
             Đăng nhập
           </Link>
-          <Link
-            to="/auth/register"
-            className="px-3 py-2 border border-[#ff6f61] rounded-md hover:bg-[#ff6f61] hover:text-white"
-          >
+          <Link to="/auth/register" className="auth-link" aria-label="Đăng ký">
             Đăng ký
           </Link>
         </div>

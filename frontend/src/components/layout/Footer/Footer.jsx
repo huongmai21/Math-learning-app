@@ -1,5 +1,7 @@
+// frontend/src/components/layout/Footer.jsx
 import React from "react";
 import { motion } from "framer-motion";
+import "./Footer.css";
 
 const Footer = () => {
   const sectionVariants = {
@@ -9,46 +11,49 @@ const Footer = () => {
 
   return (
     <motion.footer
-      className="bg-[#2c3e50] text-white text-center py-6 mt-10"
+      className="footer"
       initial="hidden"
       whileInView="visible"
       viewport={{ once: true }}
       variants={sectionVariants}
+      aria-label="Website footer"
     >
-      <p className="mb-4">© 2025 FunMath. All rights reserved.</p>
-      <div className="flex justify-center gap-6">
-        <a
-          href="https://www.linkedin.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-2xl hover:text-[#ff6f61]"
-        >
-          <i className="fab fa-linkedin"></i>
-        </a>
-        <a
-          href="https://www.facebook.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-2xl hover:text-[#ff6f61]"
-        >
-          <i className="fab fa-facebook-square"></i>
-        </a>
-        <a
-          href="https://www.instagram.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-2xl hover:text-[#ff6f61]"
-        >
-          <i className="fab fa-instagram"></i>
-        </a>
-        <a
-          href="https://www.twitter.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-2xl hover:text-[#ff6f61]"
-        >
-          <i className="fab fa-twitter"></i>
-        </a>
+      <div className="footer-content">
+        <p>&copy; {new Date().getFullYear()} FunMath. All rights reserved.</p>
+        <div className="social-links">
+          {[
+            {
+              href: "https://www.linkedin.com",
+              icon: "fab fa-linkedin",
+              label: "LinkedIn",
+            },
+            {
+              href: "https://www.facebook.com",
+              icon: "fab fa-facebook-square",
+              label: "Facebook",
+            },
+            {
+              href: "https://www.instagram.com",
+              icon: "fab fa-instagram",
+              label: "Instagram",
+            },
+            {
+              href: "https://www.twitter.com",
+              icon: "fab fa-twitter",
+              label: "Twitter",
+            },
+          ].map(({ href, icon, label }) => (
+            <a
+              key={href}
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Follow us on ${label}`}
+            >
+              <i className={icon}></i>
+            </a>
+          ))}
+        </div>
       </div>
     </motion.footer>
   );

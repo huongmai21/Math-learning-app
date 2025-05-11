@@ -5,8 +5,11 @@ import { toast } from "react-toastify";
 import { io } from "socket.io-client";
 import { Helmet } from "react-helmet";
 import { motion } from "framer-motion";
-import SearchBar from "../../components/common/Search/SearchBar"; // Import SearchBar
-import Footer  from "../../components/layout/Footer/Footer";
+import SearchBar from "../../components/common/SearchBar/SearchBar";
+import Footer from "../../components/layout/Footer/Footer";
+import { getNews } from "../../services/newsServices";
+import { getCourses } from "../../services/courseServices";
+import api from "../../services/api";
 import "./HomePage.css";
 
 const HomePage = () => {
@@ -16,42 +19,69 @@ const HomePage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  // Danh sách slide cho banner
+  const slides = [
+    {
+      title: "Chào mừng đến với FunMath",
+      description: "Học Toán dễ dàng và thú vị hơn bao giờ hết!",
+      buttonText: user ? "Bắt đầu học ngay" : "Đăng nhập để học ngay",
+      onClick: () => navigate(user ? "/courses" : "/auth/login"),
+      image: "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934624/1_bsngjz.png",
+    },
+    {
+      title: "Khám phá khóa học mới",
+      description: "Hàng loạt khóa học Toán học thú vị đang chờ bạn!",
+      buttonText: "Xem khóa học",
+      onClick: () => navigate("/courses"),
+      image: "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png",
+    },
+    {
+      title: "Tham gia thi đấu",
+      description: "Thử thách bản thân với các cuộc thi Toán học!",
+      buttonText: "Thi đấu ngay",
+      onClick: () => navigate("/exam"),
+      image: "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934942/4_fpzzq2.png",
+    },
+  ];
+
+  // Chuyển slide tự động
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slides.length);
+    }, 10000); // Chuyển slide mỗi 5 giây
+    return () => clearInterval(interval);
+  }, [slides.length]);
+
+  // Xử lý nút điều hướng
+  const handlePrevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
+  };
+
+  const handleNextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % slides.length);
+  };
 
   // Kết nối Socket.io
   useEffect(() => {
-    const socket = io("http://localhost:3000");
-
+    const socket = io("http://localhost:5000");
     socket.on("examNotification", (data) => {
-      toast.info(data.message, {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      toast.info(data.message, { position: "top-right", autoClose: 3000 });
     });
-
     socket.on("messageNotification", (data) => {
-      toast.info(data.message, {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      toast.info(data.message, { position: "top-right", autoClose: 3000 });
     });
-
-    return () => {
-      socket.disconnect();
-    };
+    return () => socket.disconnect();
   }, []);
 
   // Lấy thông tin người dùng
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
-      fetch("http://localhost:3000/auth/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then((res) => {
-          if (!res.ok) throw new Error("Invalid token");
-          return res.json();
-        })
-        .then((data) => setUser(data))
+      api
+        .get("/auth/me")
+        .then((response) => setUser(response.data))
         .catch((err) => {
           console.error(err);
           localStorage.removeItem("token");
@@ -61,20 +91,22 @@ const HomePage = () => {
 
   // Lấy dữ liệu tin tức và khóa học
   useEffect(() => {
-    setLoading(true);
-    Promise.all([
-      fetch("http://localhost:3000/news?limit=3").then((res) => res.json()),
-      fetch("http://localhost:3000/courses?limit=3").then((res) => res.json()),
-    ])
-      .then(([newsData, coursesData]) => {
-        setNews(newsData);
-        setCourses(coursesData);
-        setLoading(false);
-      })
-      .catch((err) => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const [newsData, coursesData] = await Promise.all([
+          getNews({ limit: 3 }),
+          getCourses({ limit: 3 }),
+        ]);
+        setNews(newsData.news || newsData.data || []);
+        setCourses(coursesData.data || coursesData || []);
+      } catch (err) {
         setError("Không thể tải dữ liệu");
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+    loadData();
   }, []);
 
   // Hiệu ứng cho các section
@@ -90,7 +122,6 @@ const HomePage = () => {
 
   return (
     <div className="homepage">
-      {/* SEO Meta Tags */}
       <Helmet>
         <title>FunMath - Học Toán Dễ Dàng và Thú Vị</title>
         <meta
@@ -104,26 +135,43 @@ const HomePage = () => {
         <meta name="author" content="FunMath Team" />
       </Helmet>
 
-      {/* Thanh tìm kiếm */}
       <SearchBar />
 
-      {/* Banner */}
+      {/* Banner Carousel */}
       <motion.section
         className="banner"
         initial="hidden"
         animate="visible"
         variants={sectionVariants}
       >
-        <div className="banner-content">
-          <h1>Chào mừng đến với FunMath</h1>
-          <p>Học Toán dễ dàng và thú vị hơn bao giờ hết!</p>
-          <button
-            className="cta-button"
-            onClick={() => navigate(user ? "/courses" : "/auth/login")}
-          >
-            {user ? "Bắt đầu học ngay" : "Đăng nhập để học ngay"}
-          </button>
+        <div className="banner-slides">
+          {slides.map((slide, index) => (
+            <div
+              key={index}
+              className={`banner-slide ${
+                index === currentSlide ? "active" : ""
+              }`}
+              style={{
+                backgroundImage: `linear-gradient(rgba(233, 233, 233, 0.5), rgba(0, 0, 0, 0.5)), url(${slide.image})`,
+              }}
+            >
+              <div className="banner-content">
+                <h1>{slide.title}</h1>
+                <p>{slide.description}</p>
+                <button className="cta-button" onClick={slide.onClick}>
+                  {slide.buttonText}
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
+        {/* Nút điều hướng */}
+        <button className="banner-nav prev" onClick={handlePrevSlide}>
+          <i className="fas fa-chevron-left"></i>
+        </button>
+        <button className="banner-nav next" onClick={handleNextSlide}>
+          <i className="fas fa-chevron-right"></i>
+        </button>
       </motion.section>
 
       {/* Tin tức nổi bật */}
@@ -143,7 +191,7 @@ const HomePage = () => {
           <div className="news-list">
             {news.map((item) => (
               <motion.div
-                key={item.id}
+                key={item._id || item.id}
                 className="news-item"
                 initial={{ opacity: 0, scale: 0.9 }}
                 whileInView={{ opacity: 1, scale: 1 }}
@@ -158,8 +206,8 @@ const HomePage = () => {
                 />
                 <div className="news-content">
                   <h3>{item.title}</h3>
-                  <p>{item.description}</p>
-                  <Link to={`/news/${item.id}`}>Đọc thêm</Link>
+                  <p>{item.summary || item.description}</p>
+                  <Link to={`/news/${item._id || item.id}`}>Đọc thêm</Link>
                 </div>
               </motion.div>
             ))}
@@ -196,7 +244,7 @@ const HomePage = () => {
               transition={{ duration: 0.3, delay: index * 0.1 }}
             >
               <Link to={item.to} className="resource-item">
-                <i className={item.label.includes("Sách") ? "fas fa-book-open" : "fas fa-book"}></i>
+                <i className="fas fa-book"></i>
                 <span>{item.label}</span>
               </Link>
             </motion.div>
@@ -221,7 +269,7 @@ const HomePage = () => {
           <div className="courses-list">
             {courses.map((course) => (
               <motion.div
-                key={course.id}
+                key={course._id || course.id}
                 className="course-item"
                 initial={{ opacity: 0, scale: 0.9 }}
                 whileInView={{ opacity: 1, scale: 1 }}
@@ -237,7 +285,9 @@ const HomePage = () => {
                 <div className="course-content">
                   <h3>{course.title}</h3>
                   <p>{course.description}</p>
-                  <Link to={`/courses/${course.id}`}>Xem khóa học</Link>
+                  <Link to={`/courses/${course._id || course.id}`}>
+                    Xem khóa học
+                  </Link>
                 </div>
               </motion.div>
             ))}
@@ -250,7 +300,7 @@ const HomePage = () => {
         </Link>
       </motion.section>
 
-      {/* Thi đấu và hoạt động */}
+      {/* Thi đấu và học tập */}
       <motion.section
         className="activities-section"
         initial="hidden"
@@ -295,19 +345,6 @@ const HomePage = () => {
                 viewport={{ once: true }}
                 transition={{ duration: 0.3, delay: 0.2 }}
               >
-                {/* <h3>Góc chia sẻ</h3>
-                <p>Thảo luận và chia sẻ kiến thức Toán học.</p>
-                <Link to="/share-corner" className="activity-button">
-                  Tham gia ngay
-                </Link>
-              </motion.div>
-              <motion.div
-                className="activity-item"
-                initial={{ opacity: 0, y: 50 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.3, delay: 0.3 }}
-              > */}
                 <h3>Phòng học nhóm</h3>
                 <p>Cùng học và trao đổi với bạn bè.</p>
                 <Link to="/study-room" className="activity-button">
@@ -324,7 +361,7 @@ const HomePage = () => {
               transition={{ duration: 0.3 }}
             >
               <h3>Tham gia cộng đồng</h3>
-              <p>Đăng nhập để truy cập các góc học tập, chia sẻ và phòng học nhóm.</p>
+              <p>Đăng nhập để truy cập các góc học tập và phòng học nhóm.</p>
               <button
                 onClick={() => navigate("/auth/login")}
                 className="activity-button"
@@ -335,7 +372,8 @@ const HomePage = () => {
           )}
         </div>
       </motion.section>
-      <Footer/>
+
+      <Footer />
     </div>
   );
 };

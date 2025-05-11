@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "main": "src/index.jsx",
   "scripts": {
     "start": "vite",
     "build": "vite build",
@@ -10,13 +11,30 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fortawesome/fontawesome-free": "^6.7.2",
+    "@reduxjs/toolkit": "^2.8.1",
+    "@stripe/react-stripe-js": "^3.7.0",
+    "@stripe/stripe-js": "^7.3.0",
     "axios": "^1.9.0",
+    "chart.js": "^4.4.9",
+    "cloudinary": "^2.6.1",
+    "date-fns": "^4.1.0",
+    "framer-motion": "^12.10.4",
     "react": "^19.1.0",
+    "react-chartjs-2": "^5.3.0",
     "react-dom": "^19.1.0",
-    "react-router-dom": "^7.6.0"
+    "react-google-recaptcha": "^3.1.0",
+    "react-helmet": "^6.1.0",
+    "react-redux": "^9.2.0",
+    "react-router-dom": "^7.6.0",
+    "react-toastify": "^11.0.5",
+    "react-tooltip": "^5.28.1",
+    "redux": "^5.0.1",
+    "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
+    "@tailwindcss/postcss": "^4.1.5",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "@vitejs/plugin-react": "^4.4.1",

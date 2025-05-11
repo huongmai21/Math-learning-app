@@ -1,15 +1,20 @@
-const express = require('express');
+// backend/routes/authRoutes.js
+const express = require("express");
 const router = express.Router();
-const authController = require('../controllers/authController');
-const authenticateToken = require('../middleware/authMiddleware');
-const multer = require('multer');
+const {
+  register,
+  login,
+  getMe,
+  forgotPassword,
+  resetPassword,
+} = require("../controllers/authController");
+const { authenticateToken, logout } = require("../middleware/authMiddleware");
 
-// Cấu hình multer để xử lý file upload
-const upload = multer({ storage: multer.memoryStorage() });
-
-router.post('/register', authController.register);
-router.post('/login', authController.login);
-router.get('/me', authenticateToken, authController.getMe); 
-router.put('/avatar', authenticateToken, upload.single('avatar'), authController.updateAvatar);
+router.post("/register", register);
+router.post("/login", login);
+router.get("/me", authenticateToken, getMe);
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password/:token", resetPassword);
+router.post("/logout", authenticateToken, logout);
 
 module.exports = router;

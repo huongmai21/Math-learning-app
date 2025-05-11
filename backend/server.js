@@ -1,31 +1,52 @@
 const express = require("express");
-const cors = require("cors");
-// const cookieParser = require("cookie-parser");
-const path = require("path");
-const http = require('http');
-// const setupSocket = require('./socket/socket');
 const connectMongoDB = require("./config/mongo");
+const path = require("path");
+const cors = require("cors");
+const rateLimit = require("express-rate-limit");
+const morgan = require("morgan");
+const { Server } = require("socket.io");
+const http = require("http");
+const fileUpload = require("express-fileupload");
+const errorHandler = require("./middleware/error");
 
-// Load env vars
 require("dotenv").config({ path: path.resolve(__dirname, ".env") });
+// MongoDB Connection
+connectMongoDB();
 
-// Create Express app
 const app = express();
-
 const server = http.createServer(app);
-const io = setupSocket(server);
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST"],
+  },
+});
+
+// Rate limiting
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 phút
+  max: 5, // Giới hạn 5 request mỗi IP
+  message: "Quá nhiều yêu cầu đăng nhập, vui lòng thử lại sau 15 phút.",
+});
+
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 giờ
+  max: 3, // Giới hạn 3 request mỗi IP
+  message: "Quá nhiều yêu cầu reset mật khẩu, vui lòng thử lại sau 1 giờ.",
+});
 
 // Middleware
-// app.use(cookieParser());
 app.use(cors());
 app.use(express.json());
-// app.use(express.urlencoded({ extended: true }));
-
-// Serve static files
-app.use(express.static(path.join(__dirname, "..", "frontend", "public")));
+app.use(fileUpload());
+app.use(express.urlencoded({ extended: true }));
+if (process.env.NODE_ENV === "development") {
+  app.use(morgan("dev"));
+}
 
 const authRoutes = require("./routes/authRoutes");
 const usersRoutes = require("./routes/usersRoutes");
+const profileRoutes = require("./routes/profileRoutes");
 const newsRoutes = require("./routes/newsRoutes");
 const examRoutes = require("./routes/examRoutes");
 const documentRoutes = require("./routes/documentRoutes");
@@ -34,23 +55,27 @@ const postRoutes = require("./routes/postRoutes");
 // const studyCornerRoutes = require("./routes/");
 const studyRoomRoutes = require("./routes/studyRoomRoutes");
 const commentRoutes = require("./routes/commentRoutes");
+const Upload = require("./routes/upload");
+const Notifications = require("./routes/notifications");
 
 // Routes
+app.use("/auth/login", loginLimiter);
+app.use("/auth/forgot-password", forgotPasswordLimiter);
 app.use("/auth", authRoutes);
 app.use("/users", usersRoutes);
+app.use("/profile", profileRoutes);
 app.use("/news", newsRoutes);
 app.use("/exams", examRoutes);
 app.use("/documents", documentRoutes);
 app.use("/courses", courseRoutes);
-app.use('/posts', postRoutes);
+app.use("/posts", postRoutes);
 // app.use("/study-corner", studyCornerRoutes);
 app.use("/study-room", studyRoomRoutes);
 app.use("/comments", commentRoutes);
+app.use("/upload", Upload);
+app.use("/notifications", Notifications);
 
-// React Router fallback
-app.get("/*", (req, res) => {
-  res.sendFile(path.join(__dirname, "..", "frontend", "public", "index.html"));
-});
+app.use(errorHandler);
 
 // Cloudinary preset endpoint
 app.get("/cloudinary-upload-preset", (req, res) => {
@@ -69,28 +94,18 @@ app.get("/cloudinary-upload-preset", (req, res) => {
   }
 });
 
-// Log registered routes
-console.log("Registered routes:");
-app._router.stack.forEach((layer) => {
-  if (layer.route) {
-    console.log(`${layer.route.path} => [${Object.keys(layer.route.methods).join(", ")}]`);
-  } else if (layer.name === "router" && layer.handle.stack) {
-    layer.handle.stack.forEach((nested) => {
-      if (nested.route) {
-        console.log(`(nested) ${nested.route.path} => [${Object.keys(nested.route.methods).join(", ")}]`);
-      }
-    });
-  }
+// Socket.io
+global.io = io; // Lưu io vào global để dùng trong controller
+
+io.on("connection", (socket) => {
+  console.log("Client connected:", socket.id);
+  socket.on("join", (userId) => {
+    socket.join(userId); // User joins their own room
+    console.log(`User ${userId} joined room`);
+  });
+  socket.on("disconnect", () => console.log("Client disconnected:", socket.id));
 });
 
-// Kết nối MongoDB và khởi động server
-connectMongoDB();
-
-c// Xử lý lỗi
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Something went wrong!' });
-});
-
+// Start Server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

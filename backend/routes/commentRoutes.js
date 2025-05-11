@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const commentController = require("../controllers/commentController");
-const authenticateToken = require("../middleware/authMiddleware");
+const {authenticateToken} = require("../middleware/authMiddleware");
 
 // Lấy bình luận của 1 tài liệu
 router.get("/:referenceId", commentController.getCommentsByDocument);
