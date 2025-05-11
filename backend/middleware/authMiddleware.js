@@ -27,22 +27,23 @@ const authenticateToken = async (req, res, next) => {
       console.log(`Authenticated user: ${decoded.id}`);
       next();
     } catch (err) {
+      console.error("Token verification error:", {
+        message: err.message,
+        name: err.name,
+        token: req.headers.authorization?.substring(0, 10) + "...",
+      });
       if (err.name === "TokenExpiredError") {
         return next(
           new ErrorResponse("Token đã hết hạn, vui lòng đăng nhập lại!", 401)
         );
       }
-      console.error("Auth middleware error:", {
-        message: err.message,
-        stack: err.stack,
-        token: req.headers.authorization?.substring(0, 10) + "...",
-      });
       return next(new ErrorResponse("Token không hợp lệ!", 401));
     }
   } else {
     return next(new ErrorResponse("Không có token, vui lòng đăng nhập!", 401));
   }
 };
+
 const checkRole = (...roles) => {
   return (req, res, next) => {
     if (!req.user || !roles.includes(req.user.role)) {

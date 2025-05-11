@@ -15,6 +15,8 @@ import Notification from './Notification.js';
 import Follow from './Follow.js';
 import UserActivity from './UserActivity';
 import LibraryItem from './LibraryItem.js';
+import Review from './Review.js';
+import Score from './Score';
 
 export {
   User,
@@ -32,5 +34,7 @@ export {
   Notification,
   Follow,
   UserActivity,
-  LibraryItem
+  LibraryItem,
+  Review,
+  Score
 };

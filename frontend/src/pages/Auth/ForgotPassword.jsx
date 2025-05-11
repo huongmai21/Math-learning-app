@@ -2,7 +2,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import ReCAPTCHA from "react-google-recaptcha";
 import { forgotPassword } from "../../services/authService";
 import "./LogReg.css";
 
@@ -10,7 +9,6 @@ const ForgotPassword = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: "",
-    "g-recaptcha-response": "",
   });
   const [loading, setLoading] = useState(false);
 
@@ -19,22 +17,14 @@ const ForgotPassword = () => {
     setFormData((prevData) => ({ ...prevData, [name]: value }));
   };
 
-  const onCaptchaChange = (value) => {
-    setFormData((prevData) => ({ ...prevData, "g-recaptcha-response": value }));
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData["g-recaptcha-response"]) {
-      toast.error("Vui lòng xác nhận CAPTCHA!");
-      return;
-    }
 
     setLoading(true);
     try {
       await forgotPassword({
         email: formData.email,
-        "g-recaptcha-response": formData["g-recaptcha-response"],
       });
       toast.success("Email reset đã được gửi!");
       navigate("/auth/login");
@@ -79,12 +69,6 @@ const ForgotPassword = () => {
                   onChange={handleChange}
                   required
                   disabled={loading}
-                />
-              </div>
-              <div className="g-recaptcha">
-                <ReCAPTCHA
-                  sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY} // Sửa ở đây
-                  onChange={onCaptchaChange}
                 />
               </div>
               <button type="submit" className="btn" disabled={loading}>

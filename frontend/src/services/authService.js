@@ -58,3 +58,9 @@ export const resetPassword = async (token, { password }) => {
     );
   }
 };
+
+// // Đăng xuất
+// export const logout = () => {
+//   localStorage.removeItem('token');
+//   localStorage.removeItem('user');
+// };

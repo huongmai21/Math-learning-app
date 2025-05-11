@@ -1,3 +1,4 @@
+// frontend/src/App.jsx
 import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Provider, useDispatch, useSelector } from "react-redux";
@@ -11,24 +12,32 @@ import Auth from "./pages/Auth/AuthForm";
 import ResetPassword from "./pages/Auth/ResetPassword";
 import ForgotPassword from "./pages/Auth/ForgotPassword";
 import Profile from "./pages/Profile/Profile";
-import Courses from "./pages/Course/Courses";
+import CoursePage from "./pages/Course/CoursePage";
 import CourseDetail from "./pages/Course/CourseDetail";
+import MyCourses from "./pages/Course/MyCourses";
+import EditCourse from "./pages/Course/EditCourse";
+import PaymentPage from "./pages/Course/PaymentPage";
+// import StudyCorner from "./pages/StudyCorner/StudyCorner";
+// import StudyRoom from "./pages/StudyRoom/StudyRoom";
+// import CreateExam from "./pages/Exams/CreateExam";
+// import ExamList from "./pages/Exams/ExamList";
+// import TakeExam from "./pages/Exams/TakeExam";
+// import AdminDashboard from "./pages/Admin/AdminDashboard";
 import { ThemeProvider } from "./context/ThemeContext";
 import ProtectedRoute from "./components/common/ProtectedRoute";
 import { refreshUser } from "./redux/slices/authSlice";
 
 const AppContent = () => {
   const dispatch = useDispatch();
-  const { user, loading } = useSelector((state) => state.auth);
+  const { user, token, loading } = useSelector((state) => state.auth);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
     if (token && !user && !loading) {
       dispatch(refreshUser());
-    } else {
+    } else if (!token) {
       console.log("No token available, skipping refreshUser");
     }
-  }, [dispatch, user, loading]);
+  }, [dispatch, user, token, loading]);
 
   return (
     <>
@@ -46,8 +55,17 @@ const AppContent = () => {
             </ProtectedRoute>
           }
         />
-        <Route path="/courses" element={<Courses />} />
+        <Route path="/courses" element={<CoursePage />} />
         <Route path="/courses/:id" element={<CourseDetail />} />
+        <Route path="/courses/my-courses" element={<MyCourses />} />
+        <Route path="/courses/edit/:id" element={<EditCourse />} />
+        <Route path="/payment/:id" element={<PaymentPage />} />
+        {/* <Route path="/exam" element={<TakeExam />} /> */}
+        {/* <Route path="/exam" element={<CreateExam />} /> */}
+        {/* <Route path="/exam" element={<ExamList />} /> */}
+        {/* <Route path="/study-corner" element={<StudyCorner />} /> */}
+        {/* <Route path="/study-room" element={<StudyRoom />} /> */}
+        {/* <Route path="/admin" element={<AdminDashboard />} /> */}
       </Routes>
       <ToastContainer />
     </>

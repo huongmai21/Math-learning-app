@@ -57,3 +57,4 @@ frontend/
 
 - date-fns (dùng để format datetime trong Profile.jsx)
 - react-chartjs-2 chart.js vẽ biểu đồ
+- Thêm Redux Persist để giữ state khi tải lại.: npm install redux-persist

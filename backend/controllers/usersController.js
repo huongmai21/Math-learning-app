@@ -1,11 +1,14 @@
 const User = require("../models/User");
 const UserActivity = require("../models/UserActivity");
+const Follow = require("../models/Follow");
 const asyncHandler = require("../middleware/asyncHandler");
 const ErrorResponse = require("../utils/errorResponse");
 const cloudinary = require("../config/cloudinary");
 
 exports.getProfile = asyncHandler(async (req, res, next) => {
-  const user = await User.findById(req.user.id).populate("followers following");
+  const user = await User.findById(req.user.id)
+    .populate("enrolledCourses completedCourses")
+    .select("-password");
   if (!user) {
     return next(new ErrorResponse("Người dùng không tồn tại", 404));
   }
@@ -53,11 +56,10 @@ exports.updateProfile = asyncHandler(async (req, res, next) => {
   }
 
   let avatarUrl = user.avatar;
-  if (req.files && req.files.avatar) {
+  if (req.file) {
     try {
-      const file = req.files.avatar[0];
-      const result = await cloudinary.uploader.upload(file.path, {
-        folder: "avatars",
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        folder: "avatar",
         transformation: [
           {
             width: 100,
@@ -84,6 +86,32 @@ exports.updateProfile = asyncHandler(async (req, res, next) => {
   res.status(200).json({ success: true, data: user });
 });
 
+exports.changePassword = asyncHandler(async (req, res, next) => {
+  const { currentPassword, newPassword, confirmPassword } = req.body;
+  const user = await User.findById(req.user.id).select("+password");
+
+  if (!user) {
+    return next(new ErrorResponse("Người dùng không tồn tại", 404));
+  }
+
+  // Kiểm tra mật khẩu hiện tại
+  const isMatch = await user.matchPassword(currentPassword);
+  if (!isMatch) {
+    return next(new ErrorResponse("Mật khẩu hiện tại không đúng", 400));
+  }
+
+  // Kiểm tra mật khẩu mới và xác nhận
+  if (newPassword !== confirmPassword) {
+    return next(new ErrorResponse("Mật khẩu mới và xác nhận không khớp", 400));
+  }
+
+  // Cập nhật mật khẩu
+  user.password = newPassword;
+  await user.save();
+
+  res.status(200).json({ success: true, message: "Đổi mật khẩu thành công" });
+});
+
 exports.followUser = asyncHandler(async (req, res, next) => {
   const userToFollow = await User.findById(req.params.id);
   const currentUser = await User.findById(req.user.id);
@@ -91,25 +119,32 @@ exports.followUser = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse("Người dùng không tồn tại", 404));
   }
 
-  if (!currentUser.following.includes(userToFollow._id)) {
-    currentUser.following.push(userToFollow._id);
-    userToFollow.followers.push(currentUser._id);
-    await currentUser.save();
-    await userToFollow.save();
-
-    await UserActivity.findOneAndUpdate(
-      {
-        userId: currentUser._id,
-        date: new Date().toISOString().split("T")[0],
-        type: "follow",
-      },
-      {
-        $set: { description: `Followed ${userToFollow.username}` },
-        $inc: { count: 1 },
-      },
-      { upsert: true, new: true }
-    );
+  const existingFollow = await Follow.findOne({
+    followerId: currentUser._id,
+    followingId: userToFollow._id,
+  });
+  if (existingFollow) {
+    return next(new ErrorResponse("Bạn đã theo dõi người dùng này", 400));
   }
+
+  await Follow.create({
+    followerId: currentUser._id,
+    followingId: userToFollow._id,
+  });
+
+  await UserActivity.findOneAndUpdate(
+    {
+      userId: currentUser._id,
+      date: new Date().toISOString().split("T")[0],
+      type: "follow",
+    },
+    {
+      $set: { description: `Followed ${userToFollow.username}` },
+      $inc: { count: 1 },
+    },
+    { upsert: true, new: true }
+  );
+
   res.json({ message: "Followed successfully" });
 });
 
@@ -120,36 +155,49 @@ exports.unfollowUser = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse("Người dùng không tồn tại", 404));
   }
 
-  currentUser.following = currentUser.following.filter(
-    (id) => id.toString() !== userToUnfollow._id.toString()
-  );
-  userToUnfollow.followers = userToUnfollow.followers.filter(
-    (id) => id.toString() !== currentUser._id.toString()
-  );
-  await currentUser.save();
-  await userToUnfollow.save();
+  await Follow.deleteOne({
+    followerId: currentUser._id,
+    followingId: userToUnfollow._id,
+  });
+
   res.json({ message: "Unfollowed successfully" });
 });
 
 exports.getFollowers = asyncHandler(async (req, res, next) => {
-  const user = await User.findById(req.user.id).populate(
-    "followers",
+  const followers = await Follow.find({ followingId: req.user.id }).populate(
+    "followerId",
     "username avatar bio"
   );
-  res.json(user.followers);
+  res.json(followers.map((f) => f.followerId));
 });
 
 exports.getFollowing = asyncHandler(async (req, res, next) => {
-  const user = await User.findById(req.user.id).populate(
-    "following",
+  const following = await Follow.find({ followerId: req.user.id }).populate(
+    "followingId",
     "username avatar bio"
   );
-  res.json(user.following);
+  res.json(following.map((f) => f.followingId));
 });
 
 exports.getUserSuggestions = asyncHandler(async (req, res, next) => {
-  const users = await User.find({ _id: { $ne: req.user.id } })
+  const following = await Follow.find({ followerId: req.user.id }).select(
+    "followingId"
+  );
+  const followingIds = following.map((f) => f.followingId);
+  const users = await User.find({
+    _id: { $nin: [req.user.id, ...followingIds] },
+  })
     .select("username avatar bio")
     .limit(5);
   res.json({ data: users });
+});
+
+exports.getRecentActivities = asyncHandler(async (req, res, next) => {
+  const { limit = 5 } = req.query;
+  const activities = await UserActivity.find({ userId: req.user.id })
+    .sort({ date: -1 })
+    .limit(parseInt(limit))
+    .populate("userId", "username");
+
+  res.status(200).json({ success: true, data: activities });
 });

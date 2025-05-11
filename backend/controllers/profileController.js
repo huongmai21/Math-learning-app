@@ -1,9 +1,11 @@
+// backend/controllers/profileController.js
 const asyncHandler = require("../middleware/asyncHandler");
 const ErrorResponse = require("../utils/errorResponse");
 const Score = require("../models/Score");
 const LibraryItem = require("../models/LibraryItem");
 const Post = require("../models/Post");
 const Course = require("../models/Course");
+const Exam = require("../models/Exam"); // Thêm model Exam
 
 exports.getScores = asyncHandler(async (req, res, next) => {
   const scores = await Score.find({ userId: req.user.id })
@@ -85,4 +87,22 @@ exports.createCourse = asyncHandler(async (req, res, next) => {
     instructorId: req.user.id,
   });
   res.status(201).json({ success: true, data: course });
+});
+
+exports.getParticipatedExams = asyncHandler(async (req, res, next) => {
+  if (req.user.role !== "student") {
+    return next(new ErrorResponse("Chỉ học sinh có thể xem đề thi đã tham gia", 403));
+  }
+  const scores = await Score.find({ userId: req.user.id }).populate("examId");
+  const participatedExams = scores
+    .filter((score) => score.examId)
+    .map((score) => ({
+      _id: score.examId._id,
+      title: score.examId.title,
+      subject: score.examId.subject,
+      score: score.score,
+      startTime: score.examId.startTime,
+      endTime: score.examId.endTime,
+    }));
+  res.status(200).json({ success: true, data: participatedExams });
 });

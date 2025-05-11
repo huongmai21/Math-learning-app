@@ -4,7 +4,7 @@ exports.uploadImage = async (req, res) => {
   try {
     const file = req.body.image; // Giả sử gửi base64 hoặc file
     const result = await cloudinary.uploader.upload(file, {
-      folder: "math_learning",
+      folder: "Home",
       resource_type: "image",
     });
     res.json({ url: result.secure_url });

@@ -3,39 +3,80 @@ const ErrorResponse = require("../utils/errorResponse");
 const Course = require("../models/Course");
 const User = require("../models/User");
 const Review = require("../models/Review");
+const Enrollment = require("../models/Enrollment");
 const stripe = require("../config/stripe");
+const Notification = require("../models/Notification");
 
 exports.getCourses = asyncHandler(async (req, res, next) => {
-  const { filter } = req.query;
-  let query = {};
+  const { page = 1, limit = 6, category, instructorId } = req.query;
+  let query = { status: "approved" }; // Chỉ lấy khóa học đã được phê duyệt
 
-  if (filter) {
-    query.instructorId = filter;
+  if (category && category !== "all") {
+    query.category = category;
+  }
+  if (instructorId) {
+    query.instructorId = instructorId;
   }
 
-  const courses = await Course.find(query).populate("instructorId", "username");
-  res.status(200).json({ success: true, data: courses });
+  const courses = await Course.find(query)
+    .populate("instructorId", "username avatar")
+    .skip((page - 1) * limit)
+    .limit(Number(limit));
+
+  const total = await Course.countDocuments(query);
+  res.status(200).json({
+    success: true,
+    data: courses,
+    totalPages: Math.ceil(total / limit),
+    currentPage: Number(page),
+  });
 });
 
 exports.getCourse = asyncHandler(async (req, res, next) => {
-  const course = await Course.findById(req.params.id).populate(
-    "instructorId",
-    "username"
-  );
-  if (!course) {
-    return next(new ErrorResponse("Khóa học không tồn tại", 404));
+  const course = await Course.findById(req.params.id)
+    .populate("instructorId", "username avatar")
+    .populate({
+      path: "contents",
+      select: "title type url isPreview",
+    });
+  if (!course || course.status !== "approved") {
+    return next(
+      new ErrorResponse("Khóa học không tồn tại hoặc chưa được phê duyệt", 404)
+    );
   }
   res.status(200).json({ success: true, data: course });
 });
 
 exports.createCourse = asyncHandler(async (req, res, next) => {
-  const { title, description, price } = req.body;
+  const { title, description, price, thumbnail, category } = req.body;
   const course = await Course.create({
     title,
     description,
     price,
+    thumbnail,
+    category,
     instructorId: req.user._id,
+    status: req.user.role === "admin" ? "approved" : "pending",
   });
+
+  // Thông báo cho admin khi có khóa học mới cần duyệt
+  if (course.status === "pending") {
+    const admins = await User.find({ role: "admin" });
+    await Notification.insertMany(
+      admins.map((admin) => ({
+        recipient: admin._id,
+        sender: req.user._id,
+        type: "system",
+        title: "Khóa học mới cần duyệt",
+        message: `Khóa học "${title}" đã được tạo và đang chờ duyệt.`,
+        link: `/courses/${course._id}`,
+        relatedModel: "Course",
+        relatedId: course._id,
+        importance: "high",
+      }))
+    );
+  }
+
   res.status(201).json({ success: true, data: course });
 });
 
@@ -44,7 +85,10 @@ exports.updateCourse = asyncHandler(async (req, res, next) => {
   if (!course) {
     return next(new ErrorResponse("Khóa học không tồn tại", 404));
   }
-  if (course.instructorId.toString() !== req.user._id.toString()) {
+  if (
+    course.instructorId.toString() !== req.user._id.toString() &&
+    req.user.role !== "admin"
+  ) {
     return next(
       new ErrorResponse("Không có quyền chỉnh sửa khóa học này", 403)
     );
@@ -57,6 +101,24 @@ exports.updateCourse = asyncHandler(async (req, res, next) => {
       runValidators: true,
     }
   );
+
+  // Gửi thông báo cho học viên đã đăng ký
+  const enrollments = await Enrollment.find({ courseId: updatedCourse._id });
+  if (enrollments.length > 0) {
+    await Notification.insertMany(
+      enrollments.map((enrollment) => ({
+        recipient: enrollment.userId,
+        sender: req.user._id,
+        type: "announcement",
+        title: `Cập nhật khóa học "${updatedCourse.title}"`,
+        message: `Khóa học "${updatedCourse.title}" đã được cập nhật.`,
+        link: `/courses/${updatedCourse._id}`,
+        relatedModel: "Course",
+        relatedId: updatedCourse._id,
+      }))
+    );
+  }
+
   res.status(200).json({ success: true, data: updatedCourse });
 });
 
@@ -65,24 +127,71 @@ exports.deleteCourse = asyncHandler(async (req, res, next) => {
   if (!course) {
     return next(new ErrorResponse("Khóa học không tồn tại", 404));
   }
-  if (course.instructorId.toString() !== req.user._id.toString()) {
+  if (
+    course.instructorId.toString() !== req.user._id.toString() &&
+    req.user.role !== "admin"
+  ) {
     return next(new ErrorResponse("Không có quyền xóa khóa học này", 403));
   }
+  await Enrollment.deleteMany({ courseId: course._id });
   await course.remove();
+
+  // Thông báo cho học viên
+  const enrollments = await Enrollment.find({ courseId: course._id });
+  if (enrollments.length > 0) {
+    await Notification.insertMany(
+      enrollments.map((enrollment) => ({
+        recipient: enrollment.userId,
+        sender: req.user._id,
+        type: "system",
+        title: `Khóa học "${course.title}" đã bị xóa`,
+        message: `Khóa học "${course.title}" đã bị xóa bởi giảng viên hoặc admin.`,
+        importance: "high",
+      }))
+    );
+  }
+
   res.status(200).json({ success: true, data: {} });
 });
 
 exports.enrollCourse = asyncHandler(async (req, res, next) => {
   const { courseId } = req.body;
   const course = await Course.findById(courseId);
-  if (!course) {
-    return next(new ErrorResponse("Khóa học không tồn tại", 404));
+  if (!course || course.status !== "approved") {
+    return next(
+      new ErrorResponse("Khóa học không tồn tại hoặc chưa được phê duyệt", 404)
+    );
   }
-  if (course.students.includes(req.user._id)) {
+
+  const existingEnrollment = await Enrollment.findOne({
+    userId: req.user._id,
+    courseId,
+  });
+  if (existingEnrollment) {
     return next(new ErrorResponse("Bạn đã đăng ký khóa học này", 400));
   }
-  course.students.push(req.user._id);
-  await course.save();
+
+  await Enrollment.create({
+    userId: req.user._id,
+    courseId,
+  });
+
+  await User.findByIdAndUpdate(req.user._id, {
+    $addToSet: { enrolledCourses: courseId },
+  });
+
+  // Gửi thông báo cho người dùng
+  await Notification.create({
+    recipient: req.user._id,
+    sender: course.instructorId,
+    type: "system",
+    title: "Đăng ký khóa học thành công",
+    message: `Bạn đã đăng ký thành công khóa học "${course.title}".`,
+    link: `/courses/${course._id}`,
+    relatedModel: "Course",
+    relatedId: course._id,
+  });
+
   res
     .status(200)
     .json({ success: true, data: { message: "Đăng ký thành công" } });
@@ -91,8 +200,10 @@ exports.enrollCourse = asyncHandler(async (req, res, next) => {
 exports.createPaymentIntent = asyncHandler(async (req, res, next) => {
   const { amount } = req.body;
   const course = await Course.findById(req.params.id);
-  if (!course) {
-    return next(new ErrorResponse("Khóa học không tồn tại", 404));
+  if (!course || course.status !== "approved") {
+    return next(
+      new ErrorResponse("Khóa học không tồn tại hoặc chưa được phê duyệt", 404)
+    );
   }
   if (course.price !== amount) {
     return next(new ErrorResponse("Số tiền không khớp", 400));
@@ -115,11 +226,32 @@ exports.addCourseContent = asyncHandler(async (req, res, next) => {
   if (!course) {
     return next(new ErrorResponse("Khóa học không tồn tại", 404));
   }
-  if (course.instructorId.toString() !== req.user._id.toString()) {
+  if (
+    course.instructorId.toString() !== req.user._id.toString() &&
+    req.user.role !== "admin"
+  ) {
     return next(new ErrorResponse("Không có quyền thêm nội dung", 403));
   }
   course.contents.push({ title, type, url, isPreview });
   await course.save();
+
+  // Gửi thông báo cho học viên đã đăng ký
+  const enrollments = await Enrollment.find({ courseId: course._id });
+  if (enrollments.length > 0) {
+    await Notification.insertMany(
+      enrollments.map((enrollment) => ({
+        recipient: enrollment.userId,
+        sender: req.user._id,
+        type: "announcement",
+        title: `Nội dung mới trong "${course.title}"`,
+        message: `Khóa học "${course.title}" có nội dung mới: "${title}".`,
+        link: `/courses/${course._id}`,
+        relatedModel: "Course",
+        relatedId: course._id,
+      }))
+    );
+  }
+
   res.status(201).json({ success: true, data: course });
 });
 
@@ -129,7 +261,10 @@ exports.updateCourseContent = asyncHandler(async (req, res, next) => {
   if (!course) {
     return next(new ErrorResponse("Khóa học không tồn tại", 404));
   }
-  if (course.instructorId.toString() !== req.user._id.toString()) {
+  if (
+    course.instructorId.toString() !== req.user._id.toString() &&
+    req.user.role !== "admin"
+  ) {
     return next(new ErrorResponse("Không có quyền chỉnh sửa nội dung", 403));
   }
   const content = course.contents.id(req.params.contentId);
@@ -149,7 +284,10 @@ exports.deleteCourseContent = asyncHandler(async (req, res, next) => {
   if (!course) {
     return next(new ErrorResponse("Khóa học không tồn tại", 404));
   }
-  if (course.instructorId.toString() !== req.user._id.toString()) {
+  if (
+    course.instructorId.toString() !== req.user._id.toString() &&
+    req.user.role !== "admin"
+  ) {
     return next(new ErrorResponse("Không có quyền xóa nội dung", 403));
   }
   const content = course.contents.id(req.params.contentId);
@@ -164,16 +302,25 @@ exports.deleteCourseContent = asyncHandler(async (req, res, next) => {
 exports.updateProgress = asyncHandler(async (req, res, next) => {
   const { contentId, completed } = req.body;
   const course = await Course.findById(req.params.courseId);
-  if (!course) {
-    return next(new ErrorResponse("Khóa học không tồn tại", 404));
+  if (!course || course.status !== "approved") {
+    return next(
+      new ErrorResponse("Khóa học không tồn tại hoặc chưa được phê duyệt", 404)
+    );
   }
-  if (!course.students.includes(req.user._id)) {
+
+  const enrollment = await Enrollment.findOne({
+    userId: req.user._id,
+    courseId: req.params.courseId,
+  });
+  if (!enrollment) {
     return next(new ErrorResponse("Bạn chưa đăng ký khóa học này", 403));
   }
+
   const content = course.contents.id(contentId);
   if (!content) {
     return next(new ErrorResponse("Nội dung không tồn tại", 404));
   }
+
   let user = await User.findById(req.user._id);
   let progress = user.progress.find(
     (p) => p.courseId.toString() === req.params.courseId
@@ -190,6 +337,27 @@ exports.updateProgress = asyncHandler(async (req, res, next) => {
     );
   }
   await user.save();
+
+  // Gửi thông báo khi hoàn thành khóa học
+  if (
+    progress.completedContents.length === course.contents.length &&
+    !user.completedCourses.includes(req.params.courseId)
+  ) {
+    user.completedCourses.push(req.params.courseId);
+    await user.save();
+    await Notification.create({
+      recipient: req.user._id,
+      sender: course.instructorId,
+      type: "system",
+      title: "Hoàn thành khóa học",
+      message: `Chúc mừng! Bạn đã hoàn thành khóa học "${course.title}".`,
+      link: `/courses/${course._id}`,
+      relatedModel: "Course",
+      relatedId: course._id,
+      importance: "high",
+    });
+  }
+
   res.status(200).json({ success: true, data: progress });
 });
 
@@ -199,25 +367,31 @@ exports.getProgress = asyncHandler(async (req, res, next) => {
     (p) => p.courseId.toString() === req.params.courseId
   );
   if (!progress) {
-    return res
-      .status(200)
-      .json({
-        success: true,
-        data: { courseId: req.params.courseId, completedContents: [] },
-      });
+    return res.status(200).json({
+      success: true,
+      data: { courseId: req.params.courseId, completedContents: [] },
+    });
   }
-  res.status(200).json({ success: true, data: progress });
+  res0res.status(200).json({ success: true, data: progress });
 });
 
 exports.createReview = asyncHandler(async (req, res, next) => {
   const { rating, comment } = req.body;
   const course = await Course.findById(req.params.courseId);
-  if (!course) {
-    return next(new ErrorResponse("Khóa học không tồn tại", 404));
+  if (!course || course.status !== "approved") {
+    return next(
+      new ErrorResponse("Khóa học không tồn tại hoặc chưa được phê duyệt", 404)
+    );
   }
-  if (!course.students.includes(req.user._id)) {
+
+  const enrollment = await Enrollment.findOne({
+    userId: req.user._id,
+    courseId: req.params.courseId,
+  });
+  if (!enrollment) {
     return next(new ErrorResponse("Bạn chưa đăng ký khóa học này", 403));
   }
+
   const existingReview = await Review.findOne({
     courseId: req.params.courseId,
     userId: req.user._id,
@@ -225,19 +399,33 @@ exports.createReview = asyncHandler(async (req, res, next) => {
   if (existingReview) {
     return next(new ErrorResponse("Bạn đã đánh giá khóa học này", 400));
   }
+
   const review = await Review.create({
     courseId: req.params.courseId,
     userId: req.user._id,
     rating,
     comment,
   });
+
+  // Gửi thông báo cho giảng viên
+  await Notification.create({
+    recipient: course.instructorId,
+    sender: req.user._id,
+    type: "system",
+    title: `Đánh giá mới cho "${course.title}"`,
+    message: `Khóa học "${course.title}" nhận được đánh giá mới từ ${req.user.username}.`,
+    link: `/courses/${course._id}`,
+    relatedModel: "Course",
+    relatedId: course._id,
+  });
+
   res.status(201).json({ success: true, data: review });
 });
 
 exports.getReviews = asyncHandler(async (req, res, next) => {
   const reviews = await Review.find({ courseId: req.params.courseId }).populate(
     "userId",
-    "username"
+    "username avatar"
   );
   res.status(200).json({ success: true, data: reviews });
 });

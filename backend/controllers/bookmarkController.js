@@ -1,134 +1,49 @@
-const LibraryItem = require("../models/LibraryItem");
+const asyncHandler = require("../middleware/asyncHandler");
+const ErrorResponse = require("../utils/errorResponse");
+const Bookmark = require("../models/Bookmark");
+const Course = require("../models/Course");
+const Notification = require("../models/Notification");
 
-exports.addLibraryItem = async (req, res) => {
-  try {
-    const { referenceId, referenceType } = req.body;
-
-    if (!["post", "document"].includes(referenceType)) {
-      return res.status(400).json({
-        success: false,
-        message: "Loại tài nguyên không hợp lệ!",
-      });
-    }
-
-    const bookmark = new LibraryItem({
-      user: req.user.id,
-      referenceType,
-      referenceId,
-    });
-
-    await bookmark.save();
-
-    res.status(201).json({
-      success: true,
-      message: "Đã thêm vào danh sách đánh dấu!",
-      bookmark,
-    });
-  } catch (error) {
-    if (error.code === 11000) {
-      return res.status(400).json({
-        success: false,
-        message: "Tài liệu đã được đánh dấu!",
-      });
-    }
-    res.status(500).json({
-      success: false,
-      message: "Không thể thêm đánh dấu!",
-      error: error.message,
-    });
+exports.addBookmark = asyncHandler(async (req, res, next) => {
+  const { courseId } = req.body;
+  const course = await Course.findById(courseId);
+  if (!course) {
+    return next(new ErrorResponse("Khóa học không tồn tại", 404));
   }
-};
-
-exports.removeLibraryItem = async (req, res) => {
-  try {
-    const bookmark = await LibraryItem.findOneAndDelete({
-      user: req.user.id,
-      referenceId: req.params.id,
-      referenceType: "document",
-    });
-
-    if (!bookmark) {
-      return res.status(404).json({
-        success: false,
-        message: "Không tìm thấy đánh dấu!",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Đã xóa đánh dấu!",
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Không thể xóa đánh dấu!",
-      error: error.message,
-    });
+  const existingBookmark = await Bookmark.findOne({
+    userId: req.user._id,
+    courseId,
+  });
+  if (existingBookmark) {
+    return next(new ErrorResponse("Khóa học đã được bookmark", 400));
   }
-};
+  const bookmark = await Bookmark.create({
+    userId: req.user._id,
+    courseId,
+  });
+  await Notification.create({
+    userId: req.user._id,
+    message: `Bạn đã bookmark khóa học "${course.title}".`,
+  });
+  res.status(201).json({ success: true, data: bookmark });
+});
 
-exports.getUserLibraryItems = async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 12;
-    const skip = (page - 1) * limit;
-
-    const bookmarks = await LibraryItem.find({
-      user: req.user.id,
-      referenceType: "document",
-    })
-      .populate({
-        path: "referenceId",
-        select:
-          "title description thumbnail educationLevel documentType downloads views",
-        match: { status: "published" },
-      })
-      .skip(skip)
-      .limit(limit);
-
-    const total = await LibraryItem.countDocuments({
-      user: req.user.id,
-      referenceType: "document",
-    });
-
-    const filteredLibraryItems = bookmarks.filter(
-      (bookmark) => bookmark.referenceId
-    ); // Loại bỏ bookmark không hợp lệ
-
-    res.status(200).json({
-      success: true,
-      count: filteredLibraryItems.length,
-      total,
-      totalPages: Math.ceil(total / limit),
-      currentPage: page,
-      bookmarks: filteredLibraryItems,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Không thể lấy danh sách đánh dấu!",
-      error: error.message,
-    });
+exports.removeBookmark = asyncHandler(async (req, res, next) => {
+  const bookmark = await Bookmark.findOne({
+    userId: req.user._id,
+    courseId: req.params.courseId,
+  });
+  if (!bookmark) {
+    return next(new ErrorResponse("Bookmark không tồn tại", 404));
   }
-};
+  await bookmark.remove();
+  res.status(200).json({ success: true, data: {} });
+});
 
-exports.checkLibraryItem = async (req, res) => {
-  try {
-    const bookmark = await LibraryItem.findOne({
-      user: req.user.id,
-      referenceId: req.params.id,
-      referenceType: "document",
-    });
-
-    res.status(200).json({
-      success: true,
-      isLibraryItemed: !!bookmark,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Không thể kiểm tra đánh dấu!",
-      error: error.message,
-    });
-  }
-};
+exports.getBookmarks = asyncHandler(async (req, res, next) => {
+  const bookmarks = await Bookmark.find({ userId: req.user._id }).populate({
+    path: "courseId",
+    populate: { path: "instructorId", select: "username" },
+  });
+  res.status(200).json({ success: true, data: bookmarks });
+});

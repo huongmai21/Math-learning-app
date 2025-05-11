@@ -18,3 +18,12 @@ export const deleteNotification = async (id) => {
     throw new Error(error.message || "Không thể xóa thông báo");
   }
 };
+
+export const markNotificationRead = async (id) => {
+  try {
+    const response = await api.put(`/notifications/${id}/read`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.message || "Không thể đánh dấu thông báo đã đọc");
+  }
+};

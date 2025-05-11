@@ -1,8 +1,10 @@
+// frontend/src/redux/slices/authSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import {
   login as loginService,
   refreshUser as refreshUserService,
 } from "../../services/authService";
+import { toast } from "react-toastify";
 
 export const login = createAsyncThunk(
   "auth/login",
@@ -21,7 +23,7 @@ export const refreshUser = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await refreshUserService();
-      return response.data; // Trả về dữ liệu user
+      return response.data;
     } catch (error) {
       return rejectWithValue(error.errors || error.message);
     }
@@ -32,6 +34,7 @@ const authSlice = createSlice({
   name: "auth",
   initialState: {
     user: null,
+    token: localStorage.getItem("token") || null,
     loading: false,
     error: null,
   },
@@ -39,13 +42,14 @@ const authSlice = createSlice({
     loginSuccess(state, action) {
       state.user = action.payload.user;
       state.token = action.payload.token;
-      localStorage.setItem("user", JSON.stringify(action.payload));
+      localStorage.setItem("token", action.payload.token);
     },
     logout: (state) => {
       state.user = null;
+      state.token = null;
       state.loading = false;
       state.error = null;
-      localStorage.removeItem("token"); // Xóa token khi đăng xuất
+      localStorage.removeItem("token");
     },
     clearError: (state) => {
       state.error = null;
@@ -59,8 +63,9 @@ const authSlice = createSlice({
       })
       .addCase(login.fulfilled, (state, action) => {
         state.loading = false;
-        state.user = action.payload;
-        localStorage.setItem("user", JSON.stringify(action.payload));
+        state.user = action.payload.user;
+        state.token = action.payload.token;
+        localStorage.setItem("token", action.payload.token);
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
@@ -72,15 +77,20 @@ const authSlice = createSlice({
       })
       .addCase(refreshUser.fulfilled, (state, action) => {
         state.loading = false;
-        state.user = action.payload; // Cập nhật user
-        console.log("Updated user in Redux:", action.payload); // Debug
+        state.user = action.payload;
+        console.log("Updated user in Redux:", action.payload);
       })
       .addCase(refreshUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
-        if (action.payload.includes("Token")) {
+        if (
+          action.payload.includes("Token") ||
+          action.payload.includes("401")
+        ) {
           state.user = null;
+          state.token = null;
           localStorage.removeItem("token");
+          toast.error("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!");
         }
       });
   },

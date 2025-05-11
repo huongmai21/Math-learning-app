@@ -208,8 +208,7 @@ body {
 .notification-dropdown {
   position: absolute;
   top: 100%;
-  /* right: 0; */
-  left: 0;
+  right: 0px;
   width: 150px;
   margin-top: 15px;
   background: var(--dropdown-bg);
@@ -218,7 +217,7 @@ body {
   box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
   z-index: 1000;
   /* display: block; */
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition: opacity 0.2s ease, transform 0.2s ease;
   transform: translateY(-10px);
   opacity: 1;
 }

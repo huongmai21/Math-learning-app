@@ -7,8 +7,8 @@ import { Helmet } from "react-helmet";
 import { motion } from "framer-motion";
 import SearchBar from "../../components/common/SearchBar/SearchBar";
 import Footer from "../../components/layout/Footer/Footer";
-import { getNews } from "../../services/newsServices";
-import { getCourses } from "../../services/courseServices";
+import { getNewsPress } from "../../services/newsServices";
+import { getCoursesPress } from "../../services/courseService";
 import api from "../../services/api";
 import "./HomePage.css";
 
@@ -95,8 +95,8 @@ const HomePage = () => {
       setLoading(true);
       try {
         const [newsData, coursesData] = await Promise.all([
-          getNews({ limit: 3 }),
-          getCourses({ limit: 3 }),
+          getNewsPress({ limit: 3 }),
+          getCoursesPress({ limit: 3 }),
         ]);
         setNews(newsData.news || newsData.data || []);
         setCourses(coursesData.data || coursesData || []);
@@ -199,7 +199,7 @@ const HomePage = () => {
                 transition={{ duration: 0.3 }}
               >
                 <img
-                  src={item.image || "/assets/images/default-news.jpg"}
+                  src={item.image || "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934626/3_q1etwh.png"}
                   alt={item.title}
                   className="news-image"
                   onError={handleImageError}
@@ -277,7 +277,7 @@ const HomePage = () => {
                 transition={{ duration: 0.3 }}
               >
                 <img
-                  src={course.image || "/assets/images/default-course.jpg"}
+                  src={course.image || "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png"}
                   alt={course.title}
                   className="course-image"
                   onError={handleImageError}

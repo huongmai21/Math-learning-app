@@ -1,4 +1,3 @@
-// backend/models/User.js
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -12,6 +11,7 @@ const ProgressSchema = new mongoose.Schema({
   completedContents: [
     {
       type: mongoose.Schema.Types.ObjectId,
+      ref: "Course.contents",
     },
   ],
 });
@@ -22,6 +22,8 @@ const UserSchema = new mongoose.Schema({
     required: [true, "Vui lòng nhập tên người dùng"],
     unique: true,
     trim: true,
+    minlength: [3, "Tên người dùng phải có ít nhất 3 ký tự"],
+    match: [/^[a-zA-Z0-9_]+$/, "Tên người dùng chỉ được chứa chữ, số và dấu gạch dưới"],
   },
   email: {
     type: String,
@@ -46,6 +48,14 @@ const UserSchema = new mongoose.Schema({
   },
   avatar: {
     type: String,
+    default: "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746717237/default-avatar_ysrrdy.png",
+    validate: {
+      validator: function (v) {
+        if (!v) return true;
+        return /^(https?:\/\/|\/)/.test(v);
+      },
+      message: 'Avatar must be a valid URL or relative path'
+    }
   },
   bio: {
     type: String,
@@ -59,6 +69,18 @@ const UserSchema = new mongoose.Schema({
   ],
   followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  enrolledCourses: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Course",
+    },
+  ],
+  completedCourses: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Course",
+    },
+  ],
   progress: [ProgressSchema],
   resetPasswordToken: String,
   resetPasswordExpire: Date,
@@ -68,23 +90,31 @@ const UserSchema = new mongoose.Schema({
   },
 });
 
+// Hash password trước khi lưu
 UserSchema.pre("save", async function (next) {
   if (!this.isModified("password")) {
     return next();
   }
-  const salt = await bcrypt.genSalt(12); // Tăng salt rounds từ 10 lên 12
+  const salt = await bcrypt.genSalt(12);
   this.password = await bcrypt.hash(this.password, salt);
   next();
 });
 
+// Tạo JWT token
 UserSchema.methods.getSignedJwtToken = function () {
   return jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRE,
   });
 };
 
+// Kiểm tra mật khẩu
 UserSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
+
+// Index để tối ưu truy vấn
+UserSchema.index({ email: 1 });
+UserSchema.index({ username: 1 });
+UserSchema.index({ role: 1 });
 
 module.exports = mongoose.model("User", UserSchema);

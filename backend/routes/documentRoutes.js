@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const documentController = require("../controllers/documentController");
-const bookmarkController = require("../controllers/bookmarkController");
+const LibraryItemController = require("../controllers/LibraryItemController");
 const {authenticateToken,checkRole} = require("../middleware/authMiddleware");
 // const checkRole = require("../middleware/roleMiddleware");
 
@@ -43,24 +43,24 @@ router.delete(
   documentController.deleteDocument
 );
 
-router.post("/bookmark", authenticateToken, bookmarkController.addLibraryItem);
+router.post("/bookmark", authenticateToken, LibraryItemController.addLibraryItem);
 
 router.delete(
   "/bookmark/:id",
   authenticateToken,
-  bookmarkController.removeLibraryItem
+  LibraryItemController.removeLibraryItem
 );
 
 router.get(
   "/bookmarks",
   authenticateToken,
-  bookmarkController.getUserLibraryItems
+  LibraryItemController.getUserLibraryItems
 );
 
 router.get(
   "/bookmark/:id",
   authenticateToken,
-  bookmarkController.checkLibraryItem
+  LibraryItemController.checkLibraryItem
 );
 
 module.exports = router;

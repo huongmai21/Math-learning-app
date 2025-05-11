@@ -1,3 +1,4 @@
+// frontend/src/pages/Auth/AuthForm.jsx
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -28,13 +29,12 @@ const AuthForm = () => {
     const pathname = location.pathname;
     setIsLogin(pathname === "/auth/login");
     dispatch(clearError());
-    setErrors({ username: "", email: "", password: "" }); // Reset errors khi chuyển form
+    setErrors({ username: "", email: "", password: "" });
   }, [location.pathname, dispatch]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prevData) => ({ ...prevData, [name]: value }));
-    // Reset lỗi khi người dùng thay đổi input
     setErrors((prevErrors) => ({ ...prevErrors, [name]: "" }));
   };
 
@@ -43,19 +43,18 @@ const AuthForm = () => {
 
     if (isLogin) {
       try {
-        await dispatch(
+        const result = await dispatch(
           login({
             email: formData.email,
             password: formData.password,
           })
         ).unwrap();
-        console.log("Login result:", loginResult);
-        // Đợi token được lưu
-        const token = localStorage.getItem("token");
+        console.log("Login result:", result);
+        const token = localStorage.getItem("token"); // Kiểm tra token đã lưu
         if (token) {
           const refreshedUser = await dispatch(refreshUser()).unwrap();
           if (refreshedUser) {
-            navigate("/", { replace: true });
+            navigate("/users/profile", { replace: true }); // Chuyển ngay tới profile
           } else {
             toast.error(
               "Đăng nhập thất bại (không lấy được thông tin người dùng)"

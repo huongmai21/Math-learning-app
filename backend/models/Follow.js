@@ -1,10 +1,23 @@
-const mongoose = require('mongoose');
-const { Schema } = mongoose; 
+const mongoose = require("mongoose");
 
-const followSchema = new mongoose.Schema({
-    follower: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    following: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    createdAt: { type: Date, default: Date.now },
-  });
+const FollowSchema = new mongoose.Schema({
+  followerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+  followingId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
 
-  module.exports =  mongoose.model('Follow', followSchema);
+// Index để tối ưu truy vấn
+FollowSchema.index({ followerId: 1, followingId: 1 }, { unique: true });
+
+module.exports = mongoose.model("Follow", FollowSchema);

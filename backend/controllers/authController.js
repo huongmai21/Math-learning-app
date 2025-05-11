@@ -132,7 +132,7 @@ exports.login = asyncHandler(async (req, res, next) => {
 
 exports.getMe = asyncHandler(async (req, res, next) => {
   const user = await User.findById(req.user.id);
-  console.log("User fetched in getMe:", user); // Debug
+  console.log("User fetched in getMe:", user); // Debugy
   res.status(200).json({ success: true, data: user });
 });
 

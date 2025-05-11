@@ -1,4 +1,3 @@
-// backend/routes/courseRoutes.js
 const express = require("express");
 const router = express.Router();
 const {
@@ -22,14 +21,14 @@ const {
   checkRole,
 } = require("../middleware/authMiddleware");
 
-router.get("/", authenticateToken, getCourses);
+router.get("/", getCourses);
 router.post(
   "/",
   authenticateToken,
   checkRole(["teacher", "admin"]),
   createCourse
 );
-router.get("/:id", authenticateToken, getCourse);
+router.get("/:id", getCourse);
 router.put(
   "/:id",
   authenticateToken,
@@ -68,7 +67,7 @@ router
   .post(authenticateToken, updateProgress);
 router
   .route("/:courseId/reviews")
-  .get(authenticateToken, getReviews)
+  .get(getReviews)
   .post(authenticateToken, createReview);
 
 module.exports = router;

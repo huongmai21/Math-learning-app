@@ -56,24 +56,30 @@ const postRoutes = require("./routes/postRoutes");
 const studyRoomRoutes = require("./routes/studyRoomRoutes");
 const commentRoutes = require("./routes/commentRoutes");
 const Upload = require("./routes/upload");
-const Notifications = require("./routes/notifications");
+const Notifications = require("./routes/notificationsRoutes");
+const Search = require("./routes/searchRoutes");
+const Bookmark = require("./routes/bookmarkRoutes");
 
 // Routes
 app.use("/auth/login", loginLimiter);
 app.use("/auth/forgot-password", forgotPasswordLimiter);
 app.use("/auth", authRoutes);
 app.use("/users", usersRoutes);
-app.use("/profile", profileRoutes);
-app.use("/news", newsRoutes);
-app.use("/exams", examRoutes);
+app.use("/users/profile", profileRoutes);
 app.use("/documents", documentRoutes);
+app.use("/news", newsRoutes);
 app.use("/courses", courseRoutes);
+app.use("/exams", examRoutes);
 app.use("/posts", postRoutes);
 // app.use("/study-corner", studyCornerRoutes);
 app.use("/study-room", studyRoomRoutes);
+
+app.use("/search", Search);
+app.use("/bookmarks", Bookmark);
 app.use("/comments", commentRoutes);
-app.use("/upload", Upload);
 app.use("/notifications", Notifications);
+app.use("/upload", Upload);
+
 
 app.use(errorHandler);
 

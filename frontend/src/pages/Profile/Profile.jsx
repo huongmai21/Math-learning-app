@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
-import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   LineElement,
@@ -13,9 +12,28 @@ import {
   Legend,
 } from "chart.js";
 import io from "socket.io-client";
+import axios from "axios"; // Thêm axios
 import api from "../../services/api";
-import Sidebar from "../../components/layout/Sidebar";
+import Sidebar from "../../components/layout/Sidebar/Sidebar";
 import { format } from "date-fns";
+import { getNotifications } from "../../services/notificationService";
+import {
+  getScores,
+  getLibraryItems,
+  getPosts,
+  getCourses,
+  getParticipatedExams,
+  addLibraryItem,
+  createPost,
+  createCourse,
+} from "../../services/profileService";
+import OverviewTab from "./OverviewTab";
+import StatsTab from "./StatsTab";
+import LibraryTab from "./LibraryTab";
+import FriendsTab from "./FriendsTab";
+import PostsTab from "./PostsTab";
+import CoursesTab from "./CoursesTab";
+import CreateExamTab from "./CreateExamTab";
 
 ChartJS.register(
   LineElement,
@@ -30,7 +48,7 @@ ChartJS.register(
 const socket = io("http://localhost:5000");
 
 const Profile = () => {
-  const { user, token } = useSelector((state) => state.auth);
+  const { user: reduxUser, token } = useSelector((state) => state.auth);
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedYear, setSelectedYear] = useState(
     new Date().getFullYear().toString()
@@ -45,6 +63,8 @@ const Profile = () => {
   const [posts, setPosts] = useState([]);
   const [courses, setCourses] = useState([]);
   const [myExams, setMyExams] = useState([]);
+  const [participatedExams, setParticipatedExams] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [newExam, setNewExam] = useState({
     title: "",
     description: "",
@@ -57,11 +77,7 @@ const Profile = () => {
     difficulty: "easy",
   });
   const [editingExam, setEditingExam] = useState(null);
-  const [profileData, setProfileData] = useState({
-    username: user?.username || "",
-    email: user?.email || "",
-    avatar: null,
-  });
+  const [profileData, setProfileData] = useState(null);
   const [newLibraryItem, setNewLibraryItem] = useState({
     title: "",
     type: "document",
@@ -77,8 +93,14 @@ const Profile = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (user) {
-      socket.emit("join", user._id);
+    if (token) {
+      fetchData();
+    }
+  }, [selectedYear, token]);
+
+  useEffect(() => {
+    if (profileData) {
+      socket.emit("join", profileData._id);
       socket.on("reminder", (data) => {
         toast.info(
           <div>
@@ -89,105 +111,82 @@ const Profile = () => {
           { autoClose: 10000 }
         );
       });
+      socket.on("newNotification", (notification) => {
+        setNotifications((prev) => [notification, ...prev]);
+      });
     }
     return () => {
       socket.off("reminder");
+      socket.off("newNotification");
     };
-  }, [user]);
+  }, [profileData]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        // Fetch profile
-        const profileRes = await api.get("/users/profile", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setProfileData({
-          username: profileRes.data.username,
-          email: profileRes.data.email,
-          avatar: null,
-        });
-
-        // Fetch activity
-        const activityRes = await api.get(
-          `/users/activity?year=${selectedYear}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        setContributions(activityRes.data.activity);
-
-        // Fetch scores
-        const scoresRes = await api.get("/profile/scores", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setScores(
-          scoresRes.data.data.map((score) => ({
-            date: format(new Date(score.date), "yyyy-MM"),
-            score: score.score,
-            examTitle: score.examId?.title || score.courseId?.title,
-          }))
-        );
-
-        // Fetch library items
-        const libraryRes = await api.get("/profile/library", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setLibraryItems(libraryRes.data.data);
-
-        // Fetch followers and following
-        const followersRes = await api.get("/users/followers", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setFollowers(followersRes.data);
-        const followingRes = await api.get("/users/following", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setFollowing(followingRes.data);
-
-        // Fetch posts
-        const postsRes = await api.get("/profile/posts", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setPosts(postsRes.data.data);
-
-        // Fetch courses
-        const coursesRes = await api.get("/profile/courses", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setCourses(coursesRes.data.data);
-      } catch (err) {
-        setError(err.response?.data?.message || "Không thể tải dữ liệu!");
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (token) fetchData();
-  }, [selectedYear, token]);
-
-  useEffect(() => {
-    if (
-      activeTab === "create-exam" &&
-      (user?.role === "teacher" || user?.role === "admin")
-    ) {
-      const fetchMyExams = async () => {
+    const fetchExams = async () => {
+      if (
+        activeTab === "create-exam" &&
+        (profileData?.role === "teacher" || profileData?.role === "admin")
+      ) {
         try {
-          const response = await api.get(`/exams?author=${user._id}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          const response = await api.get(`/exams?author=${profileData._id}`);
           setMyExams(response.data.exams);
         } catch (err) {
           toast.error(
             "Lỗi khi lấy danh sách đề thi: " +
-              (err.response?.data?.message || "Vui lòng thử lại.")
+              (err.message || "Vui lòng thử lại.")
           );
         }
-      };
-      fetchMyExams();
+      }
+    };
+    if (token) fetchExams();
+  }, [activeTab, profileData, token]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const profileRes = await api.get("/users/profile");
+      setProfileData(profileRes.data);
+
+      const activityRes = await api.get(`/users/activity?year=${selectedYear}`);
+      setContributions(activityRes.data.activity);
+
+      const scoresRes = await getScores();
+      setScores(
+        scoresRes.data.map((score) => ({
+          date: format(new Date(score.date), "yyyy-MM"),
+          score: score.score,
+          examTitle: score.examId?.title || score.courseId?.title,
+        }))
+      );
+
+      if (profileRes.data?.role === "student") {
+        const examsRes = await getParticipatedExams();
+        setParticipatedExams(examsRes.data || []);
+      }
+
+      const notificationsRes = await getNotifications(profileRes.data._id);
+      setNotifications(notificationsRes.data || []);
+
+      const libraryRes = await getLibraryItems();
+      setLibraryItems(libraryRes.data);
+
+      const followersRes = await api.get("/users/followers");
+      setFollowers(followersRes.data);
+      const followingRes = await api.get("/users/following");
+      setFollowing(followingRes.data);
+
+      const postsRes = await getPosts();
+      setPosts(postsRes.data);
+
+      const coursesRes = await getCourses();
+      setCourses(coursesRes.data);
+    } catch (err) {
+      setError(err.message || "Không thể tải dữ liệu!");
+    } finally {
+      setLoading(false);
     }
-  }, [activeTab, user, token]);
+  };
 
   const handleYearChange = (e) => {
     setSelectedYear(e.target.value);
@@ -203,41 +202,54 @@ const Profile = () => {
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
-    const data = new FormData();
-    data.append("username", profileData.username);
-    data.append("email", profileData.email);
-    if (profileData.avatar) {
-      data.append("avatar", profileData.avatar);
-    }
-
     try {
-      const response = await api.put("/users", data, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      let avatarUrl = profileData.avatar;
+
+      // Upload avatar to Cloudinary if a new file is selected
+      if (profileData.avatar && typeof profileData.avatar !== "string") {
+        const formData = new FormData();
+        formData.append("file", profileData.avatar);
+        formData.append("upload_preset", "your_upload_preset"); // Thay bằng upload preset của bạn
+        formData.append("folder", "avatar"); // Lưu vào thư mục avatar/
+
+        const cloudinaryRes = await axios.post(
+          "https://api.cloudinary.com/v1_1/your-cloud-name/image/upload", // Thay your-cloud-name bằng tên cloud của bạn
+          formData
+        );
+        avatarUrl = cloudinaryRes.data.secure_url;
+      }
+
+      // Prepare data to update profile
+      const data = new FormData();
+      data.append("username", profileData.username);
+      data.append("email", profileData.email);
+      data.append("bio", profileData.bio || "");
+      if (avatarUrl) {
+        data.append("avatar", avatarUrl);
+      }
+
+      const response = await api.put("/users", data);
       toast.success("Cập nhật hồ sơ thành công!");
       setProfileData({
-        username: response.data.data.username,
-        email: response.data.data.email,
-        avatar: null,
+        ...response.data.data,
+        avatar: avatarUrl || response.data.data.avatar,
       });
     } catch (err) {
-      toast.error(err.response?.data?.message || "Cập nhật hồ sơ thất bại!");
+      toast.error(err.message || "Cập nhật hồ sơ thất bại!");
     }
   };
 
   const handleAddLibraryItem = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.post("/profile/library", newLibraryItem, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setLibraryItems([...libraryItems, response.data.data]);
+      const response = await addLibraryItem(newLibraryItem);
+      setLibraryItems([...libraryItems, response.data]);
       setNewLibraryItem({ title: "", type: "document", url: "" });
       toast.success("Thêm tài liệu/tin tức thành công!");
     } catch (err) {
       toast.error(
         "Thêm tài liệu/tin tức thất bại: " +
-          (err.response?.data?.message || "Vui lòng thử lại.")
+          (err.message || "Vui lòng thử lại.")
       );
     }
   };
@@ -245,16 +257,13 @@ const Profile = () => {
   const handleCreatePost = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.post("/profile/posts", newPost, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setPosts([...posts, response.data.data]);
+      const response = await createPost(newPost);
+      setPosts([...posts, response.data]);
       setNewPost({ title: "", content: "", type: "post" });
       toast.success("Tạo bài đăng/câu hỏi thành công!");
     } catch (err) {
       toast.error(
-        "Tạo bài đăng/câu hỏi thất bại: " +
-          (err.response?.data?.message || "Vui lòng thử lại.")
+        "Tạo bài đăng/câu hỏi thất bại: " + (err.message || "Vui lòng thử lại.")
       );
     }
   };
@@ -262,16 +271,13 @@ const Profile = () => {
   const handleCreateCourse = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.post("/profile/courses", newCourse, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setCourses([...courses, response.data.data]);
+      const response = await createCourse(newCourse);
+      setCourses([...courses, response.data]);
       setNewCourse({ title: "" });
       toast.success("Tạo khóa học thành công!");
     } catch (err) {
       toast.error(
-        "Tạo khóa học thất bại: " +
-          (err.response?.data?.message || "Vui lòng thử lại.")
+        "Tạo khóa học thất bại: " + (err.message || "Vui lòng thử lại.")
       );
     }
   };
@@ -279,9 +285,7 @@ const Profile = () => {
   const handleCreateExam = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.post("/exams", newExam, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await api.post("/exams", newExam);
       setMyExams([...myExams, response.data.exam]);
       setNewExam({
         title: "",
@@ -297,8 +301,7 @@ const Profile = () => {
       toast.success("Tạo đề thi thành công!");
     } catch (err) {
       toast.error(
-        "Tạo đề thi thất bại: " +
-          (err.response?.data?.message || "Vui lòng thử lại.")
+        "Tạo đề thi thất bại: " + (err.message || "Vui lòng thử lại.")
       );
     }
   };
@@ -306,9 +309,7 @@ const Profile = () => {
   const handleUpdateExam = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.put(`/exams/${editingExam._id}`, newExam, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await api.put(`/exams/${editingExam._id}`, newExam);
       setMyExams(
         myExams.map((exam) =>
           exam._id === editingExam._id ? response.data.exam : exam
@@ -329,23 +330,19 @@ const Profile = () => {
       toast.success("Cập nhật đề thi thành công!");
     } catch (err) {
       toast.error(
-        "Cập nhật đề thi thất bại: " +
-          (err.response?.data?.message || "Vui lòng thử lại.")
+        "Cập nhật đề thi thất bại: " + (err.message || "Vui lòng thử lại.")
       );
     }
   };
 
   const handleDeleteExam = async (examId) => {
     try {
-      await api.delete(`/exams/${examId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await api.delete(`/exams/${examId}`);
       setMyExams(myExams.filter((exam) => exam._id !== examId));
       toast.success("Xóa đề thi thành công!");
     } catch (err) {
       toast.error(
-        "Xóa đề thi thất bại: " +
-          (err.response?.data?.message || "Vui lòng thử lại.")
+        "Xóa đề thi thất bại: " + (err.message || "Vui lòng thử lại.")
       );
     }
   };
@@ -363,6 +360,17 @@ const Profile = () => {
       endTime: format(new Date(exam.endTime), "yyyy-MM-dd'T'HH:mm"),
       difficulty: exam.difficulty,
     });
+  };
+
+  const handleMarkNotificationRead = async (notificationId) => {
+    try {
+      await api.put(`/notifications/${notificationId}/read`);
+      setNotifications((prev) =>
+        prev.map((n) => (n._id === notificationId ? { ...n, isRead: true } : n))
+      );
+    } catch (err) {
+      toast.error("Không thể đánh dấu thông báo đã đọc: " + err.message);
+    }
   };
 
   const scoreChartData = {
@@ -403,664 +411,109 @@ const Profile = () => {
     },
   };
 
+  const unreadNotificationsCount = notifications.filter(
+    (n) => !n.isRead
+  ).length;
+
   if (loading) {
     return <div className="text-center py-10">Đang tải...</div>;
   }
 
   if (error) {
-    return <div className="text-center py-10 text-red-500">{error}</div>;
+    return (
+      <div className="text-center py-10 text-red-500">
+        {error}. Vui lòng thử lại hoặc liên hệ hỗ trợ.
+      </div>
+    );
   }
 
-  if (!user) {
+  if (!profileData) {
     return (
       <div className="text-center py-10">Vui lòng đăng nhập để xem hồ sơ.</div>
     );
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-70px)] bg-[#f5f5f5] p-5">
+    <div className="profile-page">
       <Sidebar
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        user={user}
+        user={profileData}
         tabs="profile"
       />
-      <div className="flex-1 ml-20">
+      <div className="profile-content">
         {activeTab === "overview" && (
-          <div className="space-y-5">
-            <div className="bg-white p-5 rounded-lg shadow">
-              <div className="max-w-md mx-auto text-center">
-                <img
-                  src={user.avatar || "/default-avatar.png"}
-                  alt="Avatar"
-                  className="w-32 h-32 rounded-full mx-auto mb-4"
-                />
-                <h2 className="text-2xl font-bold text-[#34495e]">
-                  {user.username}
-                </h2>
-                <div className="flex justify-center gap-2 mb-4">
-                  {user.badges?.map((badge, index) => (
-                    <span key={index} className="text-2xl">
-                      {badge.type === "gold"
-                        ? "🥇"
-                        : badge.type === "silver"
-                        ? "🥈"
-                        : "🥉"}
-                    </span>
-                  ))}
-                </div>
-                <p className="text-sm text-gray-500 mb-4">
-                  {followers.length} người theo dõi • {following.length} đang
-                  theo dõi
-                </p>
-                <form onSubmit={handleUpdateProfile} className="space-y-4">
-                  <div>
-                    <input
-                      type="text"
-                      name="username"
-                      value={profileData.username}
-                      onChange={handleProfileChange}
-                      className="w-full p-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-[#e74c3c]"
-                      placeholder="Tên người dùng"
-                    />
-                  </div>
-                  <div>
-                    <input
-                      type="email"
-                      name="email"
-                      value={profileData.email}
-                      onChange={handleProfileChange}
-                      className="w-full p-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-[#e74c3c]"
-                      placeholder="Email"
-                    />
-                  </div>
-                  <div>
-                    <input
-                      type="file"
-                      name="avatar"
-                      accept="image/*"
-                      onChange={handleProfileChange}
-                      className="w-full p-2 border rounded-full"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="w-full bg-[#e74c3c] text-white py-2 rounded-full hover:bg-[#c0392b]"
-                  >
-                    Cập nhật hồ sơ
-                  </button>
-                </form>
-              </div>
-            </div>
-            <div className="bg-white p-5 rounded-lg shadow">
-              <h3 className="text-lg font-bold text-[#34495e] mb-4">
-                {contributions.reduce((sum, day) => sum + day.count, 0)} hoạt
-                động trong năm {selectedYear}
-              </h3>
-              <select
-                value={selectedYear}
-                onChange={handleYearChange}
-                className="absolute top-5 right-5 border rounded p-1"
-              >
-                <option value="2025">2025</option>
-                <option value="2024">2024</option>
-                <option value="2023">2023</option>
-              </select>
-              <div className="flex">
-                <div className="flex flex-col justify-between h-28 mr-2 text-sm text-gray-500">
-                  {["", "T2", "T4", "T6", "CN"].map((day, index) => (
-                    <span key={index}>{day}</span>
-                  ))}
-                </div>
-                <div className="flex-1">
-                  <div className="flex justify-between mb-2 text-sm text-gray-500">
-                    {[
-                      "Thg 1",
-                      "Thg 2",
-                      "Thg 3",
-                      "Thg 4",
-                      "Thg 5",
-                      "Thg 6",
-                      "Thg 7",
-                      "Thg 8",
-                      "Thg 9",
-                      "Thg 10",
-                      "Thg 11",
-                      "Thg 12",
-                    ].map((month, index) => (
-                      <span key={index} className="w-[8.33%] text-center">
-                        {month}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-[repeat(53,1fr)] grid-rows-7 gap-1">
-                    {contributions.map((day, index) => (
-                      <div
-                        key={index}
-                        className={`w-3 h-3 rounded-sm ${
-                          day.count === 0
-                            ? "bg-gray-200"
-                            : day.count === 1
-                            ? "bg-green-200"
-                            : day.count === 2
-                            ? "bg-green-400"
-                            : day.count === 3
-                            ? "bg-green-600"
-                            : "bg-green-800"
-                        } hover:scale-125 transition-transform`}
-                        title={`${day.date}: ${day.count} hoạt động`}
-                      ></div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <OverviewTab
+            profileData={profileData}
+            followers={followers}
+            following={following}
+            contributions={contributions}
+            selectedYear={selectedYear}
+            handleYearChange={handleYearChange}
+            handleProfileChange={handleProfileChange}
+            handleUpdateProfile={handleUpdateProfile}
+          />
         )}
-        {activeTab === "stats" && user.role === "student" && (
-          <div className="bg-white p-5 rounded-lg shadow">
-            <h3 className="text-lg font-bold text-[#34495e] mb-4">
-              Thống kê bảng điểm
-            </h3>
-            {scores.length > 0 ? (
-              <div className="max-w-2xl mx-auto">
-                <Line data={scoreChartData} options={scoreChartOptions} />
-              </div>
-            ) : (
-              <p className="text-gray-500">Chưa có dữ liệu bảng điểm.</p>
-            )}
-          </div>
+        {activeTab === "stats" && profileData.role === "student" && (
+          <StatsTab
+            scores={scores}
+            participatedExams={participatedExams}
+            scoreChartData={scoreChartData}
+            scoreChartOptions={scoreChartOptions}
+          />
         )}
         {activeTab === "library" && (
-          <div className="bg-white p-5 rounded-lg shadow">
-            <h3 className="text-lg font-bold text-[#34495e] mb-4">Thư viện</h3>
-            <form onSubmit={handleAddLibraryItem} className="space-y-4 mb-6">
-              <div>
-                <label className="block text-sm text-[#34495e]">Tiêu đề</label>
-                <input
-                  type="text"
-                  value={newLibraryItem.title}
-                  onChange={(e) =>
-                    setNewLibraryItem({
-                      ...newLibraryItem,
-                      title: e.target.value,
-                    })
-                  }
-                  className="w-full p-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-[#e74c3c]"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-[#34495e]">Loại</label>
-                <select
-                  value={newLibraryItem.type}
-                  onChange={(e) =>
-                    setNewLibraryItem({
-                      ...newLibraryItem,
-                      type: e.target.value,
-                    })
-                  }
-                  className="w-full p-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-[#e74c3c]"
-                >
-                  <option value="document">Tài liệu</option>
-                  <option value="news">Tin tức</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm text-[#34495e]">URL</label>
-                <input
-                  type="url"
-                  value={newLibraryItem.url}
-                  onChange={(e) =>
-                    setNewLibraryItem({
-                      ...newLibraryItem,
-                      url: e.target.value,
-                    })
-                  }
-                  className="w-full p-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-[#e74c3c]"
-                  required
-                />
-              </div>
-              <button
-                type="submit"
-                className="w-full bg-[#e74c3c] text-white py-2 rounded-full hover:bg-[#c0392b]"
-              >
-                Thêm vào thư viện
-              </button>
-            </form>
-            {libraryItems.length > 0 ? (
-              libraryItems.map((item) => (
-                <div
-                  key={item._id}
-                  className="p-4 mb-2 bg-gray-50 rounded-lg hover:shadow-md transition-shadow"
-                >
-                  <h4 className="text-base font-semibold text-[#34495e]">
-                    <a
-                      href={item.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:underline"
-                    >
-                      {item.title}
-                    </a>
-                  </h4>
-                  <p className="text-sm text-gray-500">
-                    Loại: {item.type === "document" ? "Tài liệu" : "Tin tức"}
-                  </p>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-500">
-                Chưa có tài liệu hoặc tin tức nào.
-              </p>
-            )}
-          </div>
+          <LibraryTab
+            libraryItems={libraryItems}
+            newLibraryItem={newLibraryItem}
+            setNewLibraryItem={setNewLibraryItem}
+            handleAddLibraryItem={handleAddLibraryItem}
+          />
         )}
         {activeTab === "friends" && (
-          <div className="bg-white p-5 rounded-lg shadow">
-            <h3 className="text-lg font-bold text-[#34495e] mb-4">
-              Danh sách bạn bè
-            </h3>
-            <div className="flex gap-2 mb-4">
-              <button
-                className={`px-4 py-2 rounded ${
-                  friendsFilter === "followers"
-                    ? "bg-[#e74c3c] text-white"
-                    : "bg-gray-200"
-                }`}
-                onClick={() => setFriendsFilter("followers")}
-              >
-                Người theo dõi ({followers.length})
-              </button>
-              <button
-                className={`px-4 py-2 rounded ${
-                  friendsFilter === "following"
-                    ? "bg-[#e74c3c] text-white"
-                    : "bg-gray-200"
-                }`}
-                onClick={() => setFriendsFilter("following")}
-              >
-                Đang theo dõi ({following.length})
-              </button>
-              <input
-                type="text"
-                placeholder="Tìm kiếm theo username..."
-                value={friendsSearchQuery}
-                onChange={(e) => setFriendsSearchQuery(e.target.value)}
-                className="flex-1 p-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-[#e74c3c]"
-              />
-            </div>
-            {(friendsFilter === "followers" ? followers : following).filter(
-              (friend) =>
-                friend.username
-                  .toLowerCase()
-                  .includes(friendsSearchQuery.toLowerCase())
-            ).length > 0 ? (
-              (friendsFilter === "followers" ? followers : following)
-                .filter((friend) =>
-                  friend.username
-                    .toLowerCase()
-                    .includes(friendsSearchQuery.toLowerCase())
-                )
-                .map((friend) => (
-                  <div
-                    key={friend._id}
-                    className="flex items-center gap-2 p-4 mb-2 bg-gray-50 rounded-lg hover:shadow-md transition-shadow"
-                  >
-                    <img
-                      src={friend.avatar}
-                      alt="Avatar"
-                      className="w-10 h-10 rounded-full"
-                    />
-                    <span className="text-[#34495e]">{friend.username}</span>
-                  </div>
-                ))
-            ) : (
-              <p className="text-gray-500">Không tìm thấy bạn bè nào.</p>
-            )}
-          </div>
+          <FriendsTab
+            friendsFilter={friendsFilter}
+            setFriendsFilter={setFriendsFilter}
+            friendsSearchQuery={friendsSearchQuery}
+            setFriendsSearchQuery={setFriendsSearchQuery}
+            followers={followers}
+            following={following}
+          />
         )}
         {activeTab === "posts" && (
-          <div className="bg-white p-5 rounded-lg shadow">
-            <h3 className="text-lg font-bold text-[#34495e] mb-4">
-              Bài đăng và câu hỏi bài tập
-            </h3>
-            <form onSubmit={handleCreatePost} className="space-y-4 mb-6">
-              <div>
-                <label className="block text-sm text-[#34495e]">Tiêu đề</label>
-                <input
-                  type="text"
-                  value={newPost.title}
-                  onChange={(e) =>
-                    setNewPost({ ...newPost, title: e.target.value })
-                  }
-                  className="w-full p-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-[#e74c3c]"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-[#34495e]">Nội dung</label>
-                <textarea
-                  value={newPost.content}
-                  onChange={(e) =>
-                    setNewPost({ ...newPost, content: e.target.value })
-                  }
-                  className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e74c3c]"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-[#34495e]">Loại</label>
-                <select
-                  value={newPost.type}
-                  onChange={(e) =>
-                    setNewPost({ ...newPost, type: e.target.value })
-                  }
-                  className="w-full p-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-[#e74c3c]"
-                >
-                  <option value="post">Bài đăng</option>
-                  <option value="question">Câu hỏi</option>
-                </select>
-              </div>
-              <button
-                type="submit"
-                className="w-full bg-[#e74c3c] text-white py-2 rounded-full hover:bg-[#c0392b]"
-              >
-                Đăng bài
-              </button>
-            </form>
-            {posts.length > 0 ? (
-              posts.map((post) => (
-                <div
-                  key={post._id}
-                  className="p-4 mb-2 bg-gray-50 rounded-lg hover:shadow-md transition-shadow"
-                >
-                  <h4 className="text-base font-semibold text-[#34495e]">
-                    {post.title}
-                  </h4>
-                  <p className="text-sm text-gray-500">{post.content}</p>
-                  <p className="text-sm text-gray-500">
-                    Loại: {post.type === "post" ? "Bài đăng" : "Câu hỏi"}
-                  </p>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-500">
-                Chưa có bài đăng hoặc câu hỏi nào.
-              </p>
-            )}
-          </div>
+          <PostsTab
+            posts={posts}
+            newPost={newPost}
+            setNewPost={setNewPost}
+            handleCreatePost={handleCreatePost}
+            notifications={notifications}
+            handleMarkNotificationRead={handleMarkNotificationRead}
+            unreadNotificationsCount={unreadNotificationsCount}
+          />
         )}
         {activeTab === "courses" && (
-          <div className="bg-white p-5 rounded-lg shadow">
-            <h3 className="text-lg font-bold text-[#34495e] mb-4">
-              Khóa học của tôi
-            </h3>
-            {(user.role === "teacher" || user.role === "admin") && (
-              <form onSubmit={handleCreateCourse} className="space-y-4 mb-6">
-                <div>
-                  <label className="block text-sm text-[#34495e]">
-                    Tiêu đề khóa học
-                  </label>
-                  <input
-                    type="text"
-                    value={newCourse.title}
-                    onChange={(e) =>
-                      setNewCourse({ ...newCourse, title: e.target.value })
-                    }
-                    className="w-full p-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-[#e74c3c]"
-                    required
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="w-full bg-[#e74c3c] text-white py-2 rounded-full hover:bg-[#c0392b]"
-                >
-                  Tạo khóa học
-                </button>
-              </form>
-            )}
-            {courses.length > 0 ? (
-              courses.map((course) => (
-                <div
-                  key={course._id}
-                  className="p-4 mb-2 bg-gray-50 rounded-lg hover:shadow-md transition-shadow"
-                >
-                  <h4 className="text-base font-semibold text-[#34495e]">
-                    {course.title}
-                  </h4>
-                  <p className="text-sm text-gray-500">
-                    Giảng viên: {course.instructorId?.username || "N/A"}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Trạng thái:{" "}
-                    {course.status === "pending"
-                      ? "Chờ duyệt"
-                      : course.status === "approved"
-                      ? "Đã duyệt"
-                      : "Bị từ chối"}
-                  </p>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-500">
-                Chưa tham gia hoặc tạo khóa học nào.
-              </p>
-            )}
-          </div>
+          <CoursesTab
+            profileData={profileData}
+            courses={courses}
+            newCourse={newCourse}
+            setNewCourse={setNewCourse}
+            handleCreateCourse={handleCreateCourse}
+          />
         )}
         {activeTab === "create-exam" &&
-          (user.role === "teacher" || user.role === "admin") && (
-            <div className="bg-white p-5 rounded-lg shadow">
-              <h3 className="text-lg font-bold text-[#34495e] mb-4">
-                {editingExam ? "Chỉnh sửa đề thi" : "Tạo đề thi"}
-              </h3>
-              <form
-                onSubmit={editingExam ? handleUpdateExam : handleCreateExam}
-                className="space-y-4"
-              >
-                <div>
-                  <label className="block text-sm text-[#34495e]">
-                    Tiêu đề
-                  </label>
-                  <input
-                    type="text"
-                    value={newExam.title}
-                    onChange={(e) =>
-                      setNewExam({ ...newExam, title: e.target.value })
-                    }
-                    className="w-full p-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-[#e74c3c]"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-[#34495e]">Mô tả</label>
-                  <textarea
-                    value={newExam.description}
-                    onChange={(e) =>
-                      setNewExam({ ...newExam, description: e.target.value })
-                    }
-                    className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e74c3c]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-[#34495e]">
-                    Cấp học
-                  </label>
-                  <select
-                    value={newExam.educationLevel}
-                    onChange={(e) =>
-                      setNewExam({ ...newExam, educationLevel: e.target.value })
-                    }
-                    className="w-full p-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-[#e74c3c]"
-                  >
-                    {[...Array(12).keys()].map((i) => (
-                      <option key={i + 1} value={`grade${i + 1}`}>
-                        Lớp {i + 1}
-                      </option>
-                    ))}
-                    <option value="university">Đại học</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm text-[#34495e]">
-                    Môn học
-                  </label>
-                  <select
-                    value={newExam.subject}
-                    onChange={(e) =>
-                      setNewExam({ ...newExam, subject: e.target.value })
-                    }
-                    className="w-full p-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-[#e74c3c]"
-                  >
-                    <option value="math">Toán</option>
-                    {newExam.educationLevel === "university" && (
-                      <>
-                        <option value="advanced_math">Toán cao cấp</option>
-                        <option value="calculus">Giải tích</option>
-                        <option value="algebra">Đại số</option>
-                        <option value="probability_statistics">
-                          Xác suất thống kê
-                        </option>
-                        <option value="differential_equations">
-                          Phương trình vi phân
-                        </option>
-                      </>
-                    )}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm text-[#34495e]">
-                    Thời gian (phút)
-                  </label>
-                  <input
-                    type="number"
-                    value={newExam.duration}
-                    onChange={(e) =>
-                      setNewExam({
-                        ...newExam,
-                        duration: Number(e.target.value),
-                      })
-                    }
-                    min="1"
-                    className="w-full p-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-[#e74c3c]"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-[#34495e]">
-                    Thời gian bắt đầu
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={newExam.startTime}
-                    onChange={(e) =>
-                      setNewExam({ ...newExam, startTime: e.target.value })
-                    }
-                    className="w-full p-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-[#e74c3c]"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-[#34495e]">
-                    Thời gian kết thúc
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={newExam.endTime}
-                    onChange={(e) =>
-                      setNewExam({ ...newExam, endTime: e.target.value })
-                    }
-                    className="w-full p-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-[#e74c3c]"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-[#34495e]">Độ khó</label>
-                  <select
-                    value={newExam.difficulty}
-                    onChange={(e) =>
-                      setNewExam({ ...newExam, difficulty: e.target.value })
-                    }
-                    className="w-full p-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-[#e74c3c]"
-                  >
-                    <option value="easy">Dễ</option>
-                    <option value="medium">Trung bình</option>
-                    <option value="hard">Khó</option>
-                  </select>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    className="flex-1 bg-[#e74c3c] text-white py-2 rounded-full hover:bg-[#c0392b]"
-                  >
-                    {editingExam ? "Cập nhật đề thi" : "Tạo đề thi"}
-                  </button>
-                  {editingExam && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingExam(null);
-                        setNewExam({
-                          title: "",
-                          description: "",
-                          educationLevel: "grade1",
-                          subject: "math",
-                          duration: 60,
-                          questions: [],
-                          startTime: "",
-                          endTime: "",
-                          difficulty: "easy",
-                        });
-                      }}
-                      className="flex-1 bg-gray-300 text-[#34495e] py-2 rounded-full hover:bg-gray-400"
-                    >
-                      Hủy
-                    </button>
-                  )}
-                </div>
-              </form>
-              <h3 className="text-lg font-bold text-[#34495e] mt-8 mb-4">
-                Danh sách đề thi
-              </h3>
-              {myExams.length > 0 ? (
-                myExams.map((exam) => (
-                  <div
-                    key={exam._id}
-                    className="p-4 mb-2 bg-gray-50 rounded-lg hover:shadow-md transition-shadow"
-                  >
-                    <h4 className="text-base font-semibold text-[#34495e]">
-                      {exam.title}
-                    </h4>
-                    <p className="text-sm text-gray-500">Môn: {exam.subject}</p>
-                    <p className="text-sm text-gray-500">
-                      Độ khó:{" "}
-                      {exam.difficulty === "easy"
-                        ? "Dễ"
-                        : exam.difficulty === "medium"
-                        ? "Trung bình"
-                        : "Khó"}
-                    </p>
-                    <div className="flex gap-2 mt-2">
-                      <button
-                        onClick={() => handleEditClick(exam)}
-                        className="px-4 py-1 bg-[#e74c3c] text-white rounded-full hover:bg-[#c0392b]"
-                      >
-                        Sửa
-                      </button>
-                      <button
-                        onClick={() => handleDeleteExam(exam._id)}
-                        className="px-4 py-1 bg-gray-300 text-[#34495e] rounded-full hover:bg-gray-400"
-                      >
-                        Xóa
-                      </button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-gray-500">Chưa có đề thi nào.</p>
-              )}
-            </div>
+          (profileData.role === "teacher" || profileData.role === "admin") && (
+            <CreateExamTab
+              profileData={profileData}
+              myExams={myExams}
+              newExam={newExam}
+              setNewExam={setNewExam}
+              editingExam={editingExam}
+              setEditingExam={setEditingExam}
+              handleCreateExam={handleCreateExam}
+              handleUpdateExam={handleUpdateExam}
+              handleEditClick={handleEditClick}
+              handleDeleteExam={handleDeleteExam}
+            />
           )}
       </div>
     </div>
