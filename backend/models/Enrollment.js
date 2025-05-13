@@ -1,3 +1,5 @@
+// Lưu bookmark khóa học của người dùng
+
 const mongoose = require("mongoose");
 
 const EnrollmentSchema = new mongoose.Schema({

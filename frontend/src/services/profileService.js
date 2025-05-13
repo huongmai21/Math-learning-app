@@ -12,7 +12,7 @@ export const getScores = async () => {
 };
 
 // Lấy danh sách tài liệu/thư viện
-export const getLibraryItems = async () => {
+export const getBookmarks = async () => {
   try {
     const response = await api.get("/users/profile/library");
     return response.data;
@@ -52,7 +52,7 @@ export const getParticipatedExams = async () => {
 };
 
 // Thêm tài liệu/thư viện
-export const addLibraryItem = async (itemData) => {
+export const addBookmark = async (itemData) => {
   try {
     const response = await api.post("/users/profile/library", itemData);
     return response.data;

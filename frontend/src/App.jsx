@@ -12,6 +12,10 @@ import Auth from "./pages/Auth/AuthForm";
 import ResetPassword from "./pages/Auth/ResetPassword";
 import ForgotPassword from "./pages/Auth/ForgotPassword";
 import Profile from "./pages/Profile/Profile";
+import DocumentList from "./pages/Document/DocumentList";
+import DocumentDetail from "./pages/Document/DocumentDetail";
+import CreateDocument from "./pages/Document/CreateDocument";
+import RelatedDocuments from "./pages/Document/RelatedDocuments";
 import CoursePage from "./pages/Course/CoursePage";
 import CourseDetail from "./pages/Course/CourseDetail";
 import MyCourses from "./pages/Course/MyCourses";
@@ -55,6 +59,10 @@ const AppContent = () => {
             </ProtectedRoute>
           }
         />
+        <Route path="/documents/:type" element={<DocumentList />} />
+        <Route path="/documents/:type" element={<DocumentDetail />} />
+        <Route path="/documents/:type" element={<CreateDocument />} />
+        <Route path="/documents/:type" element={<RelatedDocuments />} />
         <Route path="/courses" element={<CoursePage />} />
         <Route path="/courses/:id" element={<CourseDetail />} />
         <Route path="/courses/my-courses" element={<MyCourses />} />

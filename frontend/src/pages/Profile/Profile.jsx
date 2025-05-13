@@ -12,21 +12,8 @@ import {
   Legend,
 } from "chart.js";
 import io from "socket.io-client";
-import axios from "axios"; // Thêm axios
-import api from "../../services/api";
-import Sidebar from "../../components/layout/Sidebar/Sidebar";
 import { format } from "date-fns";
-import { getNotifications } from "../../services/notificationService";
-import {
-  getScores,
-  getLibraryItems,
-  getPosts,
-  getCourses,
-  getParticipatedExams,
-  addLibraryItem,
-  createPost,
-  createCourse,
-} from "../../services/profileService";
+import Sidebar from "../../components/layout/Sidebar/Sidebar";
 import OverviewTab from "./OverviewTab";
 import StatsTab from "./StatsTab";
 import LibraryTab from "./LibraryTab";
@@ -34,6 +21,32 @@ import FriendsTab from "./FriendsTab";
 import PostsTab from "./PostsTab";
 import CoursesTab from "./CoursesTab";
 import CreateExamTab from "./CreateExamTab";
+
+// Import các service cần thiết
+import {
+  getProfile,
+  getContributions,
+  getFollowers,
+  getFollowing,
+} from "../../services/userService";
+import {
+  getScores,
+  getBookmarks,
+  getPosts,
+  getCourses,
+  getParticipatedExams,
+} from "../../services/profileService";
+import {
+  createExam,
+  updateExam,
+  deleteExam,
+  getMyExams,
+} from "../../services/examService";
+import {
+  getNotifications,
+  markNotificationRead,
+} from "../../services/notificationService";
+import api from "../../services/api";
 
 ChartJS.register(
   LineElement,
@@ -55,7 +68,7 @@ const Profile = () => {
   );
   const [contributions, setContributions] = useState([]);
   const [scores, setScores] = useState([]);
-  const [libraryItems, setLibraryItems] = useState([]);
+  const [libraryItems, setBookmarks] = useState([]);
   const [friendsFilter, setFriendsFilter] = useState("followers");
   const [friendsSearchQuery, setFriendsSearchQuery] = useState("");
   const [followers, setFollowers] = useState([]);
@@ -78,23 +91,16 @@ const Profile = () => {
   });
   const [editingExam, setEditingExam] = useState(null);
   const [profileData, setProfileData] = useState(null);
-  const [newLibraryItem, setNewLibraryItem] = useState({
-    title: "",
-    type: "document",
-    url: "",
-  });
-  const [newPost, setNewPost] = useState({
-    title: "",
-    content: "",
-    type: "post",
-  });
-  const [newCourse, setNewCourse] = useState({ title: "" });
+  const [previewAvatar, setPreviewAvatar] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     if (token) {
       fetchData();
+    } else {
+      setLoading(false);
+      console.log("No token found, user not logged in.");
     }
   }, [selectedYear, token]);
 
@@ -121,67 +127,76 @@ const Profile = () => {
     };
   }, [profileData]);
 
-  useEffect(() => {
-    const fetchExams = async () => {
-      if (
-        activeTab === "create-exam" &&
-        (profileData?.role === "teacher" || profileData?.role === "admin")
-      ) {
-        try {
-          const response = await api.get(`/exams?author=${profileData._id}`);
-          setMyExams(response.data.exams);
-        } catch (err) {
-          toast.error(
-            "Lỗi khi lấy danh sách đề thi: " +
-              (err.message || "Vui lòng thử lại.")
-          );
-        }
-      }
-    };
-    if (token) fetchExams();
-  }, [activeTab, profileData, token]);
-
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const profileRes = await api.get("/users/profile");
-      setProfileData(profileRes.data);
+      console.log("Fetching profile...");
+      const profile = await getProfile();
+      console.log("Profile data:", profile);
+      setProfileData(profile);
 
-      const activityRes = await api.get(`/users/activity?year=${selectedYear}`);
-      setContributions(activityRes.data.activity);
+      console.log("Fetching contributions...");
+      const activity = await getContributions(selectedYear);
+      console.log("Contributions data:", activity);
+      setContributions(activity.activity || []);
 
-      const scoresRes = await getScores();
+      console.log("Fetching scores...");
+      const scoresData = await getScores();
+      console.log("Scores data:", scoresData);
       setScores(
-        scoresRes.data.map((score) => ({
+        scoresData.data?.map((score) => ({
           date: format(new Date(score.date), "yyyy-MM"),
           score: score.score,
           examTitle: score.examId?.title || score.courseId?.title,
-        }))
+        })) || []
       );
 
-      if (profileRes.data?.role === "student") {
-        const examsRes = await getParticipatedExams();
-        setParticipatedExams(examsRes.data || []);
+      if (profile?.role === "student") {
+        console.log("Fetching participated exams...");
+        const examsData = await getParticipatedExams();
+        console.log("Participated exams data:", examsData);
+        setParticipatedExams(examsData.data || []);
       }
 
-      const notificationsRes = await getNotifications(profileRes.data._id);
-      setNotifications(notificationsRes.data || []);
+      console.log("Fetching library items...");
+      const libraryData = await getBookmarks();
+      console.log("Library data:", libraryData);
+      setBookmarks(libraryData.data || []);
 
-      const libraryRes = await getLibraryItems();
-      setLibraryItems(libraryRes.data);
+      console.log("Fetching followers...");
+      const followersData = await getFollowers();
+      console.log("Followers data:", followersData);
+      setFollowers(followersData || []);
 
-      const followersRes = await api.get("/users/followers");
-      setFollowers(followersRes.data);
-      const followingRes = await api.get("/users/following");
-      setFollowing(followingRes.data);
+      console.log("Fetching following...");
+      const followingData = await getFollowing();
+      console.log("Following data:", followingData);
+      setFollowing(followingData || []);
 
-      const postsRes = await getPosts();
-      setPosts(postsRes.data);
+      console.log("Fetching posts...");
+      const postsData = await getPosts();
+      console.log("Posts data:", postsData);
+      setPosts(postsData.data || []);
 
-      const coursesRes = await getCourses();
-      setCourses(coursesRes.data);
+      console.log("Fetching courses...");
+      const coursesData = await getCourses();
+      console.log("Courses data:", coursesData);
+      setCourses(coursesData.data || []);
+
+      if (profile?.role === "teacher" || profile?.role === "admin") {
+        console.log("Fetching my exams...");
+        const examsData = await getMyExams(profile._id);
+        console.log("My exams data:", examsData);
+        setMyExams(examsData.exams || []);
+      }
+
+      console.log("Fetching notifications...");
+      const notificationsData = await getNotifications(profile._id);
+      console.log("Notifications data:", notificationsData);
+      setNotifications(notificationsData.data || []);
     } catch (err) {
+      console.error("Fetch error:", err);
       setError(err.message || "Không thể tải dữ liệu!");
     } finally {
       setLoading(false);
@@ -194,99 +209,47 @@ const Profile = () => {
 
   const handleProfileChange = (e) => {
     const { name, value, files } = e.target;
-    setProfileData((prev) => ({
-      ...prev,
-      [name]: files ? files[0] : value,
-    }));
+    if (name === "avatar" && files && files[0]) {
+      setPreviewAvatar(URL.createObjectURL(files[0]));
+      setProfileData((prev) => ({
+        ...prev,
+        [name]: files[0],
+      }));
+    } else {
+      setProfileData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
   };
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
+    const formData = new FormData();
+    formData.append("username", profileData.username);
+    formData.append("email", profileData.email);
+    formData.append("bio", profileData.bio || "");
+    if (profileData.avatar && typeof profileData.avatar !== "string") {
+      formData.append("avatar", profileData.avatar);
+    }
+
     try {
-      let avatarUrl = profileData.avatar;
-
-      // Upload avatar to Cloudinary if a new file is selected
-      if (profileData.avatar && typeof profileData.avatar !== "string") {
-        const formData = new FormData();
-        formData.append("file", profileData.avatar);
-        formData.append("upload_preset", "your_upload_preset"); // Thay bằng upload preset của bạn
-        formData.append("folder", "avatar"); // Lưu vào thư mục avatar/
-
-        const cloudinaryRes = await axios.post(
-          "https://api.cloudinary.com/v1_1/your-cloud-name/image/upload", // Thay your-cloud-name bằng tên cloud của bạn
-          formData
-        );
-        avatarUrl = cloudinaryRes.data.secure_url;
-      }
-
-      // Prepare data to update profile
-      const data = new FormData();
-      data.append("username", profileData.username);
-      data.append("email", profileData.email);
-      data.append("bio", profileData.bio || "");
-      if (avatarUrl) {
-        data.append("avatar", avatarUrl);
-      }
-
-      const response = await api.put("/users", data);
-      toast.success("Cập nhật hồ sơ thành công!");
-      setProfileData({
-        ...response.data.data,
-        avatar: avatarUrl || response.data.data.avatar,
+      const response = await api.put("/users/profile", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
+      toast.success("Cập nhật hồ sơ thành công!");
+      setProfileData(response.data.data);
+      setPreviewAvatar(null);
     } catch (err) {
       toast.error(err.message || "Cập nhật hồ sơ thất bại!");
-    }
-  };
-
-  const handleAddLibraryItem = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await addLibraryItem(newLibraryItem);
-      setLibraryItems([...libraryItems, response.data]);
-      setNewLibraryItem({ title: "", type: "document", url: "" });
-      toast.success("Thêm tài liệu/tin tức thành công!");
-    } catch (err) {
-      toast.error(
-        "Thêm tài liệu/tin tức thất bại: " +
-          (err.message || "Vui lòng thử lại.")
-      );
-    }
-  };
-
-  const handleCreatePost = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await createPost(newPost);
-      setPosts([...posts, response.data]);
-      setNewPost({ title: "", content: "", type: "post" });
-      toast.success("Tạo bài đăng/câu hỏi thành công!");
-    } catch (err) {
-      toast.error(
-        "Tạo bài đăng/câu hỏi thất bại: " + (err.message || "Vui lòng thử lại.")
-      );
-    }
-  };
-
-  const handleCreateCourse = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await createCourse(newCourse);
-      setCourses([...courses, response.data]);
-      setNewCourse({ title: "" });
-      toast.success("Tạo khóa học thành công!");
-    } catch (err) {
-      toast.error(
-        "Tạo khóa học thất bại: " + (err.message || "Vui lòng thử lại.")
-      );
     }
   };
 
   const handleCreateExam = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.post("/exams", newExam);
-      setMyExams([...myExams, response.data.exam]);
+      const response = await createExam(newExam);
+      setMyExams([...myExams, response.exam]);
       setNewExam({
         title: "",
         description: "",
@@ -309,10 +272,10 @@ const Profile = () => {
   const handleUpdateExam = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.put(`/exams/${editingExam._id}`, newExam);
+      const response = await updateExam(editingExam._id, newExam);
       setMyExams(
         myExams.map((exam) =>
-          exam._id === editingExam._id ? response.data.exam : exam
+          exam._id === editingExam._id ? response.exam : exam
         )
       );
       setEditingExam(null);
@@ -337,7 +300,7 @@ const Profile = () => {
 
   const handleDeleteExam = async (examId) => {
     try {
-      await api.delete(`/exams/${examId}`);
+      await deleteExam(examId);
       setMyExams(myExams.filter((exam) => exam._id !== examId));
       toast.success("Xóa đề thi thành công!");
     } catch (err) {
@@ -364,7 +327,7 @@ const Profile = () => {
 
   const handleMarkNotificationRead = async (notificationId) => {
     try {
-      await api.put(`/notifications/${notificationId}/read`);
+      await markNotificationRead(notificationId);
       setNotifications((prev) =>
         prev.map((n) => (n._id === notificationId ? { ...n, isRead: true } : n))
       );
@@ -416,12 +379,12 @@ const Profile = () => {
   ).length;
 
   if (loading) {
-    return <div className="text-center py-10">Đang tải...</div>;
+    return <div className="loading">Đang tải...</div>;
   }
 
   if (error) {
     return (
-      <div className="text-center py-10 text-red-500">
+      <div className="error">
         {error}. Vui lòng thử lại hoặc liên hệ hỗ trợ.
       </div>
     );
@@ -429,7 +392,7 @@ const Profile = () => {
 
   if (!profileData) {
     return (
-      <div className="text-center py-10">Vui lòng đăng nhập để xem hồ sơ.</div>
+      <div className="login-message">Vui lòng đăng nhập để xem hồ sơ.</div>
     );
   }
 
@@ -452,6 +415,7 @@ const Profile = () => {
             handleYearChange={handleYearChange}
             handleProfileChange={handleProfileChange}
             handleUpdateProfile={handleUpdateProfile}
+            previewAvatar={previewAvatar}
           />
         )}
         {activeTab === "stats" && profileData.role === "student" && (
@@ -462,14 +426,7 @@ const Profile = () => {
             scoreChartOptions={scoreChartOptions}
           />
         )}
-        {activeTab === "library" && (
-          <LibraryTab
-            libraryItems={libraryItems}
-            newLibraryItem={newLibraryItem}
-            setNewLibraryItem={setNewLibraryItem}
-            handleAddLibraryItem={handleAddLibraryItem}
-          />
-        )}
+        {activeTab === "library" && <LibraryTab libraryItems={libraryItems} />}
         {activeTab === "friends" && (
           <FriendsTab
             friendsFilter={friendsFilter}
@@ -483,22 +440,13 @@ const Profile = () => {
         {activeTab === "posts" && (
           <PostsTab
             posts={posts}
-            newPost={newPost}
-            setNewPost={setNewPost}
-            handleCreatePost={handleCreatePost}
             notifications={notifications}
             handleMarkNotificationRead={handleMarkNotificationRead}
             unreadNotificationsCount={unreadNotificationsCount}
           />
         )}
         {activeTab === "courses" && (
-          <CoursesTab
-            profileData={profileData}
-            courses={courses}
-            newCourse={newCourse}
-            setNewCourse={setNewCourse}
-            handleCreateCourse={handleCreateCourse}
-          />
+          <CoursesTab profileData={profileData} courses={courses} />
         )}
         {activeTab === "create-exam" &&
           (profileData.role === "teacher" || profileData.role === "admin") && (

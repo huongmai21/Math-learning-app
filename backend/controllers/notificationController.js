@@ -27,6 +27,7 @@ exports.deleteNotification = asyncHandler(async (req, res, next) => {
 exports.createNotification = asyncHandler(async (req, res, next) => {
   const {
     recipient,
+    sender,
     message,
     type,
     title,
@@ -38,7 +39,7 @@ exports.createNotification = asyncHandler(async (req, res, next) => {
   } = req.body;
   const notification = await Notification.create({
     recipient,
-    sender: req.user.id,
+    sender: sender || req.user.id,
     type,
     title,
     message,

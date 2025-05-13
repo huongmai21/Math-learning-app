@@ -9,8 +9,8 @@ import {
   rejectExam,
   deleteExam,
   getStats,
-  getLibraryItems,
-  deleteLibraryItem,
+  getBookmarks,
+  deleteBookmark,
 } from "../../services/adminService";
 import Sidebar from "../../components/layout/Sidebar/Sidebar";
 import "./AdminDashboard.css";
@@ -26,7 +26,7 @@ const AdminDashboard = () => {
     totalCourses: 0,
     totalPosts: 0,
   });
-  const [libraryItems, setLibraryItems] = useState([]);
+  const [libraryItems, setBookmarks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -51,8 +51,8 @@ const AdminDashboard = () => {
           }
         );
 
-        const libraryResponse = await getLibraryItems();
-        setLibraryItems(libraryResponse.data.items || []);
+        const libraryResponse = await getBookmarks();
+        setBookmarks(libraryResponse.data.items || []);
       } catch (err) {
         setError("Không thể tải dữ liệu!");
       } finally {
@@ -114,10 +114,10 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleDeleteLibraryItem = async (itemId) => {
+  const handleDeleteBookmark = async (itemId) => {
     try {
-      await deleteLibraryItem(itemId);
-      setLibraryItems(libraryItems.filter((item) => item._id !== itemId));
+      await deleteBookmark(itemId);
+      setBookmarks(libraryItems.filter((item) => item._id !== itemId));
       toast.success("Xóa tài liệu/tin tức thành công!");
     } catch (err) {
       toast.error(
@@ -268,7 +268,7 @@ const AdminDashboard = () => {
                       </p>
                     </div>
                     <div className="library-actions">
-                      <button onClick={() => handleDeleteLibraryItem(item._id)}>
+                      <button onClick={() => handleDeleteBookmark(item._id)}>
                         Xóa
                       </button>
                     </div>

@@ -1,4 +1,3 @@
-// backend/models/Exam.js
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
@@ -11,9 +10,22 @@ const examSchema = new mongoose.Schema({
   questions: [{ type: Schema.Types.Mixed }],
   startTime: { type: Date, required: true },
   endTime: { type: Date, required: true },
-  difficulty: { type: String, enum: ["easy", "medium", "hard"], required: true },
+  difficulty: {
+    type: String,
+    enum: ["easy", "medium", "hard"],
+    required: true,
+  },
   author: { type: Schema.Types.ObjectId, ref: "User", required: true },
   createdAt: { type: Date, default: Date.now },
+  maxAttempts: { type: Number, default: 1 }, // Giới hạn số lần làm bài
+});
+
+// Validation để đảm bảo endTime > startTime
+examSchema.pre("save", function (next) {
+  if (this.endTime <= this.startTime) {
+    return next(new Error("Thời gian kết thúc phải lớn hơn thời gian bắt đầu"));
+  }
+  next();
 });
 
 module.exports = mongoose.model("Exam", examSchema);

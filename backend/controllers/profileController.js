@@ -2,7 +2,7 @@
 const asyncHandler = require("../middleware/asyncHandler");
 const ErrorResponse = require("../utils/errorResponse");
 const Score = require("../models/Score");
-const LibraryItem = require("../models/LibraryItem");
+const Bookmark = require("../models/Bookmark");
 const Post = require("../models/Post");
 const Course = require("../models/Course");
 const Exam = require("../models/Exam"); // Thêm model Exam
@@ -14,8 +14,8 @@ exports.getScores = asyncHandler(async (req, res, next) => {
   res.status(200).json({ success: true, data: scores });
 });
 
-exports.getLibraryItems = asyncHandler(async (req, res, next) => {
-  const items = await LibraryItem.find({ userId: req.user.id });
+exports.getBookmarks = asyncHandler(async (req, res, next) => {
+  const items = await Bookmark.find({ userId: req.user.id });
   res.status(200).json({ success: true, data: items });
 });
 
@@ -41,9 +41,9 @@ exports.getCourses = asyncHandler(async (req, res, next) => {
   res.status(200).json({ success: true, data: courses });
 });
 
-exports.addLibraryItem = asyncHandler(async (req, res, next) => {
+exports.addBookmark = asyncHandler(async (req, res, next) => {
   const { title, type, url } = req.body;
-  const item = await LibraryItem.create({
+  const item = await Bookmark.create({
     userId: req.user.id,
     title,
     type,

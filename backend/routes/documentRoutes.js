@@ -1,66 +1,21 @@
 const express = require("express");
 const router = express.Router();
-const documentController = require("../controllers/documentController");
-const LibraryItemController = require("../controllers/LibraryItemController");
-const {authenticateToken,checkRole} = require("../middleware/authMiddleware");
-// const checkRole = require("../middleware/roleMiddleware");
+const { authenticateToken } = require("../middleware/authMiddleware");
+const {
+  createDocument,
+  getDocuments,
+  getDocumentById,
+  searchDocuments,
+  getPopularDocuments,
+  getRelatedDocuments,
+  downloadDocument,
+} = require("../controllers/documentController");
 
-router.get("/", documentController.getAllDocuments);
-router.get("/popular", documentController.getPopularDocuments);
-router.get("/search", documentController.searchDocuments);
-router.get(
-  "/statistics",
-  authenticateToken,
-  checkRole("admin"),
-  documentController.getDocumentStatistics
-);
-router.get(
-  "/report",
-  authenticateToken,
-  checkRole("admin"),
-  documentController.getDocumentReport
-);
-router.get("/:id", documentController.getDocumentById);
-
-router.post(
-  "/create",
-  authenticateToken,
-  checkRole("admin", "teacher", "student"),
-  documentController.createDocument
-);
-
-router.put(
-  "/update/:id",
-  authenticateToken,
-  checkRole("admin", "teacher", "student"),
-  documentController.updateDocument
-);
-
-router.delete(
-  "/:id",
-  authenticateToken,
-  checkRole("admin", "teacher", "student"),
-  documentController.deleteDocument
-);
-
-router.post("/bookmark", authenticateToken, LibraryItemController.addLibraryItem);
-
-router.delete(
-  "/bookmark/:id",
-  authenticateToken,
-  LibraryItemController.removeLibraryItem
-);
-
-router.get(
-  "/bookmarks",
-  authenticateToken,
-  LibraryItemController.getUserLibraryItems
-);
-
-router.get(
-  "/bookmark/:id",
-  authenticateToken,
-  LibraryItemController.checkLibraryItem
-);
+router.route("/").get(getDocuments).post(authenticateToken, createDocument);
+router.route("/search").get(searchDocuments);
+router.route("/popular").get(getPopularDocuments);
+router.route("/related").get(getRelatedDocuments);
+router.route("/:id").get(getDocumentById);
+router.route("/:id/download").get(downloadDocument);
 
 module.exports = router;

@@ -117,7 +117,7 @@ const PaymentPage = () => {
   }, [id, user, token, navigate]);
 
   const handleImageError = (e) => {
-    e.target.src = "/assets/images/default-course.jpg";
+    e.target.src = "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png";
   };
 
   if (loading) {
@@ -145,7 +145,7 @@ const PaymentPage = () => {
         <h2>Thanh toán khóa học</h2>
         <div className="course-info">
           <img
-            src={course.thumbnail || "/assets/images/default-course.jpg"}
+            src={course.thumbnail || "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png"}
             alt={course.title}
             className="course-thumbnail"
             onError={handleImageError}

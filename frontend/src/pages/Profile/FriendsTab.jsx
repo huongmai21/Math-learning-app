@@ -1,6 +1,6 @@
-// frontend/src/pages/FriendsTab.jsx
-import React from "react";
-import './Profile.css';
+"use client";
+import UserAvatar from "../../components/common/User/UserAvatar";
+import "./Profile.css";
 
 const FriendsTab = ({
   friendsFilter,
@@ -35,20 +35,23 @@ const FriendsTab = ({
       </div>
       {(friendsFilter === "followers" ? followers : following).filter(
         (friend) =>
-          friend.username.toLowerCase().includes(friendsSearchQuery.toLowerCase())
+          friend.username
+            .toLowerCase()
+            .includes(friendsSearchQuery.toLowerCase())
       ).length > 0 ? (
-        (friendsFilter === "followers" ? followers : following)
-          .filter((friend) =>
-            friend.username
-              .toLowerCase()
-              .includes(friendsSearchQuery.toLowerCase())
-          )
-          .map((friend) => (
-            <div key={friend._id} className="friend-item">
-              <img src={friend.avatar} alt="Avatar" className="friend-avatar" />
-              <span>{friend.username}</span>
-            </div>
-          ))
+        <div className="friends-list">
+          {(friendsFilter === "followers" ? followers : following)
+            .filter((friend) =>
+              friend.username
+                .toLowerCase()
+                .includes(friendsSearchQuery.toLowerCase())
+            )
+            .map((friend) => (
+              <div key={friend._id} className="friend-item">
+                <UserAvatar user={friend} showUsername={true} size="medium" />
+              </div>
+            ))}
+        </div>
       ) : (
         <p>Không tìm thấy bạn bè nào.</p>
       )}

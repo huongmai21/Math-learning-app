@@ -1,6 +1,6 @@
 const User = require("../models/User");
 const Exam = require("../models/Exam");
-const LibraryItem = require("../models/LibraryItem");
+const Bookmark = require("../models/Bookmark");
 const Course = require("../models/Course");
 const Post = require("../models/Post");
 
@@ -85,18 +85,18 @@ exports.getStats = async (req, res) => {
   }
 };
 
-exports.getLibraryItems = async (req, res) => {
+exports.getBookmarks = async (req, res) => {
   try {
-    const items = await LibraryItem.find();
+    const items = await Bookmark.find();
     res.json({ items });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-exports.deleteLibraryItem = async (req, res) => {
+exports.deleteBookmark = async (req, res) => {
   try {
-    const item = await LibraryItem.findById(req.params.id);
+    const item = await Bookmark.findById(req.params.id);
     if (!item)
       return res.status(404).json({ message: "Library item not found" });
     await item.remove();

@@ -1,9 +1,8 @@
-// frontend/src/services/notificationService.js
 import api from "./api";
 
 export const getNotifications = async (userId) => {
   try {
-    const response = await api.get(`/notifications/${userId}`);
+    const response = await api.get(`/notifications/me`);
     return response.data;
   } catch (error) {
     throw new Error(error.message || "Không thể lấy thông báo");

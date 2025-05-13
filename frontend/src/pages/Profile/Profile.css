@@ -71,11 +71,14 @@
   border-radius: 10px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   width: 320px;
-  flex-shrink: 0;
 }
 
 .profile-info {
-  text-align: left;
+  text-align: center;
+}
+
+.avatar-container {
+  margin-bottom: 15px;
 }
 
 .profile-avatar {
@@ -83,10 +86,10 @@
   height: 100px;
   border-radius: 50%;
   object-fit: cover;
-  margin-bottom: 15px;
+  margin: 0 auto 15px;
 }
 
-.profile-info h2 {
+.username {
   margin: 0 0 5px;
   font-size: 22px;
   font-weight: 600;
@@ -103,6 +106,7 @@
   display: flex;
   gap: 8px;
   margin-bottom: 10px;
+  justify-content: center;
 }
 
 .badge {
@@ -123,6 +127,16 @@
   font-size: 14px;
   color: #8e8e93;
   margin-bottom: 15px;
+  text-align: center;
+}
+
+.follow-link {
+  color: #0366d6;
+  text-decoration: none;
+}
+
+.follow-link:hover {
+  text-decoration: underline;
 }
 
 .profile-details {
@@ -133,6 +147,7 @@
   margin: 8px 0;
   font-size: 14px;
   color: #000;
+  text-align: left;
 }
 
 .profile-details strong {
@@ -143,7 +158,8 @@
 }
 
 .profile-details input,
-.profile-details textarea {
+.profile-details textarea,
+.password-input {
   width: 100%;
   padding: 8px;
   border: 1px solid #ddd;
@@ -154,6 +170,17 @@
 .profile-details textarea {
   resize: vertical;
   min-height: 80px;
+}
+
+.preview-avatar {
+  margin-top: 10px;
+}
+
+.preview-image {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .edit-profile-btn {
@@ -188,7 +215,6 @@
   cursor: pointer;
   font-size: 14px;
   transition: all 0.3s ease;
-  flex: 1;
 }
 
 .save-profile-btn:hover {
@@ -204,11 +230,25 @@
   cursor: pointer;
   font-size: 14px;
   transition: all 0.3s ease;
-  flex: 1;
 }
 
 .cancel-edit-btn:hover {
   background: #d0d0d0;
+}
+
+.change-password-btn {
+  padding: 8px 16px;
+  background: #28a745;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.change-password-btn:hover {
+  background: #218838;
 }
 
 .heatmap-section {
@@ -216,7 +256,6 @@
   padding: 20px;
   border-radius: 10px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  flex: 1;
 }
 
 .heatmap-section h3 {
@@ -368,8 +407,7 @@
 .friends-tab,
 .posts-tab,
 .courses-tab,
-.create-exam-tab,
-.leaderboard-tab {
+.create-exam-tab {
   background: #fff;
   padding: 20px;
   border-radius: 10px;
@@ -381,8 +419,7 @@
 .friends-tab h3,
 .posts-tab h3,
 .courses-tab h3,
-.create-exam-tab h3,
-.leaderboard-tab h3 {
+.create-exam-tab h3 {
   margin: 0 0 15px;
   font-size: 18px;
   font-weight: 600;
@@ -397,7 +434,8 @@
 .library-item,
 .friend-item,
 .post-item,
-.course-item {
+.course-item,
+.exam-item {
   padding: 15px;
   margin-bottom: 10px;
   border-radius: 10px;
@@ -408,14 +446,16 @@
 .library-item:hover,
 .friend-item:hover,
 .post-item:hover,
-.course-item:hover {
+.course-item:hover,
+.exam-item:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transform: translateY(-2px);
 }
 
 .library-item h4,
 .post-item h4,
-.course-item h4 {
+.course-item h4,
+.exam-item h4 {
   margin: 0 0 5px;
   font-size: 16px;
   font-weight: 600;
@@ -469,7 +509,8 @@
 
 .post-item p,
 .library-item p,
-.course-item p {
+.course-item p,
+.exam-item p {
   margin: 5px 0 0;
   font-size: 14px;
   color: #666;
@@ -479,25 +520,6 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-
-.exam-item {
-  background: #f5f5f5;
-  padding: 15px;
-  border-radius: 5px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.exam-item h4 {
-  margin: 0;
-  font-size: 16px;
-}
-
-.exam-item p {
-  margin: 5px 0;
-  font-size: 14px;
 }
 
 .exam-actions {
@@ -522,84 +544,20 @@
   color: #fff;
 }
 
-.leaderboard-tab {
-  background: #fff;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+.loading {
+  text-align: center;
+  padding: 40px 0;
 }
 
-.leaderboard-filters {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
+.error {
+  text-align: center;
+  padding: 40px 0;
+  color: red;
 }
 
-.leaderboard-filters select {
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  font-size: 14px;
-}
-
-.leaderboard-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.leaderboard-item {
-  display: flex;
-  gap: 15px;
-  padding: 10px;
-  background: #f5f5f5;
-  border-radius: 5px;
-  align-items: center;
-}
-
-.rank {
-  font-weight: bold;
-  color: #ff6f61;
-}
-
-.username {
-  flex: 1;
-  font-weight: 500;
-}
-
-.score,
-.exams,
-.time {
-  color: #666;
-}
-
-.exam-leaderboard {
-  margin-top: 20px;
-}
-
-.exam-leaderboard h4 {
-  margin: 0 0 10px;
-  color: #0366d6;
-}
-
-.exam-leaderboard h4:hover {
-  text-decoration: underline;
-}
-
-.post-item .mark-read-btn {
-  margin-top: 8px;
-  padding: 6px 12px;
-  background: #0366d6;
-  color: #fff;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background 0.3s ease;
-}
-
-.post-item .mark-read-btn:hover {
-  background: #024ea4;
+.login-message {
+  text-align: center;
+  padding: 40px 0;
 }
 
 @media (max-width: 1024px) {
@@ -672,7 +630,7 @@
     grid-template-columns: repeat(13, 1fr);
   }
 
-  .profile-info h2 {
+  .username {
     font-size: 20px;
   }
 

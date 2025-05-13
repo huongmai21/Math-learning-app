@@ -10,7 +10,7 @@ router.put("/admin/exams/:id/approve", adminController.approveExam);
 router.put("/admin/exams/:id/reject", adminController.rejectExam);
 router.delete("/admin/exams/:id", adminController.deleteExam);
 router.get("/admin/stats", adminController.getStats);
-router.get("/admin/library", adminController.getLibraryItems);
-router.delete("/admin/library/:id", adminController.deleteLibraryItem);
+router.get("/admin/library", adminController.getBookmarks);
+router.delete("/admin/library/:id", adminController.deleteBookmark);
 
 module.exports = router;

@@ -14,9 +14,11 @@ import Course from './Course.js';
 import Notification from './Notification.js';
 import Follow from './Follow.js';
 import UserActivity from './UserActivity';
-import LibraryItem from './LibraryItem.js';
+import Bookmark from './Bookmark.js';
 import Review from './Review.js';
 import Score from './Score';
+import Enrollment from "./Enrollment.js";
+import Bookmark from "./Bookmark.js";
 
 export {
   User,
@@ -34,7 +36,9 @@ export {
   Notification,
   Follow,
   UserActivity,
-  LibraryItem,
+  Bookmark,
   Review,
-  Score
+  Score,
+  Bookmark,
+  Enrollment
 };

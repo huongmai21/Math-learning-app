@@ -44,6 +44,18 @@
   transition: transform 0.3s ease;
 }
 
+.exam-card.Sắp-diễn-ra {
+  border-left: 5px solid #ffeb3b; /* Màu vàng cho trạng thái sắp diễn ra */
+}
+
+.exam-card.Đang-diễn-ra {
+  border-left: 5px solid #4caf50; /* Màu xanh cho trạng thái đang diễn ra */
+}
+
+.exam-card.Kết-thúc {
+  border-left: 5px solid #f44336; /* Màu đỏ cho trạng thái kết thúc */
+}
+
 .exam-card:hover {
   transform: translateY(-5px);
 }
@@ -120,4 +132,92 @@
   .exam-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* CreateExam and TakeExam styles */
+.create-exam,
+.take-exam {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.create-exam h1,
+.take-exam h1 {
+  text-align: center;
+}
+
+.create-exam form,
+.take-exam form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.create-exam label,
+.take-exam label {
+  font-weight: bold;
+}
+
+.create-exam input,
+.create-exam textarea,
+.create-exam select,
+.take-exam input,
+.take-exam textarea {
+  padding: 8px;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+  font-size: 14px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.create-exam button,
+.take-exam button {
+  padding: 10px;
+  border-radius: 5px;
+  border: none;
+  background: #ff6f61;
+  color: #fff;
+  cursor: pointer;
+}
+
+.create-exam button:hover,
+.take-exam button:hover {
+  background: #e65b50;
+}
+
+.question-block {
+  border: 1px solid #ddd;
+  padding: 15px;
+  border-radius: 5px;
+  margin-bottom: 15px;
+}
+
+.question-block label {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.question {
+  margin-bottom: 20px;
+}
+
+.question h3 {
+  margin-bottom: 10px;
+}
+
+.question div {
+  margin-bottom: 5px;
+}
+
+.timer {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: #ff6f61;
+  color: #fff;
+  padding: 10px;
+  border-radius: 5px;
+  font-size: 16px;
 }

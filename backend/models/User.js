@@ -34,9 +34,9 @@ const UserSchema = new mongoose.Schema({
   password: {
     type: String,
     required: [true, "Vui lòng nhập mật khẩu"],
-    minlength: [10, "Mật khẩu phải có ít nhất 10 ký tự"],
+    minlength: [8, "Mật khẩu phải có ít nhất 10 ký tự"],
     match: [
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{10,}$/,
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
       "Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt",
     ],
     select: false,
@@ -113,8 +113,8 @@ UserSchema.methods.matchPassword = async function (enteredPassword) {
 };
 
 // Index để tối ưu truy vấn
-UserSchema.index({ email: 1 });
-UserSchema.index({ username: 1 });
+// UserSchema.index({ email: 1 });
+// UserSchema.index({ username: 1 });
 UserSchema.index({ role: 1 });
 
 module.exports = mongoose.model("User", UserSchema);

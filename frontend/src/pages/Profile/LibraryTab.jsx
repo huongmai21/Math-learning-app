@@ -1,61 +1,10 @@
-// frontend/src/pages/LibraryTab.jsx
 import React from "react";
-import './Profile.css';
+import "./Profile.css";
 
-const LibraryTab = ({
-  libraryItems,
-  newLibraryItem,
-  setNewLibraryItem,
-  handleAddLibraryItem,
-}) => {
+const LibraryTab = ({ libraryItems }) => {
   return (
     <div className="library-tab">
-      <h3>Thư viện</h3>
-      <form onSubmit={handleAddLibraryItem} className="mb-6">
-        <div className="mb-4">
-          <label className="block text-sm">Tiêu đề</label>
-          <input
-            type="text"
-            value={newLibraryItem.title}
-            onChange={(e) =>
-              setNewLibraryItem({ ...newLibraryItem, title: e.target.value })
-            }
-            className="w-full p-2 border rounded"
-            required
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block text-sm">Loại</label>
-          <select
-            value={newLibraryItem.type}
-            onChange={(e) =>
-              setNewLibraryItem({ ...newLibraryItem, type: e.target.value })
-            }
-            className="w-full p-2 border rounded"
-          >
-            <option value="document">Tài liệu</option>
-            <option value="news">Tin tức</option>
-          </select>
-        </div>
-        <div className="mb-4">
-          <label className="block text-sm">URL</label>
-          <input
-            type="url"
-            value={newLibraryItem.url}
-            onChange={(e) =>
-              setNewLibraryItem({ ...newLibraryItem, url: e.target.value })
-            }
-            className="w-full p-2 border rounded"
-            required
-          />
-        </div>
-        <button
-          type="submit"
-          className="w-full p-2 bg-[#0366d6] text-white rounded hover:bg-[#024ea4]"
-        >
-          Thêm vào thư viện
-        </button>
-      </form>
+      <h3>Thư viện (Bookmarks)</h3>
       {libraryItems.length > 0 ? (
         libraryItems.map((item) => (
           <div key={item._id} className="library-item">
@@ -68,7 +17,7 @@ const LibraryTab = ({
           </div>
         ))
       ) : (
-        <p>Chưa có tài liệu hoặc tin tức nào.</p>
+        <p>Chưa có tài liệu hoặc tin tức nào được lưu.</p>
       )}
     </div>
   );

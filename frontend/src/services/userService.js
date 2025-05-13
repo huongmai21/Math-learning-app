@@ -7,6 +7,17 @@ export const getUserProfile = async (year) => {
   return response.data;
 };
 
+export const getProfile = async () => {
+  try {
+    const response = await api.get("/users/profile");
+    return response.data;
+  } catch (error) {
+    throw new Error(
+      error.response?.data?.message || "Không thể tải dữ liệu người dùng!"
+    );
+  }
+};
+
 export const updateProfile = async (data) => {
   const response = await api.put("/users/profile", data, {
     headers: { "Content-Type": "multipart/form-data" },
@@ -37,17 +48,6 @@ export const getFollowing = async () => {
 export const getUserSuggestions = async () => {
   const response = await api.get("/users/suggestions");
   return response.data;
-};
-
-export const getProfile = async () => {
-  try {
-    const response = await api.get("/users/profile");
-    return response.data;
-  } catch (error) {
-    throw new Error(
-      error.response?.data?.message || "Không thể tải dữ liệu người dùng!"
-    );
-  }
 };
 
 export const getContributions = async (year) => {
