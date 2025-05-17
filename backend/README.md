@@ -49,3 +49,6 @@ backend/
 - Tối ưu hóa SEO cho trang reset password bằng react-helmet: npm install react-helmet
 - slugify :Thêm slug (tạo từ title) để URL thân thiện hơn (ví dụ: /news/ten-bai-viet)
 - Redis: Trên Windows, Redis không được hỗ trợ chính thức. Cần cài đặt Redis thông qua WSL (Windows Subsystem for Linux) hoặc dùng Redis container (Docker)
+
+- turndown
+- mammoth

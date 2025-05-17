@@ -145,6 +145,26 @@ exports.followUser = asyncHandler(async (req, res, next) => {
     { upsert: true, new: true }
   );
 
+  // Emit notification
+  const io = req.app.get('io');
+  const notification = await Notification.create({
+    recipient: userToFollow._id,
+    sender: currentUser._id,
+    type: 'system',
+    title: 'Người theo dõi mới',
+    message: `${currentUser.username} đã theo dõi bạn.`,
+    link: `/users/profile/${currentUser._id}`,
+    relatedModel: 'User',
+    relatedId: currentUser._id,
+  });
+  io.to(userToFollow._id.toString()).emit('newNotification', {
+    _id: notification._id,
+    title: notification.title,
+    message: notification.message,
+    link: notification.link,
+    createdAt: notification.createdAt,
+  });
+
   res.json({ message: "Followed successfully" });
 });
 

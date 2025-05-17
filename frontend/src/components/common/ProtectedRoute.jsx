@@ -1,20 +1,23 @@
-// frontend/src/components/Pcommon/ProtectedRoute.jsx
-import React from "react";
-import { Navigate } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { Navigate } from "react-router-dom"
+import { useSelector } from "react-redux"
+import Spinner from "../ui/Spinner" // Giả sử bạn có component Spinner
 
-const ProtectedRoute = ({ children }) => {
-  const { user, token, loading } = useSelector((state) => state.auth);
+const ProtectedRoute = ({ children, adminOnly = false }) => {
+  const { user, isAuthenticated, loading } = useSelector((state) => state.auth)
 
   if (loading) {
-    return <div>Đang tải...</div>;
+    return <Spinner />
   }
 
-  if (!token) {
-    return <Navigate to="/auth/login" replace />;
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/auth/login" replace />
   }
 
-  return children;
-};
+  if (adminOnly && user.role !== "admin") {
+    return <Navigate to="/" replace />
+  }
 
-export default ProtectedRoute;
+  return children
+}
+
+export default ProtectedRoute

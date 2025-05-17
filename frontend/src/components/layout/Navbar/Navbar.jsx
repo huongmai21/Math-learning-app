@@ -3,13 +3,16 @@ import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../../../redux/slices/authSlice";
 import { toast } from "react-toastify";
-import { ThemeContext } from "../../../context/ThemeContext";
+import ThemeContext from "../../../context/ThemeContext";
 import {
   getNotifications,
   deleteNotification,
 } from "../../../services/notificationService";
 import useDropdown from "../../../hooks/useDropdown";
+import io from "socket.io-client";
 import "./Navbar.css";
+
+const socket = io("http://localhost:5000");
 
 const Navbar = () => {
   const { user, loading } = useSelector((state) => state.auth);
@@ -20,7 +23,6 @@ const Navbar = () => {
   const [notifications, setNotifications] = useState([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Sử dụng custom hook cho dropdown
   const {
     isOpen: documentsOpen,
     toggle: toggleDocuments,
@@ -43,7 +45,6 @@ const Navbar = () => {
     ref: settingsRef,
   } = useDropdown();
 
-  // Cấu hình menu
   const menuItems = [
     {
       title: "Tài liệu",
@@ -79,46 +80,53 @@ const Navbar = () => {
       : []),
   ];
 
-  // Lấy thông báo
   useEffect(() => {
     const loadNotifications = async () => {
       const token = localStorage.getItem("token");
       if (user && token) {
-        // Chỉ gọi API nếu có user và token
         try {
           const response = await getNotifications(user._id);
           setNotifications(response.data || []);
         } catch (error) {
-          console.error("Error loading notifications:", error);
-          toast.error("Không thể tải thông báo", { position: "top-right" });
+          toast.error("Không thể tải thông báo");
         }
       }
     };
     loadNotifications();
+
+    // Join user room for real-time notifications
+    if (user) {
+      socket.emit("join", user._id);
+    }
+
+    // Listen for new notifications
+    socket.on("newNotification", (notification) => {
+      setNotifications((prev) => [notification, ...prev]);
+      toast.info(notification.message, { position: "top-right" });
+    });
+
+    // Cleanup
+    return () => {
+      socket.off("newNotification");
+    };
   }, [user]);
 
-  // Xử lý đăng xuất
   const handleLogout = () => {
     dispatch(logout());
-    toast.success("Đăng xuất thành công!", {
-      position: "top-right",
-      autoClose: 3000,
-    });
+    toast.success("Đăng xuất thành công!");
     navigate("/auth/login");
   };
 
-  // Xử lý xóa thông báo
   const handleDeleteNotification = async (id) => {
     try {
       await deleteNotification(id);
       setNotifications(notifications.filter((notif) => notif._id !== id));
-      toast.success("Xóa thông báo thành công!", { position: "top-right" });
+      toast.success("Xóa thông báo thành công!");
     } catch (error) {
-      toast.error("Không thể xóa thông báo", { position: "top-right" });
+      toast.error("Không thể xóa thông báo");
     }
   };
 
-  // Toggle menu di động
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
@@ -129,8 +137,7 @@ const Navbar = () => {
   return (
     <header className="header" aria-label="Thanh điều hướng chính">
       <div className="navbar-container">
-        <Link to="/" className="logo" aria-label="FunMath - Trang chủ" onClick={() => console.log("Navigating to Home")} //Debug
-        >
+        <Link to="/" className="logo" aria-label="FunMath - Trang chủ">
           <i className="fa-solid fa-bahai"></i> FunMath
         </Link>
         <button
@@ -189,8 +196,6 @@ const Navbar = () => {
             className="user-info"
             ref={profileRef}
             onClick={toggleProfile}
-            onMouseEnter={() => setTimeout(toggleProfile, 100)}
-            onMouseLeave={() => setTimeout(toggleProfile, 100)}
             aria-haspopup="true"
             aria-expanded={profileOpen}
           >
@@ -203,7 +208,7 @@ const Navbar = () => {
               />
             </div>
             <span className="profile-username">{user.username}</span>
-            {profileOpen &&  (
+            {profileOpen && (
               <div className="profile-dropdown" role="menu">
                 <Link
                   to="/users/profile"
@@ -222,9 +227,11 @@ const Navbar = () => {
                   </Link>
                 )}
                 {user?.role === "admin" && (
-                  <Link to="/admin" className="dropdown-item" role="menuitem">
-                    Quản lý hệ thống
-                  </Link>
+                  <>
+                    <Link to="/admin" className="dropdown-item" role="menuitem">
+                      Quản lý hệ thống
+                    </Link>
+                  </>
                 )}
                 <button
                   onClick={handleLogout}
@@ -256,7 +263,7 @@ const Navbar = () => {
                       className="notification-item"
                       role="menuitem"
                     >
-                      <span>{notif.message}</span>
+                      <Link to={notif.link || "#"}>{notif.message}</Link>
                       <span className="notification-time">
                         {new Date(notif.createdAt).toLocaleTimeString("vi-VN")}
                       </span>

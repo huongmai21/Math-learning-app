@@ -1,21 +1,32 @@
-import React, { createContext, useState, useEffect, useContext } from "react";
+"use client";
+
+// Sửa chế độ sáng/tối
+import { createContext, useState, useEffect, useContext } from "react";
 
 const ThemeContext = createContext();
 
-const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = useState("light");
+export const ThemeProvider = ({ children }) => {
+  // Lấy theme từ localStorage hoặc mặc định là 'light'
+  const [theme, setTheme] = useState(() => {
+    const savedTheme = localStorage.getItem("theme");
+    return savedTheme || "light";
+  });
 
+  // Cập nhật theme trong localStorage và body class khi theme thay đổi
   useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") || "light";
-    setTheme(savedTheme);
-    document.documentElement.classList.toggle("dark", savedTheme === "dark");
-  }, []);
+    localStorage.setItem("theme", theme);
 
+    // Thêm hoặc xóa class 'dark-mode' từ body
+    if (theme === "dark") {
+      document.body.classList.add("dark-mode");
+    } else {
+      document.body.classList.remove("dark-mode");
+    }
+  }, [theme]);
+
+  // Hàm chuyển đổi theme
   const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
+    setTheme((prevTheme) => (prevTheme === "light" ? "dark" : "light"));
   };
 
   return (
@@ -25,7 +36,8 @@ const ThemeProvider = ({ children }) => {
   );
 };
 
-const useTheme = () => {
+// Custom hook để sử dụng ThemeContext
+export const useTheme = () => {
   const context = useContext(ThemeContext);
   if (!context) {
     throw new Error("useTheme must be used within a ThemeProvider");
@@ -33,4 +45,4 @@ const useTheme = () => {
   return context;
 };
 
-export { ThemeContext, ThemeProvider, useTheme };
+export default ThemeContext;

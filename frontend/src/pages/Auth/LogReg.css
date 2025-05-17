@@ -40,8 +40,8 @@
 }
 
 .container {
-  position: relative;
-  width: 95%;
+  position: absolute;
+  width: 1400px;
   max-width: 1300px;
   min-width: 900px;
   min-height: 650px;
@@ -58,12 +58,12 @@
 
 .container .content {
   position: absolute;
-  width: 90%;
+  width: 1160px;
   height: 100%; /* Khớp với container và .logreg-box */
   padding: 50px;
   color: #e4e4e4;
   background: rgba(0, 0, 0, 0.215);
-  border-radius: 15px 0 15px 15px;
+  border-radius: 15px 15px 15px 15px;
   display: flex;
   flex-direction: column;
   justify-content: first baseline;
@@ -128,9 +128,9 @@
 /* Logreg-box (bên phải) */
 .container .logreg-box {
   position: absolute;
-  top: 40px;
-  right: 46px;
-  width: 42%;
+  top: 50px;
+  right: 50px;
+  width: 38%;
   height: 100%;
   overflow: hidden;
   z-index: 2;
@@ -153,7 +153,7 @@
 
 .logreg-box .form-box.login {
   transform: translateX(0);
-  transition: transform 0.6s ease;
+  transition: transform 0.7s ease;
   transition-delay: 0.7s;
 }
 

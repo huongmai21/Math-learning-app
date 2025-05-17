@@ -1,5 +1,5 @@
-const mongoose = require("mongoose");
-const { Schema } = mongoose;
+const mongoose = require("mongoose")
+const { Schema } = mongoose
 
 const scoreSchema = new mongoose.Schema({
   userId: {
@@ -27,6 +27,8 @@ const scoreSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
-});
+})
 
-module.exports = mongoose.model("Score", scoreSchema);
+const Score = mongoose.model("Score", scoreSchema)
+
+module.exports = Score

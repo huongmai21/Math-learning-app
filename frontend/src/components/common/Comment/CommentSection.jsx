@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import {
-  fetchComments,
-  postComment,
+  getComments,
+  createComment,
   updateComment,
   deleteComment,
 } from "../../../services/commentService";
@@ -24,7 +24,7 @@ const CommentSection = ({ referenceId, referenceType }) => {
   const loadComments = async (pageToLoad = 1) => {
     try {
       setLoading(true);
-      const data = await fetchComments(referenceId, referenceType, {
+      const data = await getComments(referenceId, referenceType, {
         page: pageToLoad,
         limit: itemsPerPage,
       });
@@ -50,7 +50,7 @@ const CommentSection = ({ referenceId, referenceType }) => {
     }
     try {
       setLoading(true);
-      await postComment(referenceId, referenceType, newComment);
+      await createComment(referenceId, referenceType, newComment);
       setNewComment("");
       toast.success("Đăng bình luận thành công!");
       loadComments(1);

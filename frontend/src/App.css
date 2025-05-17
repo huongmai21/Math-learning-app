@@ -1,24 +1,52 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: "Inter", sans-serif;
+/* Sửa lỗi trang bị ẩn dưới nav */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
 
-body {
-  background-color: #f5f5f5;
-  color: #2c3e50;
+.content-container {
+  flex: 1;
+  padding-top: 70px; /* Điều chỉnh theo chiều cao của navbar */
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-left: 15px;
+  padding-right: 15px;
 }
 
-a {
-  text-decoration: none;
+.with-sidebar {
+  display: flex;
 }
 
-button {
-  cursor: pointer;
+.main-content {
+  flex: 1;
+  padding: 20px;
 }
 
-:focus {
-  outline: 2px solid #ff6f61;
-  outline-offset: 2px;
+.sidebar-container {
+  width: 250px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .with-sidebar {
+    flex-direction: column;
+  }
+
+  .sidebar-container {
+    width: 100%;
+  }
+}
+
+/* Thêm vào App.css */
+main {
+  padding-top: 70px; /* Chiều cao của navbar + padding */
+  min-height: calc(100vh - 70px);
+}
+
+@media (max-width: 768px) {
+  main {
+    padding-top: 60px;
+  }
 }

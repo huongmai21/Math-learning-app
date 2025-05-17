@@ -1,12 +1,23 @@
-// backend/routes/notifications.js
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const notificationController = require('../controllers/notificationController');
-const { authenticateToken } = require('../middleware/authMiddleware');
+const {
+  getNotifications,
+  markAsRead,
+  markAllAsRead,
+  deleteNotification,
+  deleteAllNotifications,
+  getUnreadCount,
+} = require("../controllers/notificationController");
+const { authenticateToken } = require("../middleware/authMiddleware");
 
-router.get('/:userId', authenticateToken, notificationController.getNotifications);
-router.delete('/:id', authenticateToken, notificationController.deleteNotification);
-router.post('/', authenticateToken, notificationController.createNotification);
-router.put('/:id/read', authenticateToken, notificationController.markNotificationRead);
+// Tất cả các route đều cần xác thực
+router.use(authenticateToken);
+
+router.route("/").get(getNotifications).delete(deleteAllNotifications);
+
+router.get("/unread", getUnreadCount);
+router.put("/read-all", markAllAsRead);
+
+router.route("/:id").put(markAsRead).delete(deleteNotification);
 
 module.exports = router;

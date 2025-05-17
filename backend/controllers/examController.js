@@ -213,7 +213,7 @@ exports.createExam = async (req, res) => {
       author: req.user.id,
       educationLevel,
       subject,
-      duration,
+      duration: duration || 60, // Mặc định 60 phút nếu không nhập
       questions,
       startTime: new Date(startTime),
       endTime: new Date(endTime),
@@ -246,12 +246,10 @@ exports.updateExam = async (req, res) => {
     }
 
     if (exam.author.toString() !== req.user.id && req.user.role !== "admin") {
-      return res
-        .status(403)
-        .json({
-          success: false,
-          message: "Bạn không có quyền chỉnh sửa đề thi này!",
-        });
+      return res.status(403).json({
+        success: false,
+        message: "Bạn không có quyền chỉnh sửa đề thi này!",
+      });
     }
 
     const updatedData = { ...req.body };
@@ -289,12 +287,10 @@ exports.deleteExam = async (req, res) => {
     }
 
     if (exam.author.toString() !== req.user.id && req.user.role !== "admin") {
-      return res
-        .status(403)
-        .json({
-          success: false,
-          message: "Bạn không có quyền xóa đề thi này!",
-        });
+      return res.status(403).json({
+        success: false,
+        message: "Bạn không có quyền xóa đề thi này!",
+      });
     }
 
     await Exam.findByIdAndDelete(req.params.id);
@@ -369,7 +365,6 @@ exports.getGlobalLeaderboard = async (req, res) => {
       { $limit: 10 },
     ]);
 
-    // Gán huy hiệu cho top 3 người dùng
     const badgeTypes = ["gold", "silver", "bronze"];
     for (let i = 0; i < Math.min(3, leaderboard.length); i++) {
       const user = await User.findById(leaderboard[i]._id);
@@ -410,6 +405,75 @@ exports.getExamLeaderboard = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Không thể lấy bảng xếp hạng bài thi!",
+      error: error.message,
+    });
+  }
+};
+
+exports.submitExam = async (req, res) => {
+  try {
+    const exam = await Exam.findById(req.params.id);
+    if (!exam) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy đề thi!" });
+    }
+
+    // Kiểm tra số lần làm bài
+    const previousAttempts = await ExamResult.countDocuments({
+      exam: req.params.id,
+      user: req.user.id,
+    });
+    if (previousAttempts >= exam.maxAttempts) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Bạn đã hết lượt làm bài!" });
+    }
+
+    const { answers } = req.body;
+    let totalScore = 0;
+
+    const examResult = new ExamResult({
+      exam: req.params.id,
+      user: req.user.id,
+      answers: [],
+      totalScore,
+      startTime: new Date(),
+      endTime: new Date(),
+      completed: true,
+    });
+
+    // Tính điểm (logic đơn giản, bạn có thể mở rộng)
+    exam.questions.forEach((q, index) => {
+      const userAnswer = answers[q._id] || "";
+      const isCorrect = userAnswer === q.correct_answer;
+      const score = isCorrect ? 1 : 0; // 1 điểm cho mỗi câu đúng
+      totalScore += score;
+
+      examResult.answers.push({
+        question: q._id,
+        userAnswer,
+        isCorrect,
+        score,
+      });
+    });
+
+    examResult.totalScore = totalScore;
+    await examResult.save();
+
+    // Tăng số lượt tham gia
+    exam.attempts = (exam.attempts || 0) + 1;
+    await exam.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Nộp bài thành công!",
+      score: totalScore,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Không thể nộp bài!",
       error: error.message,
     });
   }

@@ -2,22 +2,40 @@ const express = require("express");
 const router = express.Router();
 const {
   getPosts,
+  getPostById,
   createPost,
+  updatePost,
+  deletePost,
   likePost,
-  addComment,
-  sharePost,
   bookmarkPost,
+  getBookmarkedPosts,
+  getPopularPosts,
+  searchPosts,
+  updatePostStatus,
+  updateAiResponse,
+  uploadPostImage,
+  uploadPostFile,
 } = require("../controllers/postsController");
 const { authenticateToken } = require("../middleware/authMiddleware");
-const upload = require("../middleware/multer");
 
-router
-  .route("/")
-  .get(authenticateToken, getPosts)
-  .post(authenticateToken, upload.array("attachments"), createPost);
-router.route("/:id/like").put(authenticateToken, likePost);
-router.route("/:id/comment").put(authenticateToken, addComment);
-router.route("/:id/share").put(authenticateToken, sharePost);
-router.route("/:id/bookmark").put(authenticateToken, bookmarkPost);
+// Các route không yêu cầu xác thực
+router.get("/", getPosts);
+router.get("/popular", getPopularPosts);
+router.get("/search", searchPosts);
+router.get("/:id", getPostById);
+
+// Các route yêu cầu xác thực
+router.use(authenticateToken);
+
+router.post("/", createPost);
+router.put("/:id", updatePost);
+router.delete("/:id", deletePost);
+router.post("/:id/like", likePost);
+router.post("/:id/bookmark", bookmarkPost);
+router.get("/user/bookmarks", getBookmarkedPosts);
+router.put("/:id/status", updatePostStatus);
+router.put("/:id/ai-response", updateAiResponse);
+router.post("/upload/image", uploadPostImage);
+router.post("/upload/file", uploadPostFile);
 
 module.exports = router;

@@ -13,10 +13,10 @@ exports.register = [
     .isEmail()
     .withMessage("Email không hợp lệ, vui lòng nhập email đúng định dạng"),
   body("password")
-    .isLength({ min: 10 })
-    .withMessage("Mật khẩu phải có ít nhất 10 ký tự")
+    .isLength({ min: 8 })
+    .withMessage("Mật khẩu phải có ít nhất 8 ký tự")
     .matches(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{10,}$/
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/
     )
     .withMessage(
       "Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt (@, $, !, %, *, ?, &)"

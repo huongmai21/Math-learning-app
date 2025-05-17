@@ -1,53 +1,94 @@
-// // socket.js
-// const { Server } = require('socket.io');
-// const Notification = require('./models/Notification');
+const socketIo = require("socket.io")
+const jwt = require("jsonwebtoken")
+const User = require("../models/User")
 
-// const setupSocket = (server) => {
-//   const io = new Server(server, {
-//     cors: {
-//       origin: 'http://localhost:3001',
-//       methods: ['GET', 'POST'],
-//     },
-//   });
+const setupSocket = (server) => {
+  const io = socketIo(server, {
+    cors: {
+      origin: process.env.CLIENT_URL || "http://localhost:3000",
+      methods: ["GET", "POST"],
+      credentials: true,
+    },
+  })
 
-//   io.on('connection', (socket) => {
-//     console.log('A user connected:', socket.id);
+  // Middleware để xác thực người dùng qua token
+  io.use(async (socket, next) => {
+    try {
+      const token = socket.handshake.auth.token || socket.handshake.query.token
 
-//     // Tham gia phòng riêng của người dùng
-//     socket.on('join', (userId) => {
-//       socket.join(userId);
-//       console.log(`User ${userId} joined their room`);
-//     });
+      if (!token) {
+        return next(new Error("Authentication error: Token not provided"))
+      }
 
-//     // Ngắt kết nối
-//     socket.on('disconnect', () => {
-//       console.log('User disconnected:', socket.id);
-//     });
-//   });
+      const decoded = jwt.verify(token, process.env.JWT_SECRET)
+      const user = await User.findById(decoded.id).select("-password")
 
-//   // Gửi thông báo nhắc nhở
-//   const checkReminders = async () => {
-//     const now = new Date();
-//     const reminderTime = new Date(now.getTime() + 30 * 60 * 1000); // 30 phút sau
-//     const notifications = await Notification.find({
-//       type: 'new_exam',
-//       createdAt: { $lte: reminderTime, $gte: now },
-//       isRead: false,
-//     });
+      if (!user) {
+        return next(new Error("Authentication error: User not found"))
+      }
 
-//     notifications.forEach((notification) => {
-//       io.to(notification.recipient.toString()).emit('reminder', {
-//         title: notification.title,
-//         message: notification.message,
-//         link: notification.link,
-//       });
-//     });
-//   };
+      socket.user = user
+      next()
+    } catch (error) {
+      next(new Error("Authentication error: " + error.message))
+    }
+  })
 
-//   // Kiểm tra mỗi phút
-//   setInterval(checkReminders, 60 * 1000);
+  io.on("connection", (socket) => {
+    console.log(`User connected: ${socket.user.username} (${socket.id})`)
 
-//   return io;
-// };
+    // Tham gia phòng cá nhân để nhận thông báo
+    socket.join(socket.user._id.toString())
 
-// module.exports = setupSocket;
+    // Tham gia phòng học
+    socket.on("join_room", (roomId) => {
+      socket.join(`room_${roomId}`)
+      console.log(`${socket.user.username} joined room: ${roomId}`)
+
+      // Thông báo cho các thành viên khác
+      socket.to(`room_${roomId}`).emit("user_joined", {
+        userId: socket.user._id,
+        username: socket.user.username,
+        avatar: socket.user.avatar,
+      })
+    })
+
+    // Rời phòng học
+    socket.on("leave_room", (roomId) => {
+      socket.leave(`room_${roomId}`)
+      console.log(`${socket.user.username} left room: ${roomId}`)
+
+      // Thông báo cho các thành viên khác
+      socket.to(`room_${roomId}`).emit("user_left", {
+        userId: socket.user._id,
+        username: socket.user.username,
+      })
+    })
+
+    // Gửi tin nhắn trong phòng học
+    socket.on("send_message", ({ roomId, message }) => {
+      // Tin nhắn sẽ được xử lý qua API, socket chỉ dùng để thông báo real-time
+      console.log(`Message in room ${roomId} from ${socket.user.username}: ${message}`)
+    })
+
+    // Thông báo đang gõ
+    socket.on("typing", ({ roomId }) => {
+      socket.to(`room_${roomId}`).emit("user_typing", {
+        userId: socket.user._id,
+        username: socket.user.username,
+      })
+    })
+
+    // Ngắt kết nối
+    socket.on("disconnect", () => {
+      console.log(`User disconnected: ${socket.user.username}`)
+    })
+  })
+
+  // Lưu trữ io để sử dụng ở nơi khác
+  global.io = io
+
+  return io
+}
+
+module.exports = setupSocket

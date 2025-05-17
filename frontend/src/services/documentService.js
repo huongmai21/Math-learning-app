@@ -1,58 +1,89 @@
-import axios from "axios";
+import api from "./api";
 
-const API_URL = "/documents";
+const retryRequest = async (fn, retries = 2, delay = 1000) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fn();
+      return response.data; // Đảm bảo trả về dữ liệu từ API
+    } catch (err) {
+      if (i === retries - 1)
+        throw new Error(
+          `Request failed after ${retries} retries: ${err.message}`
+        );
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+};
 
 export const fetchDocuments = async (filters) => {
-  const response = await axios.get(`${API_URL}`, { params: filters });
-  return response.data;
+  return await retryRequest(() => api.get("/documents", { params: filters }));
 };
 
 export const fetchPopularDocuments = async (params) => {
-  const response = await axios.get(`${API_URL}/popular`, { params });
-  return response.data.documents;
+  return await retryRequest(() => api.get("/documents/popular", { params }));
 };
 
 export const searchDocuments = async (filters) => {
-  const response = await axios.get(`${API_URL}/search`, { params: filters });
-  return response.data;
+  return await retryRequest(() =>
+    api.get("/documents/search", { params: filters })
+  );
 };
 
 export const getDocumentById = async (id) => {
-  const response = await axios.get(`${API_URL}/${id}`);
-  return response.data.document;
+  const response = await retryRequest(() => api.get(`/documents/${id}`));
+  return response.data || {}; // Đảm bảo luôn có dữ liệu trả về
 };
 
-export const addBookmark = async (data) => {
-  const response = await axios.post(`${API_URL}/bookmark`, data);
-  return response.data;
+export const fetchRelatedDocuments = async ({
+  educationLevel,
+  subject,
+  excludeId,
+}) => {
+  return await retryRequest(() =>
+    api.get("/documents/related", {
+      params: { educationLevel, subject, excludeId },
+    })
+  );
 };
 
-export const removeBookmark = async (id) => {
-  const response = await axios.delete(`${API_URL}/bookmark/${id}`);
-  return response.data;
+export const downloadDocument = async (id) => {
+  return await retryRequest(() => api.get(`/documents/${id}/download`));
 };
 
-export const checkBookmark = async (id) => {
-  const response = await axios.get(`${API_URL}/bookmark/${id}`);
-  return response.data;
-};
-
-export const getUserBookmarks = async (params) => {
-  const response = await axios.get(`${API_URL}/bookmarks`, { params });
-  return response.data;
-};
-
-export const getDocumentStatistics = async () => {
-  const response = await axios.get(`${API_URL}/statistics`);
-  return response.data;
-};
-
-export const getDocumentReport = async (params) => {
-  const response = await axios.get(`${API_URL}/report`, { params });
-  return response.data;
+export const convertDocumentFormat = async (id, format) => {
+  if (!["html", "markdown"].includes(format)) {
+    throw new Error(
+      "Unsupported format. Only 'html' and 'markdown' are supported."
+    );
+  }
+  return await retryRequest(() =>
+    api.get(`/documents/${id}/convert?format=${format}`, {
+      responseType: "blob",
+    })
+  );
 };
 
 export const createDocument = async (data) => {
-  const response = await axios.post(`${API_URL}/create`, data);
-  return response.data;
+  return await retryRequest(() =>
+    api.post("/documents", data, {
+      headers: { "Content-Type": "multipart/form-data" },
+    })
+  );
+};
+
+export const addBookmark = async (data) => {
+  return await retryRequest(() => api.post("/bookmarks", data));
+};
+
+export const removeBookmark = async (id) => {
+  return await retryRequest(() => api.delete(`/bookmarks/${id}`));
+};
+
+export const checkBookmark = async (id) => {
+  const response = await retryRequest(() => api.get(`/bookmarks/${id}`));
+  return response || { isBookmarked: false }; // Đảm bảo luôn có giá trị trả về
+};
+
+export const getBookmarks = async () => {
+  return await retryRequest(() => api.get("/bookmarks"));
 };

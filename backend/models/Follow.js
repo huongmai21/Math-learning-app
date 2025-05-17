@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+const mongoose = require("mongoose")
 
 const FollowSchema = new mongoose.Schema({
   followerId: {
@@ -15,9 +15,11 @@ const FollowSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
-});
+})
 
 // Index để tối ưu truy vấn
-FollowSchema.index({ followerId: 1, followingId: 1 }, { unique: true });
+FollowSchema.index({ followerId: 1, followingId: 1 }, { unique: true })
 
-module.exports = mongoose.model("Follow", FollowSchema);
+const Follow = mongoose.model("Follow", FollowSchema)
+
+module.exports = Follow

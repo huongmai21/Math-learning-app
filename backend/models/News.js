@@ -1,7 +1,7 @@
 // backend/models/News.js
-const mongoose = require("mongoose");
-const { Schema } = mongoose;
-const slugify = require("slugify");
+const mongoose = require("mongoose")
+const { Schema } = mongoose
+const slugify = require("slugify")
 
 const newsSchema = new mongoose.Schema({
   title: { type: String, required: true },
@@ -16,11 +16,13 @@ const newsSchema = new mongoose.Schema({
   publishedAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
   views: { type: Number, default: 0 },
-});
+})
 
 newsSchema.pre("save", function (next) {
-  this.slug = slugify(this.title, { lower: true, strict: true });
-  next();
-});
+  this.slug = slugify(this.title, { lower: true, strict: true })
+  next()
+})
 
-module.exports = mongoose.model("News", newsSchema);
+const News = mongoose.model("News", newsSchema)
+
+module.exports = News

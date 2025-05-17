@@ -1,4 +1,6 @@
-const mongoose = require("mongoose");
+// Lưu bookmark khóa học của người dùng
+
+const mongoose = require("mongoose")
 
 const EnrollmentSchema = new mongoose.Schema({
   userId: {
@@ -15,9 +17,11 @@ const EnrollmentSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
-});
+})
 
 // Index để tối ưu truy vấn
-EnrollmentSchema.index({ userId: 1, courseId: 1 }, { unique: true });
+EnrollmentSchema.index({ userId: 1, courseId: 1 }, { unique: true })
 
-module.exports = mongoose.model("Enrollment", EnrollmentSchema);
+const Enrollment = mongoose.model("Enrollment", EnrollmentSchema)
+
+module.exports = Enrollment

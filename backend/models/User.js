@@ -23,7 +23,10 @@ const UserSchema = new mongoose.Schema({
     unique: true,
     trim: true,
     minlength: [3, "Tên người dùng phải có ít nhất 3 ký tự"],
-    match: [/^[a-zA-Z0-9_]+$/, "Tên người dùng chỉ được chứa chữ, số và dấu gạch dưới"],
+    match: [
+      /^[a-zA-Z0-9_]+$/,
+      "Tên người dùng chỉ được chứa chữ, số và dấu gạch dưới",
+    ],
   },
   email: {
     type: String,
@@ -34,9 +37,9 @@ const UserSchema = new mongoose.Schema({
   password: {
     type: String,
     required: [true, "Vui lòng nhập mật khẩu"],
-    minlength: [10, "Mật khẩu phải có ít nhất 10 ký tự"],
+    minlength: [8, "Mật khẩu phải có ít nhất 10 ký tự"],
     match: [
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{10,}$/,
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
       "Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt",
     ],
     select: false,
@@ -48,14 +51,15 @@ const UserSchema = new mongoose.Schema({
   },
   avatar: {
     type: String,
-    default: "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746717237/default-avatar_ysrrdy.png",
+    default:
+      "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746717237/default-avatar_ysrrdy.png",
     validate: {
-      validator: function (v) {
+      validator: (v) => {
         if (!v) return true;
         return /^(https?:\/\/|\/)/.test(v);
       },
-      message: 'Avatar must be a valid URL or relative path'
-    }
+      message: "Avatar must be a valid URL or relative path",
+    },
   },
   bio: {
     type: String,
@@ -113,8 +117,8 @@ UserSchema.methods.matchPassword = async function (enteredPassword) {
 };
 
 // Index để tối ưu truy vấn
-UserSchema.index({ email: 1 });
-UserSchema.index({ username: 1 });
 UserSchema.index({ role: 1 });
 
-module.exports = mongoose.model("User", UserSchema);
+const User = mongoose.model("User", UserSchema);
+
+module.exports = User;

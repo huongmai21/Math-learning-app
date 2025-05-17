@@ -24,7 +24,7 @@ const notificationSchema = new mongoose.Schema({
   link: {
     type: String,
     validate: {
-      validator: function (v) {
+      validator: (v) => {
         if (!v) return true;
         return /^(https?:\/\/|\/)/.test(v);
       },
@@ -59,4 +59,6 @@ notificationSchema.index({ recipient: 1, isRead: 1, createdAt: -1 });
 notificationSchema.index({ relatedModel: 1, relatedId: 1 });
 notificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
-module.exports = mongoose.model("Notification", notificationSchema);
+const Notification = mongoose.model("Notification", notificationSchema);
+
+module.exports = Notification;

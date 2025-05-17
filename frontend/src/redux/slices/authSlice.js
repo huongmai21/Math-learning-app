@@ -1,100 +1,151 @@
-// frontend/src/redux/slices/authSlice.js
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import {
-  login as loginService,
-  refreshUser as refreshUserService,
-} from "../../services/authService";
-import { toast } from "react-toastify";
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit"
+import * as authService from "../../services/authService"
+import { toast } from "react-toastify"
 
-export const login = createAsyncThunk(
-  "auth/login",
-  async (credentials, { rejectWithValue }) => {
-    try {
-      const response = await loginService(credentials);
-      return response;
-    } catch (error) {
-      return rejectWithValue(error.errors || error.message);
-    }
+// Async thunks
+export const login = createAsyncThunk("auth/login", async (credentials, { rejectWithValue }) => {
+  try {
+    const data = await authService.login(credentials)
+    return data
+  } catch (error) {
+    return rejectWithValue(error.message || "Đăng nhập thất bại")
   }
-);
+})
 
-export const refreshUser = createAsyncThunk(
-  "auth/refreshUser",
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await refreshUserService();
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(error.errors || error.message);
-    }
+export const register = createAsyncThunk("auth/register", async (userData, { rejectWithValue }) => {
+  try {
+    const data = await authService.register(userData)
+    return data
+  } catch (error) {
+    return rejectWithValue(error.message || "Đăng ký thất bại")
   }
-);
+})
+
+export const refreshUser = createAsyncThunk("auth/refreshUser", async (_, { rejectWithValue }) => {
+  try {
+    const data = await authService.refreshUser()
+    return data
+  } catch (error) {
+    console.error("refreshUser thunk error:", error)
+    return rejectWithValue(error.message || "Không thể lấy thông tin người dùng")
+  }
+})
+
+// Thêm updateUser thunk
+export const updateUser = createAsyncThunk("auth/updateUser", async (userData, { rejectWithValue }) => {
+  try {
+    // Giả sử có một API endpoint để cập nhật thông tin người dùng
+    const response = await fetch("/api/users/update", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+      body: JSON.stringify(userData),
+    })
+
+    if (!response.ok) {
+      throw new Error("Không thể cập nhật thông tin người dùng")
+    }
+
+    const data = await response.json()
+    return data
+  } catch (error) {
+    return rejectWithValue(error.message || "Cập nhật thất bại")
+  }
+})
+
+const initialState = {
+  user: null,
+  token: localStorage.getItem("token") || null,
+  isAuthenticated: false,
+  loading: false,
+  error: null,
+}
 
 const authSlice = createSlice({
   name: "auth",
-  initialState: {
-    user: null,
-    token: localStorage.getItem("token") || null,
-    loading: false,
-    error: null,
-  },
+  initialState,
   reducers: {
-    loginSuccess(state, action) {
-      state.user = action.payload.user;
-      state.token = action.payload.token;
-      localStorage.setItem("token", action.payload.token);
-    },
     logout: (state) => {
-      state.user = null;
-      state.token = null;
-      state.loading = false;
-      state.error = null;
-      localStorage.removeItem("token");
+      localStorage.removeItem("token")
+      state.user = null
+      state.token = null
+      state.isAuthenticated = false
     },
     clearError: (state) => {
-      state.error = null;
+      state.error = null
     },
   },
   extraReducers: (builder) => {
     builder
+      // Login
       .addCase(login.pending, (state) => {
-        state.loading = true;
-        state.error = null;
+        state.loading = true
+        state.error = null
       })
       .addCase(login.fulfilled, (state, action) => {
-        state.loading = false;
-        state.user = action.payload.user;
-        state.token = action.payload.token;
-        localStorage.setItem("token", action.payload.token);
+        state.loading = false
+        state.user = action.payload.user
+        state.token = action.payload.token
+        state.isAuthenticated = true
+        toast.success("Đăng nhập thành công!")
       })
       .addCase(login.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
+        state.loading = false
+        state.error = action.payload
+        toast.error(action.payload || "Đăng nhập thất bại")
       })
+      // Register
+      .addCase(register.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(register.fulfilled, (state, action) => {
+        state.loading = false
+        state.user = action.payload.user
+        state.token = action.payload.token
+        state.isAuthenticated = true
+        toast.success("Đăng ký thành công!")
+      })
+      .addCase(register.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload
+        toast.error(action.payload || "Đăng ký thất bại")
+      })
+      // Refresh User
       .addCase(refreshUser.pending, (state) => {
-        state.loading = true;
-        state.error = null;
+        state.loading = true
       })
       .addCase(refreshUser.fulfilled, (state, action) => {
-        state.loading = false;
-        state.user = action.payload;
-        console.log("Updated user in Redux:", action.payload);
+        state.loading = false
+        state.user = action.payload
+        state.isAuthenticated = true
       })
       .addCase(refreshUser.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-        if (
-          action.payload.includes("Token") ||
-          action.payload.includes("401")
-        ) {
-          state.user = null;
-          state.token = null;
-          localStorage.removeItem("token");
-          toast.error("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!");
+        state.loading = false
+        state.error = action.payload
+        // Chỉ hiển thị toast khi lỗi không phải do token hết hạn
+        if (action.payload && !action.payload.includes("token")) {
+          toast.error(action.payload || "Không thể lấy thông tin người dùng")
         }
-      });
+      })
+      // Update User
+      .addCase(updateUser.pending, (state) => {
+        state.loading = true
+      })
+      .addCase(updateUser.fulfilled, (state, action) => {
+        state.loading = false
+        state.user = action.payload
+        toast.success("Cập nhật thông tin thành công!")
+      })
+      .addCase(updateUser.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload
+        toast.error(action.payload || "Cập nhật thất bại")
+      })
   },
-});
+})
 
-export const { logout, clearError } = authSlice.actions;
-export default authSlice.reducer;
+export const { logout, clearError } = authSlice.actions
+export default authSlice.reducer

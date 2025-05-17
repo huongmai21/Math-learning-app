@@ -1,228 +1,162 @@
-import React, { useState } from "react";
-import { format } from "date-fns";
-import "./Profile.css";
+import { Link } from "react-router-dom";
 
-const OverviewTab = ({
-  profileData,
-  followers,
-  following,
-  contributions,
-  selectedYear,
-  handleYearChange,
-  handleProfileChange,
-  handleUpdateProfile,
-}) => {
-  const [isEditing, setIsEditing] = useState(false);
-
-  // Generate years from account creation to current year
-  const accountCreationYear = profileData.createdAt
-    ? new Date(profileData.createdAt).getFullYear()
-    : 2023;
-  const currentYear = 2025;
-  const years = [];
-  for (let year = accountCreationYear; year <= currentYear; year++) {
-    years.push(year);
-  }
-
-  // Mock recent activities (replace with actual data from API if available)
-  const recentActivities = contributions
-    .slice()
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .slice(0, 5)
-    .map((activity) => ({
-      date: activity.date,
-      description: `Đã thực hiện ${activity.count} hoạt động`,
-    }));
-
-  const toggleEditProfile = () => {
-    setIsEditing(!isEditing);
-  };
-
+const OverviewTab = ({ profile, isCurrentUser }) => {
   return (
     <div className="overview-tab">
-      <div className="profile-and-activity">
-        {/* Profile Information (Left) */}
-        <div className="profile-header">
-          <div className="profile-info">
-            <img
-              src={
-                profileData.avatar ||
-                "https://res.cloudinary.com/your-cloud-name/image/upload/avatar/default-avatar.jpg"
-              }
-              alt="Avatar"
-              className="profile-avatar"
-            />
-            <h2>{profileData.username}</h2>
-            {profileData.bio && (
-              <p className="profile-bio">{profileData.bio}</p>
-            )}
-            <div className="badges">
-              {profileData.badges?.map((badge, index) => (
-                <span key={index} className={`badge badge-${badge.type}`}>
-                  {badge.type === "gold"
-                    ? "🥇"
-                    : badge.type === "silver"
-                    ? "🥈"
-                    : "🥉"}
-                </span>
-              ))}
-            </div>
-            <p className="follow-stats">
-              {followers.length} người theo dõi • {following.length} đang theo
-              dõi
-            </p>
-            {!isEditing ? (
-              <button className="edit-profile-btn" onClick={toggleEditProfile}>
-                Chỉnh sửa hồ sơ
-              </button>
-            ) : (
-              <form onSubmit={handleUpdateProfile} className="profile-details">
-                <div>
-                  <p>
-                    <strong>Tên người dùng:</strong>
-                    <input
-                      type="text"
-                      name="username"
-                      value={profileData.username}
-                      onChange={handleProfileChange}
-                      placeholder="Tên người dùng"
-                    />
-                  </p>
-                  <p>
-                    <strong>Email:</strong>
-                    <input
-                      type="email"
-                      name="email"
-                      value={profileData.email}
-                      onChange={handleProfileChange}
-                      placeholder="Email"
-                    />
-                  </p>
-                  <p>
-                    <strong>Bio:</strong>
-                    <textarea
-                      name="bio"
-                      value={profileData.bio || ""}
-                      onChange={handleProfileChange}
-                      placeholder="Giới thiệu về bạn"
-                      className="bio-input"
-                    />
-                  </p>
-                  <p>
-                    <strong>Ảnh đại diện:</strong>
-                    <input
-                      type="file"
-                      name="avatar"
-                      accept="image/*"
-                      onChange={handleProfileChange}
-                    />
-                  </p>
-                </div>
-                <div className="profile-actions">
-                  <button type="submit" className="save-profile-btn">
-                    Lưu
-                  </button>
-                  <button
-                    type="button"
-                    className="cancel-edit-btn"
-                    onClick={toggleEditProfile}
-                  >
-                    Hủy
-                  </button>
-                </div>
-              </form>
-            )}
+      <div className="profile-section">
+        <h2>Thông tin cá nhân</h2>
+        <div className="profile-info-grid">
+          <div className="info-item">
+            <span className="info-label">Tên người dùng:</span>
+            <span className="info-value">{profile.username}</span>
           </div>
-        </div>
-
-        {/* Contribution Heatmap (Right) */}
-        <div className="heatmap-section">
-          <h3>
-            {contributions.reduce((sum, day) => sum + day.count, 0)} hoạt động
-            trong năm {selectedYear}
-          </h3>
-          <select
-            value={selectedYear}
-            onChange={handleYearChange}
-            className="year-select"
-          >
-            {years.map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
-          <div className="heatmap-wrapper">
-            <div className="heatmap-days">
-              {["", "T2", "T4", "T6", "CN"].map((day, index) => (
-                <span key={index}>{day}</span>
-              ))}
-            </div>
-            <div className="flex-1">
-              <div className="heatmap-header">
-                {[
-                  "Thg 1",
-                  "Thg 2",
-                  "Thg 3",
-                  "Thg 4",
-                  "Thg 5",
-                  "Thg 6",
-                  "Thg 7",
-                  "Thg 8",
-                  "Thg 9",
-                  "Thg 10",
-                  "Thg 11",
-                  "Thg 12",
-                ].map((month, index) => (
-                  <span key={index}>{month}</span>
-                ))}
-              </div>
-              <div className="heatmap">
-                {contributions.map((day, index) => (
-                  <div
-                    key={index}
-                    className={`heatmap-day contribution-${Math.min(
-                      day.count,
-                      4
-                    )}`}
-                    title={`${day.date}: ${day.count} hoạt động`}
-                  ></div>
-                ))}
-              </div>
-            </div>
+          <div className="info-item">
+            <span className="info-label">Email:</span>
+            <span className="info-value">{profile.email}</span>
           </div>
-          <div className="heatmap-legend">
-            <span>Ít</span>
-            <div className="legend-squares">
-              <span className="heatmap-day contribution-0"></span>
-              <span className="heatmap-day contribution-1"></span>
-              <span className="heatmap-day contribution-2"></span>
-              <span className="heatmap-day contribution-3"></span>
-              <span className="heatmap-day contribution-4"></span>
-            </div>
-            <span>Nhiêu</span>
+          <div className="info-item">
+            <span className="info-label">Vai trò:</span>
+            <span className="info-value">
+              {profile.role === "student" ? "Học sinh" : "Giáo viên"}
+            </span>
           </div>
+          <div className="info-item">
+            <span className="info-label">Ngày tham gia:</span>
+            <span className="info-value">
+              {new Date(profile.createdAt).toLocaleDateString("vi-VN")}
+            </span>
+          </div>
+          {profile.location && (
+            <div className="info-item">
+              <span className="info-label">Địa điểm:</span>
+              <span className="info-value">{profile.location}</span>
+            </div>
+          )}
+          {profile.education && (
+            <div className="info-item">
+              <span className="info-label">Trường học:</span>
+              <span className="info-value">{profile.education}</span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Recent Activities */}
-      <div className="recent-activities">
-        <h3>Hoạt động gần đây</h3>
-        {recentActivities.length > 0 ? (
-          <ul>
-            {recentActivities.map((activity, index) => (
-              <li key={index} className="activity-item">
-                <span>{format(new Date(activity.date), "dd/MM/yyyy")}</span>
-                <p>{activity.description}</p>
-              </li>
+      <div className="profile-section">
+        <h2>Hoạt động gần đây</h2>
+        {profile.recentActivities && profile.recentActivities.length > 0 ? (
+          <div className="activity-timeline">
+            {profile.recentActivities.map((activity, index) => (
+              <div key={index} className="activity-item">
+                <div className="activity-icon">
+                  <i className={`fas fa-${getActivityIcon(activity.type)}`}></i>
+                </div>
+                <div className="activity-content">
+                  <p>{activity.description}</p>
+                  <span className="activity-time">
+                    {formatTimeAgo(activity.createdAt)}
+                  </span>
+                </div>
+              </div>
             ))}
-          </ul>
+          </div>
         ) : (
-          <p>Chưa có hoạt động nào gần đây.</p>
+          <p className="no-data">Chưa có hoạt động nào gần đây</p>
         )}
       </div>
+
+      <div className="profile-section">
+        <h2>Thống kê đóng góp</h2>
+        <div className="contribution-stats">
+          <div className="contribution-grid">
+            {/* Giả lập dữ liệu đóng góp giống GitHub */}
+            {Array.from({ length: 52 }, (_, weekIndex) => (
+              <div key={`week-${weekIndex}`} className="contribution-week">
+                {Array.from({ length: 7 }, (_, dayIndex) => {
+                  const level = Math.floor(Math.random() * 5); // 0-4 levels of contribution
+                  return (
+                    <div
+                      key={`day-${weekIndex}-${dayIndex}`}
+                      className={`contribution-day level-${level}`}
+                      title={`${level} đóng góp vào ngày này`}
+                    ></div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+          <div className="contribution-legend">
+            <span>Ít hơn</span>
+            <div className="contribution-day level-0"></div>
+            <div className="contribution-day level-1"></div>
+            <div className="contribution-day level-2"></div>
+            <div className="contribution-day level-3"></div>
+            <div className="contribution-day level-4"></div>
+            <span>Nhiều hơn</span>
+          </div>
+        </div>
+      </div>
+
+      {isCurrentUser && (
+        <div className="profile-actions">
+          <Link to="/settings" className="btn-secondary">
+            <i className="fas fa-cog"></i> Cài đặt tài khoản
+          </Link>
+        </div>
+      )}
     </div>
   );
+};
+
+// Hàm phụ trợ để lấy icon cho từng loại hoạt động
+const getActivityIcon = (type) => {
+  switch (type) {
+    case "course":
+      return "graduation-cap";
+    case "document":
+      return "file-alt";
+    case "comment":
+      return "comment";
+    case "exam":
+      return "clipboard-check";
+    case "post":
+      return "edit";
+    default:
+      return "circle";
+  }
+};
+
+// Hàm phụ trợ để định dạng thời gian
+const formatTimeAgo = (dateString) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInSeconds = Math.floor((now - date) / 1000);
+
+  if (diffInSeconds < 60) {
+    return "vừa xong";
+  }
+
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) {
+    return `${diffInMinutes} phút trước`;
+  }
+
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) {
+    return `${diffInHours} giờ trước`;
+  }
+
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 30) {
+    return `${diffInDays} ngày trước`;
+  }
+
+  const diffInMonths = Math.floor(diffInDays / 30);
+  if (diffInMonths < 12) {
+    return `${diffInMonths} tháng trước`;
+  }
+
+  const diffInYears = Math.floor(diffInMonths / 12);
+  return `${diffInYears} năm trước`;
 };
 
 export default OverviewTab;

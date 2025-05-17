@@ -20,10 +20,10 @@ frontend/
 │   │   └── images/
 │   ├── components/
 │   │   ├── common/
-│   │   │   ├── Button.js
-│   │   │   └── Navbar.js
-│   │   ├── lesson/
-│   │   │   └── LessonCard.js
+│   │   │   ├── 
+│   │   │   └── 
+│   │   ├── layout/
+│   │   │   └── Navbar
 │   ├── pages/
 │   │   ├── Home.js
 │   │   ├── Login.js
@@ -58,3 +58,6 @@ frontend/
 - date-fns (dùng để format datetime trong Profile.jsx)
 - react-chartjs-2 chart.js vẽ biểu đồ
 - Thêm Redux Persist để giữ state khi tải lại.: npm install redux-persist
+- npm install mathjax-react react-quill --legacy-peer-deps
+    + --legacy-peer-deps: để bỏ qua kiểm tra xung đột phiên bản
+- lodash

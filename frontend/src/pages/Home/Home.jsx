@@ -6,8 +6,8 @@ import { io } from "socket.io-client";
 import { Helmet } from "react-helmet";
 import { motion } from "framer-motion";
 import SearchBar from "../../components/common/SearchBar/SearchBar";
-import Footer from "../../components/layout/Footer/Footer";
-import { getNewsPress } from "../../services/newsServices";
+// import Footer from "../../components/layout/Footer/Footer";
+import { getNewsPress } from "../../services/newsService";
 import { getCoursesPress } from "../../services/courseService";
 import api from "../../services/api";
 import "./HomePage.css";
@@ -373,7 +373,7 @@ const HomePage = () => {
         </div>
       </motion.section>
 
-      <Footer />
+      {/* <Footer /> */}
     </div>
   );
 };

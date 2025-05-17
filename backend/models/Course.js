@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+const mongoose = require("mongoose")
 
 const ContentSchema = new mongoose.Schema({
   title: {
@@ -14,7 +14,7 @@ const ContentSchema = new mongoose.Schema({
   url: { type: String, required: [true, "Vui lòng nhập URL nội dung"] },
   isPreview: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
-});
+})
 
 const CourseSchema = new mongoose.Schema({
   title: {
@@ -36,9 +36,9 @@ const CourseSchema = new mongoose.Schema({
     type: String,
     default: "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png",
     validate: {
-      validator: function (v) {
-        if (!v) return true;
-        return /^(https?:\/\/|\/)/.test(v);
+      validator: (v) => {
+        if (!v) return true
+        return /^(https?:\/\/|\/)/.test(v)
       },
       message: "Thumbnail must be a valid URL or relative path",
     },
@@ -61,11 +61,13 @@ const CourseSchema = new mongoose.Schema({
   },
   contents: [ContentSchema],
   createdAt: { type: Date, default: Date.now },
-});
+})
 
 // Index để tối ưu truy vấn
-CourseSchema.index({ instructorId: 1 });
-CourseSchema.index({ category: 1 });
-CourseSchema.index({ status: 1 });
+CourseSchema.index({ instructorId: 1 })
+CourseSchema.index({ category: 1 })
+CourseSchema.index({ status: 1 })
 
-module.exports = mongoose.model("Course", CourseSchema);
+const Course = mongoose.model("Course", CourseSchema)
+
+module.exports = Course

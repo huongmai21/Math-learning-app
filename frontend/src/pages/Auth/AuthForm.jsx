@@ -1,5 +1,7 @@
+"use client";
+
 // frontend/src/pages/Auth/AuthForm.jsx
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { refreshUser, login, clearError } from "../../redux/slices/authSlice";
@@ -24,6 +26,7 @@ const AuthForm = () => {
   const [isLogin, setIsLogin] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const pathname = location.pathname;
@@ -40,9 +43,14 @@ const AuthForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
+    setErrors({});
 
-    if (isLogin) {
-      try {
+    try {
+      console.log("Đang gửi form:", isLogin ? "đăng nhập" : "đăng ký");
+      console.log("Dữ liệu form:", formData);
+
+      if (isLogin) {
         const result = await dispatch(
           login({
             email: formData.email,
@@ -63,31 +71,41 @@ const AuthForm = () => {
         } else {
           toast.error("Token không được lưu, vui lòng thử lại");
         }
-      } catch (err) {
-        toast.error(err?.message || "Đăng nhập thất bại");
-      }
-    } else {
-      try {
-        const response = await register({
-          username: formData.username,
-          email: formData.email,
-          password: formData.password,
-          role: formData.role,
-        });
-        toast.success("Đăng ký thành công! Vui lòng đăng nhập.");
-        navigate("/auth/login");
-      } catch (error) {
-        const responseData = error.response?.data;
-        if (responseData && responseData.errors) {
-          setErrors({
-            username: responseData.errors.username || "",
-            email: responseData.errors.email || "",
-            password: responseData.errors.password || "",
+      } else {
+        try {
+          const response = await register({
+            username: formData.username,
+            email: formData.email,
+            password: formData.password,
+            role: formData.role,
           });
-        } else {
-          toast.error("Đăng ký thất bại, vui lòng kiểm tra lại thông tin");
+          toast.success("Đăng ký thành công! Vui lòng đăng nhập.");
+          navigate("/auth/login");
+        } catch (error) {
+          const responseData = error.response?.data;
+          if (responseData && responseData.errors) {
+            setErrors({
+              username: responseData.errors.username || "",
+              email: responseData.errors.email || "",
+              password: responseData.errors.password || "",
+            });
+          } else {
+            toast.error("Đăng ký thất bại, vui lòng kiểm tra lại thông tin");
+          }
         }
       }
+    } catch (error) {
+      console.error("Lỗi xử lý form:", error);
+
+      if (error.errors) {
+        setErrors(error.errors);
+      } else {
+        setErrors({
+          general: error.message || "Đã xảy ra lỗi. Vui lòng thử lại.",
+        });
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -191,8 +209,12 @@ const AuthForm = () => {
                   Forgot password?
                 </button>
               </div>
-              <button type="submit" className="btn" disabled={loading}>
-                {loading ? "Signing in..." : "Sign In"}
+              <button
+                type="submit"
+                className="btn"
+                disabled={loading || isLoading}
+              >
+                {loading || isLoading ? "Signing in..." : "Sign In"}
               </button>
               <div className="login-register">
                 <p>
@@ -281,8 +303,12 @@ const AuthForm = () => {
                   to the terms & conditions
                 </label>
               </div>
-              <button type="submit" className="btn" disabled={loading}>
-                {loading ? "Signing up..." : "Sign Up"}
+              <button
+                type="submit"
+                className="btn"
+                disabled={loading || isLoading}
+              >
+                {loading || isLoading ? "Signing up..." : "Sign Up"}
               </button>
               <div className="login-register">
                 <p>

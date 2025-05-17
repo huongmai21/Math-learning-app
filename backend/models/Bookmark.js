@@ -1,22 +1,33 @@
-// Lưu bookmark khóa học của người dùng
+const mongoose = require("mongoose")
+const { Schema } = mongoose
 
-const mongoose = require("mongoose");
+const bookmarkSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    referenceType: {
+      type: String,
+      enum: ["post", "document", "news", "course"],
+      required: true,
+    },
+    referenceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      refPath: "referenceType",
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  {
+    indexes: [{ key: { user: 1, referenceType: 1, referenceId: 1 }, unique: true }],
+  },
+)
 
-const BookmarkSchema = new mongoose.Schema({
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    required: true,
-  },
-  courseId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Course",
-    required: true,
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-});
+const Bookmark = mongoose.model("Bookmark", bookmarkSchema)
 
-module.exports = mongoose.model("Bookmark", BookmarkSchema);
+module.exports = Bookmark

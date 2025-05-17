@@ -1,1093 +1,1142 @@
-import React, { useState, useEffect } from "react";
-import { useSelector } from "react-redux";
-import { toast } from "react-toastify";
-import { Tooltip } from "react-tooltip";
+"use client"
+
+import { useState, useEffect, useRef } from "react"
+import { useNavigate, useParams, Link } from "react-router-dom"
+import { useSelector } from "react-redux"
+import { toast } from "react-toastify"
 import {
   getPosts,
+  getPostById,
   createPost,
+  deletePost,
   likePost,
-  sharePost,
-  addComment,
   bookmarkPost,
-} from "../../services/postService";
-import {
-  getUserSuggestions,
-  followUser,
-  unfollowUser,
-} from "../../services/userService";
-import Sidebar from "../../components/layout/Sidebar/Sidebar";
-import "./StudyCorner.css";
+  getBookmarkedPosts,
+  updatePostStatus,
+  updateAiResponse,
+  uploadPostImage,
+  uploadPostFile,
+} from "../../services/postService.js"
+import { getComments, createComment, deleteComment, likeComment } from "../../services/commentService.js"
+import "./StudyCorner.css"
 
 const StudyCorner = () => {
-  const { user } = useSelector((state) => state.auth);
-  const [activeTab, setActiveTab] = useState("exercise");
-  const [posts, setPosts] = useState([]);
-  const [exercises, setExercises] = useState([]);
-  const [searchResults, setSearchResults] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [imageSearchFile, setImageSearchFile] = useState(null);
-  const [gradeFilter, setGradeFilter] = useState("");
-  const [subjectFilter, setSubjectFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [newPostTitle, setNewPostTitle] = useState("");
-  const [newPostContent, setNewPostContent] = useState("");
-  const [newPostAttachments, setNewPostAttachments] = useState([]);
-  const [newComment, setNewComment] = useState("");
-  const [trendingTopics, setTrendingTopics] = useState([]);
-  const [whoToFollow, setWhoToFollow] = useState([]);
-  const [selectedExercise, setSelectedExercise] = useState(null);
-  const [showPostForm, setShowPostForm] = useState(false);
-  const [aiSearchResult, setAiSearchResult] = useState(null);
-  const [bookmarks, setLibraryItems] = useState([]);
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [page, setPage] = useState(1);
-  const postsPerPage = 5;
+  const { id, tab = "exercises" } = useParams()
+  const navigate = useNavigate()
+  const { user } = useSelector((state) => state.auth)
 
+  const [activeTab, setActiveTab] = useState(tab) // exercises, learning, sharing, bookmarks
+  const [posts, setPosts] = useState([])
+  const [currentPost, setCurrentPost] = useState(null)
+  const [comments, setComments] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [commentsLoading, setCommentsLoading] = useState(false)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [subject, setSubject] = useState("")
+  const [status, setStatus] = useState("")
+  const [search, setSearch] = useState("")
+  const [searchImage, setSearchImage] = useState(null)
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [commentText, setCommentText] = useState("")
+  const [aiResponse, setAiResponse] = useState("")
+  const [isProcessingAi, setIsProcessingAi] = useState(false)
+  const [formData, setFormData] = useState({
+    title: "",
+    content: "",
+    tags: "",
+    category: "exercise",
+    subject: "highschool",
+    status: "open",
+    images: [],
+    files: [],
+  })
+
+  const fileInputRef = useRef(null)
+  const imageInputRef = useRef(null)
+
+  // Chuyển tab khi URL thay đổi
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
+    if (tab) {
+      setActiveTab(tab)
+    }
+  }, [tab])
+
+  // Load bài đăng theo tab
+  useEffect(() => {
+    const loadPosts = async () => {
+      setLoading(true)
       try {
-        const exercisesData = await getPosts({
-          category: "question",
-          page,
-          limit: postsPerPage,
-        });
-        setExercises(
-          Array.isArray(exercisesData.data) ? exercisesData.data : []
-        );
+        let response
 
-        const postsData = await getPosts({
-          category_ne: "question",
-          page,
-          limit: postsPerPage,
-        });
-        setPosts(Array.isArray(postsData.data) ? postsData.data : []);
-
-        const suggestionsData = await getUserSuggestions();
-        setWhoToFollow(
-          Array.isArray(suggestionsData.data) ? suggestionsData.data : []
-        );
-
-        const bookmarksData = await getPosts({ bookmarked: true });
-        setLibraryItems(
-          Array.isArray(bookmarksData.data) ? bookmarksData.data : []
-        );
-
-        setTrendingTopics(["Toán học", "Lập trình", "Văn học"]);
-
-        setNotifications([
-          {
-            id: 1,
-            message: "Bài đăng của bạn đã được bình luận!",
-            date: "2025-05-07",
-          },
-          {
-            id: 2,
-            message: "Câu hỏi của bạn đã được giải đáp!",
-            date: "2025-05-06",
-          },
-        ]);
-      } catch (err) {
-        setError("Không thể tải dữ liệu!");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [page]);
-
-  const handlePostSubmit = async () => {
-    if (!newPostContent && !newPostTitle && activeTab === "exercise") {
-      toast.error("Vui lòng điền tiêu đề và nội dung!");
-      return;
-    }
-    if (!newPostContent && activeTab !== "exercise") {
-      toast.error("Vui lòng điền nội dung!");
-      return;
-    }
-    try {
-      const formData = new FormData();
-      if (newPostTitle) formData.append("title", newPostTitle);
-      formData.append("content", newPostContent);
-      formData.append(
-        "category",
-        activeTab === "exercise" ? "question" : "general"
-      );
-      if (activeTab === "exercise") {
-        formData.append("grade", gradeFilter || "N/A");
-        formData.append("subject", subjectFilter || "N/A");
-      }
-      newPostAttachments.forEach((file) =>
-        formData.append("attachments", file)
-      );
-
-      const response = await createPost(formData);
-      if (activeTab === "exercise") {
-        setExercises((prev) => [response.data, ...prev]);
-        setNotifications((prev) => [
-          ...prev,
-          {
-            id: Date.now(),
-            message: `Câu hỏi "${newPostTitle || "Untitled"}" đã được đăng!`,
-            date: new Date().toISOString().split("T")[0],
-          },
-        ]);
-      } else {
-        setPosts((prev) => [response.data, ...prev]);
-        setNotifications((prev) => [
-          ...prev,
-          {
-            id: Date.now(),
-            message: `Bài đăng "${newPostContent.slice(
-              0,
-              20
-            )}..." đã được đăng!`,
-            date: new Date().toISOString().split("T")[0],
-          },
-        ]);
-      }
-      setNewPostTitle("");
-      setNewPostContent("");
-      setNewPostAttachments([]);
-      setShowPostForm(false);
-      toast.success("Đăng bài thành công!");
-    } catch (error) {
-      toast.error("Lỗi khi đăng bài!");
-    }
-  };
-
-  const handleFileUpload = (e) => {
-    const files = Array.from(e.target.files);
-    setNewPostAttachments([...newPostAttachments, ...files]);
-  };
-
-  const handleImageSearchUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImageSearchFile(file);
-    }
-  };
-
-  const handleLike = async (postId) => {
-    try {
-      await likePost(postId);
-      if (activeTab === "exercise") {
-        setExercises((prev) =>
-          prev.map((exercise) =>
-            exercise._id === postId
-              ? { ...exercise, likes: [...(exercise.likes || []), user?._id] }
-              : exercise
-          )
-        );
-      } else {
-        setPosts((prev) =>
-          prev.map((post) =>
-            post._id === postId
-              ? { ...post, likes: [...(post.likes || []), user?._id] }
-              : post
-          )
-        );
-      }
-      setNotifications((prev) => [
-        ...prev,
-        {
-          id: Date.now(),
-          message: "Bạn đã thích một bài đăng!",
-          date: new Date().toISOString().split("T")[0],
-        },
-      ]);
-      toast.success("Đã thích bài đăng!");
-    } catch (error) {
-      toast.error("Lỗi khi thích bài đăng!");
-    }
-  };
-
-  const handleComment = async (postId) => {
-    if (!newComment) {
-      toast.error("Vui lòng nhập bình luận!");
-      return;
-    }
-    try {
-      await addComment(postId, newComment);
-      const updatedPosts =
-        activeTab === "exercise"
-          ? await getPosts({ category: "question", page, limit: postsPerPage })
-          : await getPosts({
-              category_ne: "question",
+        switch (activeTab) {
+          case "exercises":
+            response = await getPosts({
               page,
-              limit: postsPerPage,
-            });
-      if (activeTab === "exercise") {
-        setExercises(Array.isArray(updatedPosts.data) ? updatedPosts.data : []);
-      } else {
-        setPosts(Array.isArray(updatedPosts.data) ? updatedPosts.data : []);
+              category: "exercise",
+              subject,
+              status,
+              sortBy: "createdAt",
+              sortOrder: "desc",
+            })
+            break
+          case "learning":
+            response = await getPosts({
+              page,
+              category: "question",
+              subject,
+              sortBy: "createdAt",
+              sortOrder: "desc",
+            })
+            break
+          case "sharing":
+            response = await getPosts({
+              page,
+              category: "share",
+              sortBy: "createdAt",
+              sortOrder: "desc",
+            })
+            break
+          case "bookmarks":
+            response = await getBookmarkedPosts({ page })
+            break
+          default:
+            response = await getPosts({ page })
+        }
+
+        setPosts(response.data)
+        setTotalPages(response.totalPages)
+      } catch (error) {
+        toast.error(error.message || "Không thể tải danh sách bài đăng")
+      } finally {
+        setLoading(false)
       }
-      setNotifications((prev) => [
-        ...prev,
-        {
-          id: Date.now(),
-          message: "Bạn đã bình luận một bài đăng!",
-          date: new Date().toISOString().split("T")[0],
-        },
-      ]);
-      setNewComment("");
-      toast.success("Đã thêm bình luận!");
-    } catch (error) {
-      toast.error("Lỗi khi thêm bình luận!");
     }
-  };
 
-  const handleShare = async (postId) => {
-    try {
-      await sharePost(postId);
-      setPosts((prev) =>
-        prev.map((post) =>
-          post._id === postId
-            ? { ...post, shares: (post.shares || 0) + 1 }
-            : post
-        )
-      );
-      setNotifications((prev) => [
-        ...prev,
-        {
-          id: Date.now(),
-          message: "Bạn đã chia sẻ một bài đăng!",
-          date: new Date().toISOString().split("T")[0],
-        },
-      ]);
-      toast.success("Đã chia sẻ bài đăng!");
-    } catch (error) {
-      toast.error("Lỗi khi chia sẻ!");
+    if (!id) {
+      loadPosts()
     }
-  };
+  }, [activeTab, page, subject, status, id])
 
-  const handleLibraryItem = async (post) => {
-    try {
-      await bookmarkPost(post._id);
-      if (bookmarks.some((b) => b._id === post._id)) {
-        setLibraryItems((prev) => prev.filter((b) => b._id !== post._id));
-        toast.success("Đã xóa khỏi bookmark!");
-      } else {
-        setLibraryItems((prev) => [...prev, post]);
-        toast.success("Đã thêm vào bookmark!");
+  // Load chi tiết bài đăng khi ID thay đổi
+  useEffect(() => {
+    if (id) {
+      const loadPostDetails = async () => {
+        setLoading(true)
+        try {
+          const response = await getPostById(id)
+          setCurrentPost(response.data)
+
+          // Load comments
+          loadComments(id)
+        } catch (error) {
+          toast.error(error.message || "Không thể tải chi tiết bài đăng")
+          navigate("/study-corner")
+        } finally {
+          setLoading(false)
+        }
       }
+
+      loadPostDetails()
+    } else {
+      setCurrentPost(null)
+      setComments([])
+    }
+  }, [id, navigate])
+
+  // Load comments
+  const loadComments = async (postId) => {
+    setCommentsLoading(true)
+    try {
+      const response = await getComments(postId)
+      setComments(response.data)
     } catch (error) {
-      toast.error("Lỗi khi bookmark bài đăng!");
-    }
-  };
-
-  const handleFollow = async (userId) => {
-    try {
-      await followUser(userId);
-      setWhoToFollow((prev) =>
-        prev.map((person) =>
-          person._id === userId ? { ...person, isFollowing: true } : person
-        )
-      );
-      toast.success("Đã theo dõi!");
-    } catch (err) {
-      toast.error("Không thể theo dõi!");
-    }
-  };
-
-  const handleUnfollow = async (userId) => {
-    try {
-      await unfollowUser(userId);
-      setWhoToFollow((prev) =>
-        prev.map((person) =>
-          person._id === userId ? { ...person, isFollowing: false } : person
-        )
-      );
-      toast.success("Đã bỏ theo dõi!");
-    } catch (err) {
-      toast.error("Không thể bỏ theo dõi!");
-    }
-  };
-
-  const handleSelectExercise = (exercise) => {
-    setSelectedExercise(exercise);
-    setAiSearchResult(null);
-  };
-
-  const handleAISearch = async (useImage = false) => {
-    if (!searchQuery && !useImage) {
-      toast.error("Vui lòng nhập câu hỏi hoặc chọn hình ảnh!");
-      return;
-    }
-
-    setAiLoading(true);
-    setAiSearchResult(null);
-    setSelectedExercise(null);
-
-    try {
-      if (useImage && imageSearchFile) {
-        const mockResult = {
-          content: "Kết quả từ hình ảnh: Đây là bài toán tích phân.",
-          steps: ["Bước 1: Xác định hàm số.", "Bước 2: Tính đạo hàm."],
-        };
-        setAiSearchResult(mockResult);
-      } else {
-        const mockResult = {
-          content: `Kết quả cho "${searchQuery}": Đây là giải pháp mẫu.`,
-          steps: ["Bước 1: Phân tích đề bài.", "Bước 2: Áp dụng công thức."],
-        };
-        setAiSearchResult(mockResult);
-      }
-    } catch (error) {
-      toast.error("Lỗi khi tìm kiếm bằng AI!");
-      setAiSearchResult({
-        content: "Đã có lỗi xảy ra khi tìm kiếm.",
-        steps: [],
-      });
+      console.error("Error loading comments:", error)
     } finally {
-      setAiLoading(false);
+      setCommentsLoading(false)
     }
-  };
+  }
 
-  const handleSearch = async () => {
-    setPage(1);
-    setSelectedExercise(null);
-    setAiSearchResult(null);
+  // Handle form input change
+  const handleInputChange = (e) => {
+    const { name, value } = e.target
+    setFormData({
+      ...formData,
+      [name]: value,
+    })
+  }
+
+  // Handle image upload
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files)
+
+    if (files.length === 0) return
+
+    const uploadPromises = files.map(async (file) => {
+      try {
+        const response = await uploadPostImage(file)
+        return response.data.url
+      } catch (error) {
+        toast.error(`Không thể tải lên hình ảnh: ${file.name}`)
+        return null
+      }
+    })
+
+    const uploadedUrls = await Promise.all(uploadPromises)
+    const validUrls = uploadedUrls.filter(Boolean)
+
+    setFormData({
+      ...formData,
+      images: [...formData.images, ...validUrls],
+    })
+  }
+
+  // Handle file upload
+  const handleFileUpload = async (e) => {
+    const files = Array.from(e.target.files)
+
+    if (files.length === 0) return
+
+    const uploadPromises = files.map(async (file) => {
+      try {
+        const response = await uploadPostFile(file)
+        return response.data
+      } catch (error) {
+        toast.error(`Không thể tải lên file: ${file.name}`)
+        return null
+      }
+    })
+
+    const uploadedFiles = await Promise.all(uploadPromises)
+    const validFiles = uploadedFiles.filter(Boolean)
+
+    setFormData({
+      ...formData,
+      files: [...formData.files, ...validFiles],
+    })
+  }
+
+  // Handle create post form submission
+  const handleCreatePost = async (e) => {
+    e.preventDefault()
 
     try {
-      const response = await getPosts({
-        content: searchQuery,
-        page,
-        limit: postsPerPage,
-        ...(activeTab === "exercise"
-          ? { category: "question" }
-          : { category_ne: "question" }),
-      });
-      if (activeTab === "study") {
-        setSearchResults(Array.isArray(response.data) ? response.data : []);
+      const response = await createPost(formData)
+      toast.success("Tạo bài đăng thành công!")
+      navigate(`/study-corner/${response.data._id}`)
+      setShowCreateForm(false)
+      setFormData({
+        title: "",
+        content: "",
+        tags: "",
+        category: activeTab === "exercises" ? "exercise" : activeTab === "learning" ? "question" : "share",
+        subject: "highschool",
+        status: "open",
+        images: [],
+        files: [],
+      })
+    } catch (error) {
+      toast.error(error.message || "Không thể tạo bài đăng")
+    }
+  }
+
+  // Handle like post
+  const handleLikePost = async (postId) => {
+    if (!user) {
+      toast.error("Vui lòng đăng nhập để thích bài đăng")
+      return
+    }
+
+    try {
+      const response = await likePost(postId)
+
+      if (currentPost && currentPost._id === postId) {
+        setCurrentPost({
+          ...currentPost,
+          likes: response.data.likes,
+        })
       } else {
-        setPosts(Array.isArray(response.data) ? response.data : []);
+        setPosts(posts.map((post) => (post._id === postId ? { ...post, likes: response.data.likes } : post)))
+      }
+
+      toast.success(response.data.isLiked ? "Đã thích bài đăng" : "Đã bỏ thích bài đăng")
+    } catch (error) {
+      toast.error(error.message || "Không thể thích bài đăng")
+    }
+  }
+
+  // Handle bookmark post
+  const handleBookmarkPost = async (postId) => {
+    if (!user) {
+      toast.error("Vui lòng đăng nhập để đánh dấu bài đăng")
+      return
+    }
+
+    try {
+      const response = await bookmarkPost(postId)
+
+      if (currentPost && currentPost._id === postId) {
+        setCurrentPost({
+          ...currentPost,
+          bookmarks: response.data.bookmarks,
+        })
+      } else {
+        setPosts(posts.map((post) => (post._id === postId ? { ...post, bookmarks: response.data.bookmarks } : post)))
+      }
+
+      toast.success(response.data.isBookmarked ? "Đã đánh dấu bài đăng" : "Đã bỏ đánh dấu bài đăng")
+    } catch (error) {
+      toast.error(error.message || "Không thể đánh dấu bài đăng")
+    }
+  }
+
+  // Handle delete post
+  const handleDeletePost = async (postId) => {
+    if (window.confirm("Bạn có chắc chắn muốn xóa bài đăng này?")) {
+      try {
+        await deletePost(postId)
+        toast.success("Xóa bài đăng thành công!")
+
+        if (currentPost && currentPost._id === postId) {
+          navigate("/study-corner")
+        } else {
+          setPosts(posts.filter((post) => post._id !== postId))
+        }
+      } catch (error) {
+        toast.error(error.message || "Không thể xóa bài đăng")
+      }
+    }
+  }
+
+  // Handle update post status
+  const handleUpdateStatus = async (postId, newStatus) => {
+    try {
+      const response = await updatePostStatus(postId, newStatus)
+
+      if (currentPost && currentPost._id === postId) {
+        setCurrentPost({
+          ...currentPost,
+          status: response.data.status,
+        })
+      } else {
+        setPosts(posts.map((post) => (post._id === postId ? { ...post, status: response.data.status } : post)))
+      }
+
+      toast.success("Cập nhật trạng thái thành công!")
+    } catch (error) {
+      toast.error(error.message || "Không thể cập nhật trạng thái")
+    }
+  }
+
+  // Handle create comment
+  const handleCreateComment = async (e) => {
+    e.preventDefault()
+
+    if (!commentText.trim() || !currentPost) return
+
+    try {
+      const response = await createComment({
+        postId: currentPost._id,
+        content: commentText,
+      })
+
+      setComments([...comments, response.data])
+      setCommentText("")
+
+      // Nếu là bài tập và trạng thái đang mở, cập nhật thành đang chờ
+      if (currentPost.category === "exercise" && currentPost.status === "open") {
+        handleUpdateStatus(currentPost._id, "pending")
       }
     } catch (error) {
-      toast.error("Lỗi khi tìm kiếm!");
-      if (activeTab === "study") setSearchResults([]);
-      else setPosts([]);
+      toast.error(error.message || "Không thể tạo bình luận")
     }
-  };
+  }
 
-  const filteredExercises = Array.isArray(exercises)
-    ? exercises.filter((exercise) => {
-        const matchesGrade = gradeFilter
-          ? exercise?.grade === gradeFilter
-          : true;
-        const matchesSubject = subjectFilter
-          ? exercise?.subject === subjectFilter
-          : true;
-        const matchesStatus = statusFilter
-          ? statusFilter === "solved"
-            ? exercise.solved
-            : !exercise.solved
-          : true;
-        const withinSixDays =
-          (Date.now() - new Date(exercise.createdAt)) / (1000 * 60 * 60 * 24) <=
-          6;
-        return matchesGrade && matchesSubject && matchesStatus && withinSixDays;
+  // Handle like comment
+  const handleLikeComment = async (commentId) => {
+    if (!user) {
+      toast.error("Vui lòng đăng nhập để thích bình luận")
+      return
+    }
+
+    try {
+      const response = await likeComment(commentId)
+
+      setComments(
+        comments.map((comment) => (comment._id === commentId ? { ...comment, likes: response.data.likes } : comment)),
+      )
+    } catch (error) {
+      toast.error(error.message || "Không thể thích bình luận")
+    }
+  }
+
+  // Handle delete comment
+  const handleDeleteComment = async (commentId) => {
+    if (window.confirm("Bạn có chắc chắn muốn xóa bình luận này?")) {
+      try {
+        await deleteComment(commentId)
+        setComments(comments.filter((comment) => comment._id !== commentId))
+        toast.success("Xóa bình luận thành công!")
+      } catch (error) {
+        toast.error(error.message || "Không thể xóa bình luận")
+      }
+    }
+  }
+
+  // Handle AI response
+  const handleAiResponse = async () => {
+    if (!currentPost) return
+
+    setIsProcessingAi(true)
+
+    try {
+      // Giả lập xử lý AI (trong thực tế, bạn sẽ gọi API AI)
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+
+      // Tạo câu trả lời mẫu dựa trên nội dung bài đăng
+      const sampleResponse = `Dựa trên bài toán của bạn, tôi có thể giúp giải như sau:
+      
+      **Phân tích bài toán:**
+      ${currentPost.title}
+      
+      **Cách giải:**
+      1. Đầu tiên, chúng ta cần xác định các biến và điều kiện.
+      2. Áp dụng công thức phù hợp với bài toán.
+      3. Giải phương trình và tìm kết quả.
+      
+      **Kết quả:**
+      Sau khi tính toán, chúng ta có đáp án là x = 5.
+      
+      Hy vọng điều này giúp ích cho bạn! Nếu bạn cần giải thích thêm, hãy cho tôi biết.`
+
+      setAiResponse(sampleResponse)
+
+      // Cập nhật câu trả lời AI vào bài đăng
+      await updateAiResponse(currentPost._id, sampleResponse)
+
+      // Cập nhật state
+      setCurrentPost({
+        ...currentPost,
+        aiResponse: sampleResponse,
+        isAiAnswered: true,
       })
-    : [];
 
-  const filteredPosts = Array.isArray(posts)
-    ? posts.filter((post) =>
-        post?.content?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : [];
-
-  const filteredSearchResults = Array.isArray(searchResults)
-    ? searchResults.filter((result) =>
-        result?.content?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : [];
-
-  if (loading) {
-    return <div className="loading-spinner">Đang tải...</div>;
+      toast.success("Đã nhận được câu trả lời từ AI!")
+    } catch (error) {
+      toast.error("Không thể xử lý yêu cầu AI")
+    } finally {
+      setIsProcessingAi(false)
+    }
   }
 
-  if (error) {
+  // Handle search by image
+  const handleSearchByImage = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    setSearchImage(file)
+
+    // Giả lập tìm kiếm bằng hình ảnh
+    setLoading(true)
+    try {
+      // Trong thực tế, bạn sẽ tải lên hình ảnh và gửi đến API nhận dạng
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+
+      // Giả lập kết quả tìm kiếm
+      const response = await getPosts({
+        category: "exercise",
+        subject: "highschool",
+        limit: 5,
+      })
+
+      setPosts(response.data)
+      setTotalPages(response.totalPages)
+
+      toast.success("Đã tìm kiếm bằng hình ảnh!")
+    } catch (error) {
+      toast.error("Không thể tìm kiếm bằng hình ảnh")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Render post list
+  const renderPostList = () => {
+    if (loading && posts.length === 0) {
+      return <div className="loading-spinner">Đang tải...</div>
+    }
+
+    if (posts.length === 0) {
+      return (
+        <div className="empty-state">
+          <p>Không có bài đăng nào.</p>
+          <button className="btn-primary" onClick={() => setShowCreateForm(true)}>
+            Tạo bài đăng mới
+          </button>
+        </div>
+      )
+    }
+
     return (
-      <div className="study-corner-page">
-        <div className="error">{error}</div>
+      <div className="post-list">
+        {posts.map((post) => (
+          <div key={post._id} className="post-card">
+            <div className="post-header">
+              <div className="post-author">
+                <img
+                  src={
+                    post.userId?.avatar ||
+                    "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746717237/default-avatar_ysrrdy.png"
+                  }
+                  alt={post.userId?.username || "Người dùng"}
+                  className="author-avatar"
+                />
+                <div>
+                  <h4>{post.userId?.username || "Người dùng"}</h4>
+                  <span className="post-date">{new Date(post.createdAt).toLocaleDateString()}</span>
+                </div>
+              </div>
+              {post.status && (
+                <div className={`post-status ${post.status}`}>
+                  {post.status === "open" ? "Đang mở" : post.status === "pending" ? "Đang chờ" : "Đã giải"}
+                </div>
+              )}
+            </div>
+
+            <h3 className="post-title">
+              <Link to={`/study-corner/${post._id}`}>{post.title}</Link>
+            </h3>
+
+            <div className="post-content-preview">
+              {post.content.length > 200 ? `${post.content.substring(0, 200)}...` : post.content}
+            </div>
+
+            {post.images && post.images.length > 0 && (
+              <div className="post-images-preview">
+                <img src={post.images[0] || "/placeholder.svg"} alt="Hình ảnh bài đăng" />
+                {post.images.length > 1 && <div className="more-images">+{post.images.length - 1}</div>}
+              </div>
+            )}
+
+            <div className="post-tags">
+              {post.tags &&
+                post.tags.map((tag, index) => (
+                  <span key={index} className="tag">
+                    #{tag}
+                  </span>
+                ))}
+            </div>
+
+            <div className="post-footer">
+              <div className="post-stats">
+                <span>
+                  <i className="fas fa-eye"></i> {post.views || 0}
+                </span>
+                <span>
+                  <i className="fas fa-comment"></i> {post.commentCount || 0}
+                </span>
+                <span>
+                  <i className="fas fa-heart"></i> {post.likes ? post.likes.length : 0}
+                </span>
+              </div>
+
+              <div className="post-actions">
+                <button
+                  className={`action-button ${post.likes && user && post.likes.includes(user._id) ? "liked" : ""}`}
+                  onClick={() => handleLikePost(post._id)}
+                  aria-label="Thích bài đăng"
+                >
+                  <i className="fas fa-heart"></i>
+                </button>
+
+                <button
+                  className={`action-button ${
+                    post.bookmarks && user && post.bookmarks.includes(user._id) ? "bookmarked" : ""
+                  }`}
+                  onClick={() => handleBookmarkPost(post._id)}
+                  aria-label="Đánh dấu bài đăng"
+                >
+                  <i className="fas fa-bookmark"></i>
+                </button>
+
+                {user && (post.userId?._id === user._id || user.role === "admin") && (
+                  <button
+                    className="action-button delete"
+                    onClick={() => handleDeletePost(post._id)}
+                    aria-label="Xóa bài đăng"
+                  >
+                    <i className="fas fa-trash"></i>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
-    );
+    )
   }
 
-  if (!user) {
-    return <div>Vui lòng đăng nhập để tiếp tục.</div>;
-  }
+  // Render post detail
+  const renderPostDetail = () => {
+    if (!currentPost) return null
 
-  const defaultAvatar = "/default-avatar.png";
+    const isAuthor = user && currentPost.userId?._id === user._id
+    const isLiked = user && currentPost.likes && currentPost.likes.includes(user._id)
+    const isBookmarked = user && currentPost.bookmarks && currentPost.bookmarks.includes(user._id)
 
-  return (
-    <div className="study-corner-page">
-      <Sidebar
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        user={user}
-        tabs="study"
-      />
-      <div className="main-content">
-        {activeTab === "exercise" && (
-          <div className="exercise-tab">
-            <div className="exercise-left">
-              <div className="filters">
-                <div className="grade-filter">
-                  <select
-                    value={gradeFilter}
-                    onChange={(e) => setGradeFilter(e.target.value)}
-                  >
-                    <option value="">Tất cả lớp</option>
-                    {[...Array(12)].map((_, index) => (
-                      <option key={index + 1} value={`Lớp ${index + 1}`}>
-                        Lớp {index + 1}
-                      </option>
-                    ))}
-                    <option value="Đại học">Đại học</option>
-                  </select>
-                </div>
-                <div className="subject-filter">
-                  <select
-                    value={subjectFilter}
-                    onChange={(e) => setSubjectFilter(e.target.value)}
-                  >
-                    <option value="">Tất cả môn</option>
-                    {gradeFilter === "Đại học" ? (
-                      <>
-                        <option value="Toán cao cấp">Toán cao cấp</option>
-                        <option value="Giải tích">Giải tích</option>
-                        <option value="Đại số">Đại số</option>
-                        <option value="Xác suất thống kê">
-                          Xác suất thống kê
-                        </option>
-                        <option value="Phương trình vi phân">
-                          Phương trình vi phân
-                        </option>
-                      </>
-                    ) : (
-                      <>
-                        <option value="Toán">Toán</option>
-                        <option value="Văn">Văn</option>
-                        <option value="Anh">Anh</option>
-                      </>
-                    )}
-                  </select>
-                </div>
-                <div className="status-filter">
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                  >
-                    <option value="">Tất cả trạng thái</option>
-                    <option value="solved">Đã giải</option>
-                    <option value="pending">Đang chờ</option>
-                  </select>
-                </div>
-                <button
-                  className="post-question-btn"
-                  data-tooltip-id="post-question"
-                  data-tooltip-content="Đăng câu hỏi mới"
-                  onClick={() => setShowPostForm(true)}
-                >
-                  <i className="fa-solid fa-pen"></i>
-                </button>
-                <Tooltip
-                  id="post-question"
-                  place="top"
-                  style={{ zIndex: 1000 }}
-                />
-              </div>
-              {showPostForm && (
-                <div className="post-form">
-                  <h3>Đăng câu hỏi mới</h3>
-                  <input
-                    type="text"
-                    placeholder="Tiêu đề câu hỏi..."
-                    value={newPostTitle}
-                    onChange={(e) => setNewPostTitle(e.target.value)}
-                  />
-                  <textarea
-                    placeholder="Nội dung câu hỏi..."
-                    value={newPostContent}
-                    onChange={(e) => setNewPostContent(e.target.value)}
-                  />
-                  <div className="post-actions">
-                    <label htmlFor="file-upload-exercise">
-                      <i className="fa-solid fa-paperclip"></i> Đính kèm
-                    </label>
-                    <input
-                      id="file-upload-exercise"
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={handleFileUpload}
-                      style={{ display: "none" }}
-                    />
-                    <button onClick={handlePostSubmit}>Gửi</button>
-                    <button
-                      onClick={() => setShowPostForm(false)}
-                      className="cancel-btn"
-                    >
-                      Hủy
-                    </button>
-                  </div>
-                  {newPostAttachments.length > 0 && (
-                    <div className="post-attachments">
-                      {newPostAttachments.map((attachment, index) => (
-                        <img
-                          key={index}
-                          src={URL.createObjectURL(attachment)}
-                          alt="Attachment"
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-              <div className="exercise-list">
-                <h3>Câu hỏi mới nhất (6 ngày gần đây)</h3>
-                {filteredExercises.length > 0 ? (
-                  filteredExercises.map((exercise) => (
-                    <div
-                      key={exercise._id}
-                      className={`exercise-item ${
-                        selectedExercise?._id === exercise._id ? "selected" : ""
-                      }`}
-                      onClick={() => handleSelectExercise(exercise)}
-                    >
-                      <h4>{exercise.title || "Không có tiêu đề"}</h4>
-                      <p>Lớp: {exercise.grade || "N/A"}</p>
-                      <p>Môn: {exercise.subject || "N/A"}</p>
-                      <p>
-                        Trạng thái: {exercise.solved ? "Đã giải" : "Đang chờ"}
-                      </p>
-                      <p>{exercise.content || "Không có nội dung"}</p>
-                      <p>Đăng bởi: {exercise.author?.username || "Ẩn danh"}</p>
-                      <div className="post-actions">
-                        <button onClick={() => handleLike(exercise._id)}>
-                          <i className="fa-solid fa-heart"></i>{" "}
-                          {exercise.likes?.length || 0}
-                        </button>
-                        <button onClick={() => handleLibraryItem(exercise)}>
-                          <i
-                            className={`fa-solid fa-bookmark ${
-                              bookmarks.some((b) => b._id === exercise._id)
-                                ? "bookmarked"
-                                : ""
-                            }`}
-                          ></i>
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p>Không tìm thấy câu hỏi nào.</p>
-                )}
-                <div className="pagination">
-                  <button
-                    disabled={page === 1}
-                    onClick={() => setPage((prev) => prev - 1)}
-                  >
-                    Trang trước
-                  </button>
-                  <span>Trang {page}</span>
-                  <button
-                    disabled={filteredExercises.length < postsPerPage}
-                    onClick={() => setPage((prev) => prev + 1)}
-                  >
-                    Trang sau
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="exercise-right">
-              {selectedExercise ? (
-                <div className="solution-box">
-                  <h3>Chi tiết câu hỏi</h3>
-                  <h4>{selectedExercise.title || "Không có tiêu đề"}</h4>
-                  <p>
-                    <strong>Nội dung:</strong>{" "}
-                    {selectedExercise.content || "Không có nội dung"}
-                  </p>
-                  <p>
-                    <strong>Đăng bởi:</strong>{" "}
-                    {selectedExercise.author?.username || "Ẩn danh"}
-                  </p>
-                  {selectedExercise.attachments?.length > 0 && (
-                    <img
-                      src={selectedExercise.attachments[0]}
-                      alt="Attachment"
-                      className="post-image"
-                    />
-                  )}
-                  {selectedExercise.comments?.length > 0 && (
-                    <div className="comments-section">
-                      {selectedExercise.comments.map((comment, index) => (
-                        <div key={index} className="comment-item">
-                          <span className="comment-author">
-                            {comment.user?.username || "Ẩn danh"}:
-                          </span>
-                          <span className="comment-content">
-                            {comment.content}
-                          </span>
-                          <span className="comment-time">
-                            {Math.floor(
-                              (Date.now() - new Date(comment.createdAt)) /
-                                (1000 * 60 * 60)
-                            )}{" "}
-                            giờ trước
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="comment-form">
-                    <input
-                      type="text"
-                      placeholder="Viết bình luận..."
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      onKeyPress={(e) =>
-                        e.key === "Enter" && handleComment(selectedExercise._id)
-                      }
-                    />
-                    <button onClick={() => handleComment(selectedExercise._id)}>
-                      Gửi
-                    </button>
-                  </div>
-                </div>
-              ) : aiSearchResult ? (
-                <div className="ai-result-box">
-                  <h3>Kết quả tìm kiếm AI</h3>
-                  {aiLoading ? (
-                    <p>Đang xử lý...</p>
-                  ) : (
-                    <>
-                      <p>{aiSearchResult.content}</p>
-                      {aiSearchResult.steps.length > 0 && (
-                        <ul>
-                          {aiSearchResult.steps.map((step, index) => (
-                            <li key={index}>{step}</li>
-                          ))}
-                        </ul>
-                      )}
-                    </>
-                  )}
-                </div>
-              ) : (
-                <p>Chọn một câu hỏi hoặc tìm kiếm để xem chi tiết.</p>
-              )}
+    return (
+      <div className="post-detail">
+        <div className="post-detail-header">
+          <div className="post-author">
+            <img
+              src={
+                currentPost.userId?.avatar ||
+                "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746717237/default-avatar_ysrrdy.png"
+              }
+              alt={currentPost.userId?.username || "Người dùng"}
+              className="author-avatar"
+            />
+            <div>
+              <h4>{currentPost.userId?.username || "Người dùng"}</h4>
+              <span className="post-date">{new Date(currentPost.createdAt).toLocaleDateString()}</span>
             </div>
           </div>
-        )}
-        {activeTab === "study" && (
-          <div className="study-tab">
-            <div className="study-left">
-              <div className="search-bar">
-                <input
-                  type="text"
-                  placeholder="Tìm kiếm bài viết hoặc câu hỏi..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-                />
+
+          <div className="post-actions">
+            {currentPost.category === "exercise" && (
+              <div className={`post-status ${currentPost.status}`}>
+                {currentPost.status === "open" ? "Đang mở" : currentPost.status === "pending" ? "Đang chờ" : "Đã giải"}
+              </div>
+            )}
+
+            {isAuthor && currentPost.category === "exercise" && (
+              <div className="status-actions">
                 <button
-                  className="search-btn"
-                  data-tooltip-id="keyword-search"
-                  data-tooltip-content="Tìm kiếm bằng từ khóa"
-                  onClick={handleSearch}
+                  className={`status-button ${currentPost.status === "open" ? "active" : ""}`}
+                  onClick={() => handleUpdateStatus(currentPost._id, "open")}
                 >
-                  <i className="fa-solid fa-magnifying-glass"></i>
+                  Đang mở
                 </button>
-                <label
-                  htmlFor="image-search-upload"
-                  className="image-search-btn"
-                  data-tooltip-id="image-search"
-                  data-tooltip-content="Tìm kiếm bằng hình ảnh"
-                >
-                  <i className="fa-solid fa-camera"></i>
-                </label>
-                <input
-                  id="image-search-upload"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageSearchUpload}
-                  style={{ display: "none" }}
-                />
                 <button
-                  className="ai-search-btn"
-                  data-tooltip-id="ai-search"
-                  data-tooltip-content="Tìm kiếm bằng AI"
-                  onClick={() => handleAISearch(false)}
+                  className={`status-button ${currentPost.status === "pending" ? "active" : ""}`}
+                  onClick={() => handleUpdateStatus(currentPost._id, "pending")}
                 >
-                  <i className="fa-solid fa-robot"></i>
+                  Đang chờ
                 </button>
-                {imageSearchFile && (
-                  <button
-                    className="ai-image-search-btn"
-                    data-tooltip-id="ai-image-search"
-                    data-tooltip-content="Tìm kiếm bằng AI qua hình ảnh"
-                    onClick={() => handleAISearch(true)}
-                  >
-                    <i className="fa-solid fa-robot"></i>
-                    <i className="fa-solid fa-image"></i>
-                  </button>
-                )}
-                <Tooltip
-                  id="keyword-search"
-                  place="top"
-                  style={{ zIndex: 1000 }}
-                />
-                <Tooltip
-                  id="image-search"
-                  place="top"
-                  style={{ zIndex: 1000 }}
-                />
-                <Tooltip id="ai-search" place="top" style={{ zIndex: 1000 }} />
-                <Tooltip
-                  id="ai-image-search"
-                  place="top"
-                  style={{ zIndex: 1000 }}
-                />
+                <button
+                  className={`status-button ${currentPost.status === "solved" ? "active" : ""}`}
+                  onClick={() => handleUpdateStatus(currentPost._id, "solved")}
+                >
+                  Đã giải
+                </button>
               </div>
-              <div className="search-results">
-                <h3>Kết quả tìm kiếm</h3>
-                {aiSearchResult ? (
-                  <div className="ai-result-box">
-                    <h4>Kết quả tìm kiếm AI</h4>
-                    {aiLoading ? (
-                      <p>Đang xử lý...</p>
-                    ) : (
-                      <>
-                        <p>{aiSearchResult.content}</p>
-                        {aiSearchResult.steps.length > 0 && (
-                          <ul>
-                            {aiSearchResult.steps.map((step, index) => (
-                              <li key={index}>{step}</li>
-                            ))}
-                          </ul>
-                        )}
-                      </>
-                    )}
-                  </div>
-                ) : filteredSearchResults.length > 0 ? (
-                  filteredSearchResults.map((result) => (
-                    <div
-                      key={result._id}
-                      className={`exercise-item ${
-                        selectedExercise?._id === result._id ? "selected" : ""
-                      }`}
-                      onClick={() => handleSelectExercise(result)}
-                    >
-                      <h4>{result.title || "Không có tiêu đề"}</h4>
-                      <p>{result.content || "Không có nội dung"}</p>
-                      <p>Đăng bởi: {result.author?.username || "Ẩn danh"}</p>
-                      <div className="post-actions">
-                        <button onClick={() => handleLike(result._id)}>
-                          <i className="fa-solid fa-heart"></i>{" "}
-                          {result.likes?.length || 0}
-                        </button>
-                        <button onClick={() => handleLibraryItem(result)}>
-                          <i
-                            className={`fa-solid fa-bookmark ${
-                              bookmarks.some((b) => b._id === result._id)
-                                ? "bookmarked"
-                                : ""
-                            }`}
-                          ></i>
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p>Không tìm thấy kết quả nào.</p>
-                )}
-                <div className="pagination">
-                  <button
-                    disabled={page === 1}
-                    onClick={() => setPage((prev) => prev - 1)}
-                  >
-                    Trang trước
-                  </button>
-                  <span>Trang {page}</span>
-                  <button
-                    disabled={filteredSearchResults.length < postsPerPage}
-                    onClick={() => setPage((prev) => prev + 1)}
-                  >
-                    Trang sau
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="study-right">
-              <div className="trending-topics">
-                <h3>Chủ đề nổi bật</h3>
-                {trendingTopics.length > 0 ? (
-                  trendingTopics.map((topic, index) => (
-                    <div key={index} className="topic-item">
-                      <span>{topic}</span>
-                    </div>
-                  ))
-                ) : (
-                  <p>Chưa có chủ đề nào.</p>
-                )}
-              </div>
-            </div>
+            )}
+          </div>
+        </div>
+
+        <h2 className="post-detail-title">{currentPost.title}</h2>
+
+        <div className="post-detail-content">{currentPost.content}</div>
+
+        {currentPost.images && currentPost.images.length > 0 && (
+          <div className="post-detail-images">
+            {currentPost.images.map((image, index) => (
+              <img key={index} src={image || "/placeholder.svg"} alt={`Hình ảnh ${index + 1}`} />
+            ))}
           </div>
         )}
-        {activeTab === "share" && (
-          <div className="share-tab">
-            <div className="share-left">
-              <div className="post-form">
-                <h3>Chia sẻ điều gì đó...</h3>
-                <textarea
-                  placeholder="Bạn đang nghĩ gì?"
-                  value={newPostContent}
-                  onChange={(e) => setNewPostContent(e.target.value)}
-                />
-                <div className="post-actions">
-                  <label htmlFor="file-upload-share">
-                    <i className="fa-solid fa-paperclip"></i> Đính kèm
-                  </label>
-                  <input
-                    id="file-upload-share"
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handleFileUpload}
-                    style={{ display: "none" }}
-                  />
-                  <button onClick={handlePostSubmit}>Đăng</button>
-                </div>
-                {newPostAttachments.length > 0 && (
-                  <div className="post-attachments">
-                    {newPostAttachments.map((attachment, index) => (
-                      <img
-                        key={index}
-                        src={URL.createObjectURL(attachment)}
-                        alt="Attachment"
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="post-list">
-                <h3>Bài đăng mới nhất</h3>
-                {filteredPosts.length > 0 ? (
-                  filteredPosts.map((post) => (
-                    <div key={post._id} className="post-item">
-                      <div className="post-header">
-                        <img
-                          src={post.author?.avatar || defaultAvatar}
-                          alt="Avatar"
-                          className="post-avatar"
-                        />
-                        <div>
-                          <span className="post-author">
-                            {post.author?.username || "Ẩn danh"}
-                          </span>
-                          <span className="post-time">
-                            {Math.floor(
-                              (Date.now() - new Date(post.createdAt)) /
-                                (1000 * 60 * 60)
-                            )}{" "}
-                            giờ trước
-                          </span>
-                        </div>
-                      </div>
-                      <p>{post.content}</p>
-                      {post.attachments?.length > 0 && (
-                        <img
-                          src={post.attachments[0]}
-                          alt="Attachment"
-                          className="post-image"
-                        />
-                      )}
-                      <div className="post-actions">
-                        <button onClick={() => handleLike(post._id)}>
-                          <i className="fa-solid fa-heart"></i>{" "}
-                          {post.likes?.length || 0}
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedExercise(post);
-                            setNewComment("");
-                          }}
-                        >
-                          <i className="fa-solid fa-comment"></i>{" "}
-                          {post.comments?.length || 0}
-                        </button>
-                        <button onClick={() => handleShare(post._id)}>
-                          <i className="fa-solid fa-share"></i>{" "}
-                          {post.shares || 0}
-                        </button>
-                        <button onClick={() => handleLibraryItem(post)}>
-                          <i
-                            className={`fa-solid fa-bookmark ${
-                              bookmarks.some((b) => b._id === post._id)
-                                ? "bookmarked"
-                                : ""
-                            }`}
-                          ></i>
-                        </button>
-                      </div>
-                      {selectedExercise?._id === post._id && (
-                        <div className="comments-section">
-                          {post.comments?.length > 0 &&
-                            post.comments.map((comment, index) => (
-                              <div key={index} className="comment-item">
-                                <span className="comment-author">
-                                  {comment.user?.username || "Ẩn danh"}:
-                                </span>
-                                <span className="comment-content">
-                                  {comment.content}
-                                </span>
-                                <span className="comment-time">
-                                  {Math.floor(
-                                    (Date.now() - new Date(comment.createdAt)) /
-                                      (1000 * 60 * 60)
-                                  )}{" "}
-                                  giờ trước
-                                </span>
-                              </div>
-                            ))}
-                          <div className="comment-form">
-                            <input
-                              type="text"
-                              placeholder="Viết bình luận..."
-                              value={newComment}
-                              onChange={(e) => setNewComment(e.target.value)}
-                              onKeyPress={(e) =>
-                                e.key === "Enter" && handleComment(post._id)
-                              }
-                            />
-                            <button onClick={() => handleComment(post._id)}>
-                              Gửi
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <p>Chưa có bài đăng nào.</p>
-                )}
-                <div className="pagination">
-                  <button
-                    disabled={page === 1}
-                    onClick={() => setPage((prev) => prev - 1)}
-                  >
-                    Trang trước
-                  </button>
-                  <span>Trang {page}</span>
-                  <button
-                    disabled={filteredPosts.length < postsPerPage}
-                    onClick={() => setPage((prev) => prev + 1)}
-                  >
-                    Trang sau
-                  </button>
-                </div>
-              </div>
+
+        {currentPost.files && currentPost.files.length > 0 && (
+          <div className="post-detail-files">
+            <h4>Tệp đính kèm:</h4>
+            <ul>
+              {currentPost.files.map((file, index) => (
+                <li key={index}>
+                  <a href={file.url} target="_blank" rel="noopener noreferrer">
+                    <i className="fas fa-file"></i> {file.name}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div className="post-detail-tags">
+          {currentPost.tags &&
+            currentPost.tags.map((tag, index) => (
+              <span key={index} className="tag">
+                #{tag}
+              </span>
+            ))}
+        </div>
+
+        <div className="post-detail-footer">
+          <div className="post-stats">
+            <span>
+              <i className="fas fa-eye"></i> {currentPost.views || 0} lượt xem
+            </span>
+            <span>
+              <i className="fas fa-comment"></i> {comments.length} bình luận
+            </span>
+            <span>
+              <i className="fas fa-heart"></i> {currentPost.likes ? currentPost.likes.length : 0} lượt thích
+            </span>
+          </div>
+
+          <div className="post-actions">
+            <button
+              className={`action-button ${isLiked ? "liked" : ""}`}
+              onClick={() => handleLikePost(currentPost._id)}
+              aria-label="Thích bài đăng"
+            >
+              <i className="fas fa-heart"></i> Thích
+            </button>
+
+            <button
+              className={`action-button ${isBookmarked ? "bookmarked" : ""}`}
+              onClick={() => handleBookmarkPost(currentPost._id)}
+              aria-label="Đánh dấu bài đăng"
+            >
+              <i className="fas fa-bookmark"></i> Lưu
+            </button>
+
+            {(isAuthor || (user && user.role === "admin")) && (
+              <button
+                className="action-button delete"
+                onClick={() => handleDeletePost(currentPost._id)}
+                aria-label="Xóa bài đăng"
+              >
+                <i className="fas fa-trash"></i> Xóa
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* AI Response Section */}
+        {currentPost.category === "exercise" && (
+          <div className="ai-response-section">
+            <div className="ai-response-header">
+              <h3>
+                <i className="fas fa-robot"></i> Trợ giúp từ AI
+              </h3>
+              {!currentPost.isAiAnswered && !isProcessingAi && (
+                <button className="btn-primary" onClick={handleAiResponse} disabled={isProcessingAi}>
+                  <i className="fas fa-magic"></i> Giải bài tập bằng AI
+                </button>
+              )}
             </div>
-            <div className="share-right">
-              <div className="who-to-follow">
-                <h3>Gợi ý theo dõi</h3>
-                {whoToFollow.length > 0 ? (
-                  whoToFollow.map((person) => (
-                    <div key={person._id} className="follow-item">
+
+            {isProcessingAi ? (
+              <div className="ai-processing">
+                <div className="spinner"></div>
+                <p>Đang xử lý bài toán của bạn...</p>
+              </div>
+            ) : currentPost.isAiAnswered ? (
+              <div className="ai-response-content">
+                {currentPost.aiResponse.split("\n").map((line, index) => (
+                  <p key={index}>{line}</p>
+                ))}
+              </div>
+            ) : (
+              <div className="ai-response-placeholder">
+                <p>AI có thể giúp bạn giải bài tập này. Nhấn nút "Giải bài tập bằng AI" để nhận trợ giúp.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Comments Section */}
+        <div className="comments-section">
+          <h3>Bình luận ({comments.length})</h3>
+
+          {user ? (
+            <form className="comment-form" onSubmit={handleCreateComment}>
+              <textarea
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                placeholder="Viết bình luận của bạn..."
+                required
+              />
+              <button type="submit" disabled={!commentText.trim()}>
+                Gửi bình luận
+              </button>
+            </form>
+          ) : (
+            <div className="login-prompt">
+              <p>
+                Vui lòng <Link to="/auth/login">đăng nhập</Link> để bình luận.
+              </p>
+            </div>
+          )}
+
+          {commentsLoading ? (
+            <div className="loading-spinner">Đang tải bình luận...</div>
+          ) : comments.length > 0 ? (
+            <div className="comments-list">
+              {comments.map((comment) => (
+                <div key={comment._id} className="comment">
+                  <div className="comment-header">
+                    <div className="comment-author">
                       <img
-                        src={person.avatar || defaultAvatar}
-                        alt="Avatar"
-                        className="follow-avatar"
+                        src={
+                          comment.userId?.avatar ||
+                          "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746717237/default-avatar_ysrrdy.png"
+                        }
+                        alt={comment.userId?.username || "Người dùng"}
+                        className="author-avatar"
                       />
                       <div>
-                        <span className="follow-username">
-                          {person.username}
-                        </span>
-                        <span className="follow-bio">
-                          {person.bio || "Chưa có bio"}
-                        </span>
+                        <h4>{comment.userId?.username || "Người dùng"}</h4>
+                        <span className="comment-date">{new Date(comment.createdAt).toLocaleString()}</span>
                       </div>
-                      {person.isFollowing ? (
-                        <button
-                          className="unfollow-btn"
-                          onClick={() => handleUnfollow(person._id)}
-                        >
-                          Bỏ theo dõi
-                        </button>
-                      ) : (
-                        <button
-                          className="follow-btn"
-                          onClick={() => handleFollow(person._id)}
-                        >
-                          Theo dõi
-                        </button>
-                      )}
                     </div>
-                  ))
-                ) : (
-                  <p>Chưa có gợi ý nào.</p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-        {activeTab === "bookmarks" && (
-          <div className="bookmarks-tab">
-            <h3>LibraryItems</h3>
-            {bookmarks.length > 0 ? (
-              bookmarks.map((bookmark) => (
-                <div key={bookmark._id} className="bookmark-item">
-                  <h4>
-                    {bookmark.title || bookmark.content.slice(0, 50) + "..."}
-                  </h4>
-                  <p>
-                    <strong>Loại:</strong>{" "}
-                    {bookmark.category === "question" ? "Câu hỏi" : "Bài đăng"}
-                  </p>
-                  <p>
-                    <strong>Đăng bởi:</strong>{" "}
-                    {bookmark.author?.username || "Ẩn danh"}
-                  </p>
-                  <div className="post-actions">
-                    <button onClick={() => handleLike(bookmark._id)}>
-                      <i className="fa-solid fa-heart"></i>{" "}
-                      {bookmark.likes?.length || 0}
-                    </button>
-                    <button onClick={() => handleLibraryItem(bookmark)}>
-                      <i className="fa-solid fa-bookmark bookmarked"></i>
+
+                    {user && (comment.userId?._id === user._id || user.role === "admin") && (
+                      <button
+                        className="delete-comment"
+                        onClick={() => handleDeleteComment(comment._id)}
+                        aria-label="Xóa bình luận"
+                      >
+                        <i className="fas fa-trash"></i>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="comment-content">{comment.content}</div>
+
+                  <div className="comment-footer">
+                    <button
+                      className={`like-comment ${
+                        user && comment.likes && comment.likes.includes(user._id) ? "liked" : ""
+                      }`}
+                      onClick={() => handleLikeComment(comment._id)}
+                    >
+                      <i className="fas fa-heart"></i> {comment.likes ? comment.likes.length : 0}
                     </button>
                   </div>
                 </div>
-              ))
-            ) : (
-              <p>Chưa có bài đăng nào được bookmark.</p>
+              ))}
+            </div>
+          ) : (
+            <div className="no-comments">
+              <p>Chưa có bình luận nào. Hãy là người đầu tiên bình luận!</p>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Render create post form
+  const renderCreateForm = () => {
+    return (
+      <div className="create-post-form">
+        <h2>
+          {activeTab === "exercises"
+            ? "Đăng bài tập cần giải"
+            : activeTab === "learning"
+              ? "Đặt câu hỏi học tập"
+              : "Chia sẻ kiến thức"}
+        </h2>
+
+        <form onSubmit={handleCreatePost}>
+          <div className="form-group">
+            <label htmlFor="title">Tiêu đề *</label>
+            <input
+              type="text"
+              id="title"
+              name="title"
+              value={formData.title}
+              onChange={handleInputChange}
+              required
+              maxLength={200}
+              placeholder="Nhập tiêu đề bài đăng..."
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="content">Nội dung *</label>
+            <textarea
+              id="content"
+              name="content"
+              value={formData.content}
+              onChange={handleInputChange}
+              required
+              rows={5}
+              placeholder="Mô tả chi tiết bài toán hoặc câu hỏi của bạn..."
+            />
+          </div>
+
+          {activeTab !== "sharing" && (
+            <div className="form-group">
+              <label htmlFor="subject">Cấp học *</label>
+              <select id="subject" name="subject" value={formData.subject} onChange={handleInputChange} required>
+                <option value="primary">Tiểu học</option>
+                <option value="secondary">THCS</option>
+                <option value="highschool">THPT</option>
+                <option value="university">Đại học</option>
+                <option value="other">Khác</option>
+              </select>
+            </div>
+          )}
+
+          <div className="form-group">
+            <label htmlFor="tags">Thẻ</label>
+            <input
+              type="text"
+              id="tags"
+              name="tags"
+              value={formData.tags}
+              onChange={handleInputChange}
+              placeholder="Nhập các thẻ, phân cách bằng dấu phẩy (ví dụ: đại số, hình học, giải tích)"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Hình ảnh</label>
+            <div className="upload-preview">
+              {formData.images.map((url, index) => (
+                <div key={index} className="image-preview">
+                  <img src={url || "/placeholder.svg"} alt={`Preview ${index}`} />
+                  <button
+                    type="button"
+                    className="remove-image"
+                    onClick={() =>
+                      setFormData({
+                        ...formData,
+                        images: formData.images.filter((_, i) => i !== index),
+                      })
+                    }
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                </div>
+              ))}
+
+              <button type="button" className="upload-button" onClick={() => imageInputRef.current.click()}>
+                <i className="fas fa-image"></i> Thêm hình ảnh
+              </button>
+              <input
+                type="file"
+                ref={imageInputRef}
+                onChange={handleImageUpload}
+                accept="image/*"
+                multiple
+                style={{ display: "none" }}
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Tệp đính kèm</label>
+            <div className="upload-preview">
+              {formData.files.map((file, index) => (
+                <div key={index} className="file-preview">
+                  <i className="fas fa-file"></i> {file.name}
+                  <button
+                    type="button"
+                    className="remove-file"
+                    onClick={() =>
+                      setFormData({
+                        ...formData,
+                        files: formData.files.filter((_, i) => i !== index),
+                      })
+                    }
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                </div>
+              ))}
+
+              <button type="button" className="upload-button" onClick={() => fileInputRef.current.click()}>
+                <i className="fas fa-paperclip"></i> Thêm tệp đính kèm
+              </button>
+              <input type="file" ref={fileInputRef} onChange={handleFileUpload} multiple style={{ display: "none" }} />
+            </div>
+          </div>
+
+          <div className="form-actions">
+            <button type="button" className="btn-secondary" onClick={() => setShowCreateForm(false)}>
+              Hủy
+            </button>
+            <button type="submit" className="btn-primary">
+              Đăng bài
+            </button>
+          </div>
+        </form>
+      </div>
+    )
+  }
+
+  // Render main content
+  return (
+    <div className="study-corner-container">
+      {/* Sidebar/Navigation */}
+      <div className="study-corner-sidebar">
+        <h2>Góc học tập</h2>
+        <nav>
+          <ul>
+            <li className={activeTab === "exercises" ? "active" : ""}>
+              <Link to="/study-corner?tab=exercises">
+                <i className="fas fa-book"></i> Bài tập
+              </Link>
+            </li>
+            <li className={activeTab === "learning" ? "active" : ""}>
+              <Link to="/study-corner?tab=learning">
+                <i className="fas fa-question-circle"></i> Hỏi đáp
+              </Link>
+            </li>
+            <li className={activeTab === "sharing" ? "active" : ""}>
+              <Link to="/study-corner?tab=sharing">
+                <i className="fas fa-share-alt"></i> Chia sẻ
+              </Link>
+            </li>
+            <li className={activeTab === "bookmarks" ? "active" : ""}>
+              <Link to="/study-corner?tab=bookmarks">
+                <i className="fas fa-bookmark"></i> Đã lưu
+              </Link>
+            </li>
+          </ul>
+        </nav>
+
+        {/* Filters */}
+        {!id && (
+          <div className="sidebar-filters">
+            <h3>Bộ lọc</h3>
+
+            {(activeTab === "exercises" || activeTab === "learning") && (
+              <>
+                <div className="filter-group">
+                  <label htmlFor="subject-filter">Cấp học</label>
+                  <select id="subject-filter" value={subject} onChange={(e) => setSubject(e.target.value)}>
+                    <option value="">Tất cả</option>
+                    <option value="primary">Tiểu học</option>
+                    <option value="secondary">THCS</option>
+                    <option value="highschool">THPT</option>
+                    <option value="university">Đại học</option>
+                    <option value="other">Khác</option>
+                  </select>
+                </div>
+
+                {activeTab === "exercises" && (
+                  <div className="filter-group">
+                    <label htmlFor="status-filter">Trạng thái</label>
+                    <select id="status-filter" value={status} onChange={(e) => setStatus(e.target.value)}>
+                      <option value="">Tất cả</option>
+                      <option value="open">Đang mở</option>
+                      <option value="pending">Đang chờ</option>
+                      <option value="solved">Đã giải</option>
+                    </select>
+                  </div>
+                )}
+              </>
             )}
+
+            <div className="filter-group">
+              <label htmlFor="search-filter">Tìm kiếm</label>
+              <div className="search-input">
+                <input
+                  type="text"
+                  id="search-filter"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Tìm kiếm..."
+                />
+                <button
+                  className="search-button"
+                  onClick={() => {
+                    // Implement search functionality
+                  }}
+                >
+                  <i className="fas fa-search"></i>
+                </button>
+              </div>
+            </div>
+
+            <div className="filter-group">
+              <label>Tìm kiếm bằng hình ảnh</label>
+              <button className="image-search-button" onClick={() => imageInputRef.current.click()}>
+                <i className="fas fa-camera"></i> Tải lên hình ảnh
+              </button>
+              <input
+                type="file"
+                ref={imageInputRef}
+                onChange={handleSearchByImage}
+                accept="image/*"
+                style={{ display: "none" }}
+              />
+
+              {searchImage && (
+                <div className="image-preview">
+                  <img
+                    src={URL.createObjectURL(searchImage) || "/placeholder.svg"}
+                    alt="Search"
+                    className="search-image-preview"
+                  />
+                  <button className="remove-image" onClick={() => setSearchImage(null)}>
+                    <i className="fas fa-times"></i>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
-        {activeTab === "notifications" && (
-          <div className="notifications-tab">
-            <h3>Thông báo</h3>
-            {notifications.length > 0 ? (
-              notifications.map((notification) => (
-                <div key={notification.id} className="notification-item">
-                  <p>{notification.message}</p>
-                  <span>{notification.date}</span>
-                </div>
-              ))
-            ) : (
-              <p>Chưa có thông báo nào.</p>
-            )}
+      </div>
+
+      {/* Main Content */}
+      <div className="study-corner-content">
+        {/* Header */}
+        <div className="content-header">
+          <h1>
+            {id
+              ? currentPost?.title || "Chi tiết bài đăng"
+              : activeTab === "exercises"
+                ? "Bài tập toán học"
+                : activeTab === "learning"
+                  ? "Hỏi đáp học tập"
+                  : activeTab === "sharing"
+                    ? "Chia sẻ kiến thức"
+                    : "Bài đăng đã lưu"}
+          </h1>
+
+          {!id && !showCreateForm && (
+            <button className="btn-primary create-post-button" onClick={() => setShowCreateForm(true)}>
+              <i className="fas fa-plus"></i>{" "}
+              {activeTab === "exercises" ? "Đăng bài tập" : activeTab === "learning" ? "Đặt câu hỏi" : "Chia sẻ"}
+            </button>
+          )}
+        </div>
+
+        {/* Main Content */}
+        {showCreateForm ? renderCreateForm() : id ? renderPostDetail() : renderPostList()}
+
+        {/* Pagination */}
+        {!id && !showCreateForm && totalPages > 1 && (
+          <div className="pagination">
+            <button
+              className="pagination-button"
+              disabled={page === 1}
+              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+            >
+              <i className="fas fa-chevron-left"></i> Trang trước
+            </button>
+
+            <span className="pagination-info">
+              Trang {page} / {totalPages}
+            </span>
+
+            <button
+              className="pagination-button"
+              disabled={page === totalPages}
+              onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+            >
+              Trang sau <i className="fas fa-chevron-right"></i>
+            </button>
           </div>
         )}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default StudyCorner;
+export default StudyCorner

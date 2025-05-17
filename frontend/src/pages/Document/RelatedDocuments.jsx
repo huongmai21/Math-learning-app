@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchRelatedDocuments } from "../../services/documentService";
+import "./Document.css";
 
 const RelatedDocuments = ({ currentDoc }) => {
   const [related, setRelated] = useState([]);
@@ -10,11 +11,11 @@ const RelatedDocuments = ({ currentDoc }) => {
     const fetchRelated = async () => {
       setIsLoading(true);
       try {
-        const docs = await fetchRelatedDocuments(
-          currentDoc.educationLevel,
-          currentDoc.subject,
-          currentDoc._id
-        );
+        const docs = await fetchRelatedDocuments({
+          educationLevel: currentDoc.educationLevel,
+          subject: currentDoc.subject,
+          excludeId: currentDoc._id,
+        });
         setRelated(docs);
       } catch (error) {
         console.error("Error fetching related documents:", error);
@@ -27,25 +28,32 @@ const RelatedDocuments = ({ currentDoc }) => {
   }, [currentDoc]);
 
   return (
-    <div className="related-docs">
-      <h3>Tài liệu liên quan</h3>
+    <div className="related-documents">
+      <h3 className="related-title">Tài liệu liên quan</h3>
       {isLoading ? (
-        <p>Đang tải tài liệu liên quan...</p>
+        <p className="loading-text">Đang tải tài liệu liên quan...</p>
       ) : related.length > 0 ? (
-        <div className="doc-grid">
+        <div className="document-grid">
           {related.map((doc) => (
-            <div key={doc._id} className="doc-card">
-              <img src={doc.thumbnail || "/assets/images/default-doc.png"} alt="thumbnail" />
-              <h4>{doc.title}</h4>
-              <p>{doc.description?.slice(0, 80)}...</p>
-              <Link to={`/documents/detail/${doc._id}`} className="view-link">
-                Xem chi tiết →
-              </Link>
-            </div>
+            <Link
+              key={doc._id}
+              to={`/documents/detail/${doc._id}`}
+              className="document-card"
+            >
+              <img
+                src={doc.thumbnail || "/assets/images/default-doc.png"}
+                alt={doc.title}
+                className="document-image"
+              />
+              <h4 className="document-title">{doc.title}</h4>
+              <p className="document-description">
+                {doc.description?.slice(0, 80)}...
+              </p>
+            </Link>
           ))}
         </div>
       ) : (
-        <p>Không có tài liệu liên quan.</p>
+        <p className="no-documents">Không có tài liệu liên quan.</p>
       )}
     </div>
   );
