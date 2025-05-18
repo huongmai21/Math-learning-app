@@ -1,5 +1,8 @@
 import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useSelector } from "react-redux";
+import { toast } from "react-toastify";
 import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import {
@@ -26,7 +29,13 @@ const socket = io("http://localhost:5000", { transports: ["websocket"] });
 const DocumentDetail = () => {
   const { id } = useParams();
   const { user } = useSelector((state) => state.auth);
+  const { user } = useSelector((state) => state.auth);
   const [document, setDocument] = useState(null);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState("");
+  const [editingComment, setEditingComment] = useState(null);
+  const [editContent, setEditContent] = useState("");
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
@@ -548,6 +557,7 @@ const DocumentDetail = () => {
           )}
         </div>
       </div>
+      <RelatedDocuments currentDoc={document} />
       <RelatedDocuments currentDoc={document} />
     </div>
   );

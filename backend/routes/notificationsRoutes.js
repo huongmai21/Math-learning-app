@@ -1,4 +1,5 @@
 const express = require("express");
+const express = require("express");
 const router = express.Router();
 const {
   getNotifications,
@@ -21,3 +22,4 @@ router.put("/read-all", markAllAsRead);
 router.route("/:id").put(markAsRead).delete(deleteNotification);
 
 module.exports = router;
+

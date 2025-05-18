@@ -10,7 +10,10 @@ import {
 } from "../../../services/notificationService";
 import useDropdown from "../../../hooks/useDropdown";
 import io from "socket.io-client";
+import io from "socket.io-client";
 import "./Navbar.css";
+
+const socket = io("http://localhost:5000");
 
 const socket = io("http://localhost:5000");
 
@@ -89,10 +92,27 @@ const Navbar = () => {
           setNotifications(response.data || []);
         } catch (error) {
           toast.error("Không thể tải thông báo");
+          toast.error("Không thể tải thông báo");
         }
       }
     };
     loadNotifications();
+
+    // Join user room for real-time notifications
+    if (user) {
+      socket.emit("join", user._id);
+    }
+
+    // Listen for new notifications
+    socket.on("newNotification", (notification) => {
+      setNotifications((prev) => [notification, ...prev]);
+      toast.info(notification.message, { position: "top-right" });
+    });
+
+    // Cleanup
+    return () => {
+      socket.off("newNotification");
+    };
 
     // Join user room for real-time notifications
     if (user) {
@@ -114,6 +134,7 @@ const Navbar = () => {
   const handleLogout = () => {
     dispatch(logout());
     toast.success("Đăng xuất thành công!");
+    toast.success("Đăng xuất thành công!");
     navigate("/auth/login");
   };
 
@@ -122,7 +143,9 @@ const Navbar = () => {
       await deleteNotification(id);
       setNotifications(notifications.filter((notif) => notif._id !== id));
       toast.success("Xóa thông báo thành công!");
+      toast.success("Xóa thông báo thành công!");
     } catch (error) {
+      toast.error("Không thể xóa thông báo");
       toast.error("Không thể xóa thông báo");
     }
   };
@@ -137,6 +160,7 @@ const Navbar = () => {
   return (
     <header className="header" aria-label="Thanh điều hướng chính">
       <div className="navbar-container">
+        <Link to="/" className="logo" aria-label="FunMath - Trang chủ">
         <Link to="/" className="logo" aria-label="FunMath - Trang chủ">
           <i className="fa-solid fa-bahai"></i> FunMath
         </Link>
@@ -209,6 +233,7 @@ const Navbar = () => {
             </div>
             <span className="profile-username">{user.username}</span>
             {profileOpen && (
+            {profileOpen && (
               <div className="profile-dropdown" role="menu">
                 <Link
                   to="/users/profile"
@@ -263,6 +288,7 @@ const Navbar = () => {
                       className="notification-item"
                       role="menuitem"
                     >
+                      <Link to={notif.link || "#"}>{notif.message}</Link>
                       <Link to={notif.link || "#"}>{notif.message}</Link>
                       <span className="notification-time">
                         {new Date(notif.createdAt).toLocaleTimeString("vi-VN")}

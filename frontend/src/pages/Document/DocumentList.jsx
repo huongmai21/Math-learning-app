@@ -1,5 +1,9 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useLocation, Link } from "react-router-dom";
+import { Helmet } from "react-helmet";
+import { motion } from "framer-motion";
+import SearchBar from "../../components/common/SearchBar/SearchBar";
 import { Helmet } from "react-helmet";
 import { motion } from "framer-motion";
 import SearchBar from "../../components/common/SearchBar/SearchBar";
@@ -17,9 +21,16 @@ const educationLevelMap = {
   grade2: { value: "secondary", label: "Trung học cơ sở" },
   grade3: { value: "highschool", label: "Trung học phổ thông" },
   university: { value: "university", label: "Đại học" },
+  grade1: { value: "primary", label: "Tiểu học" },
+  grade2: { value: "secondary", label: "Trung học cơ sở" },
+  grade3: { value: "highschool", label: "Trung học phổ thông" },
+  university: { value: "university", label: "Đại học" },
 };
 
 const gradeMap = {
+  primary: ["1", "2", "3", "4", "5"],
+  secondary: ["6", "7", "8", "9"],
+  highschool: ["10", "11", "12"],
   primary: ["1", "2", "3", "4", "5"],
   secondary: ["6", "7", "8", "9"],
   highschool: ["10", "11", "12"],
@@ -59,6 +70,7 @@ const documentTypes = {
 const DocumentList = () => {
   const location = useLocation();
   const path = location.pathname.split("/")[2] || "grade1";
+  const path = location.pathname.split("/")[2] || "grade1";
   const [documents, setDocuments] = useState([]);
   const [popularDocuments, setPopularDocuments] = useState([]);
   const [filters, setFilters] = useState({
@@ -96,6 +108,7 @@ const DocumentList = () => {
 
     try {
       const { data: documents, totalPages } = filters.search
+      const { data: documents, totalPages } = filters.search
         ? await searchDocuments(queryFilters)
         : await fetchDocuments(queryFilters);
       setDocuments(documents);
@@ -114,10 +127,15 @@ const DocumentList = () => {
         limit: 4,
         educationLevel: educationLevelMap[path]?.value,
       });
+      const docs = await fetchPopularDocuments({
+        limit: 4,
+        educationLevel: educationLevelMap[path]?.value,
+      });
       setPopularDocuments(docs);
     } catch (error) {
       console.error("Error fetching popular documents:", error);
     }
+  }, [path]);
   }, [path]);
 
   useEffect(() => {
@@ -135,6 +153,15 @@ const DocumentList = () => {
     });
     setCurrentPage(1);
   }, [path]);
+
+  const debouncedSearch = useMemo(
+    () =>
+      debounce((query) => {
+        setFilters((prev) => ({ ...prev, search: query }));
+        setCurrentPage(1);
+      }, 300),
+    []
+  );
 
   const debouncedSearch = useMemo(
     () =>
@@ -237,6 +264,7 @@ const DocumentList = () => {
         <div className="filters">
           <SearchBar onSearch={handleSearch} />
           <select
+            value={filters.documentType}
             value={filters.documentType}
             onChange={(e) =>
               setFilters({ ...filters, documentType: e.target.value })

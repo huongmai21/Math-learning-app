@@ -15,6 +15,11 @@ const examSchema = new mongoose.Schema({
     enum: ["easy", "medium", "hard"],
     required: true,
   },
+  difficulty: {
+    type: String,
+    enum: ["easy", "medium", "hard"],
+    required: true,
+  },
   author: { type: Schema.Types.ObjectId, ref: "User", required: true },
   createdAt: { type: Date, default: Date.now },
   maxAttempts: { type: Number, default: 1 }, // Giới hạn số lần làm bài

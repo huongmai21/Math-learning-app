@@ -77,11 +77,17 @@
 
 .doc-detail {
   background-color: #fff;
+  background-color: #fff;
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+.doc-title {
+  font-size: 28px;
+  font-weight: bold;
+  color: #1e90ff;
 .doc-title {
   font-size: 28px;
   font-weight: bold;
@@ -106,13 +112,34 @@
 
 .preview-button,
 .download-button,
+.preview-button,
+.download-button,
 .bookmark-button {
+  background-color: #17a2b8;
   background-color: #17a2b8;
   color: #fff;
   padding: 8px 16px;
   border: none;
+  border: none;
   border-radius: 4px;
   cursor: pointer;
+  font-size: 14px;
+}
+
+.download-button {
+  background-color: #28a745;
+}
+
+.bookmark-button {
+  background-color: #dc3545;
+}
+
+.preview-button:hover {
+  background-color: #138496;
+}
+
+.download-button:hover {
+  background-color: #218838;
   font-size: 14px;
 }
 
@@ -145,6 +172,18 @@
   height: 600px;
   border: 1px solid #ddd;
   border-radius: 4px;
+  background-color: #c82333;
+}
+
+.pdf-preview {
+  margin-bottom: 20px;
+}
+
+.pdf-iframe {
+  width: 100%;
+  height: 600px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
 }
 
 .doc-content {
@@ -154,14 +193,18 @@
 }
 
 .doc-thumbnail {
+.doc-thumbnail {
   max-width: 100%;
   height: auto;
+  margin-bottom: 20px;
+  border-radius: 4px;
   margin-bottom: 20px;
   border-radius: 4px;
 }
 
 .doc-tags {
   font-size: 14px;
+  color: #666;
   color: #666;
   margin-bottom: 20px;
 }
@@ -170,7 +213,12 @@
   font-weight: bold;
 }
 
+.tags-label {
+  font-weight: bold;
+}
+
 .back-link {
+  color: #1e90ff;
   color: #1e90ff;
   text-decoration: none;
 }
@@ -485,8 +533,12 @@
   color: #dc3545;
   font-weight: bold;
   text-align: center;
+  color: #dc3545;
+  font-weight: bold;
+  text-align: center;
 }
 
+@media (max-width: 768px) {
 @media (max-width: 768px) {
   .container {
     padding: 10px;
@@ -513,5 +565,13 @@
 
   .pdf-iframe {
     height: 400px;
+  .doc-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .pdf-iframe {
+    height: 400px;
   }
 }
+
