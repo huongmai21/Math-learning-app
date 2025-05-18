@@ -1,162 +1,201 @@
-import { Link } from "react-router-dom";
+"use client";
 
-const OverviewTab = ({ profile, isCurrentUser }) => {
+import { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
+import {
+  getUserProfile,
+  getScores,
+  getContributions,
+} from "../../services/userService";
+import { toast } from "react-toastify";
+import "./Profile.css";
+
+const OverviewTab = ({ userId }) => {
+  const { user: currentUser } = useSelector((state) => state.auth);
+  const [userProfile, setUserProfile] = useState(null);
+  const [scores, setScores] = useState([]);
+  const [contributions, setContributions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const targetUserId = userId || (currentUser ? currentUser._id : null);
+
+        if (!targetUserId) {
+          toast.error("Không thể tải thông tin người dùng");
+          setLoading(false);
+          return;
+        }
+
+        // Lấy thông tin hồ sơ
+        const profileData = await getUserProfile(targetUserId);
+        setUserProfile(profileData.data);
+
+        // Lấy điểm số
+        const scoresData = await getScores(targetUserId);
+        setScores(scoresData.data || []);
+
+        // Lấy đóng góp
+        const contributionsData = await getContributions(targetUserId);
+        setContributions(contributionsData.data || []);
+      } catch (error) {
+        console.error("Error fetching profile data:", error);
+        toast.error("Không thể tải thông tin hồ sơ");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [userId, currentUser]);
+
+  if (loading) {
+    return <div className="loading-spinner">Đang tải...</div>;
+  }
+
+  if (!userProfile) {
+    return (
+      <div className="error-message">Không thể tải thông tin người dùng</div>
+    );
+  }
+
   return (
     <div className="overview-tab">
       <div className="profile-section">
-        <h2>Thông tin cá nhân</h2>
-        <div className="profile-info-grid">
+        <h3>Thông tin cá nhân</h3>
+        <div className="profile-info">
           <div className="info-item">
-            <span className="info-label">Tên người dùng:</span>
-            <span className="info-value">{profile.username}</span>
+            <span className="label">Tên người dùng:</span>
+            <span className="value">{userProfile.username}</span>
           </div>
           <div className="info-item">
-            <span className="info-label">Email:</span>
-            <span className="info-value">{profile.email}</span>
+            <span className="label">Email:</span>
+            <span className="value">{userProfile.email}</span>
           </div>
           <div className="info-item">
-            <span className="info-label">Vai trò:</span>
-            <span className="info-value">
-              {profile.role === "student" ? "Học sinh" : "Giáo viên"}
+            <span className="label">Vai trò:</span>
+            <span className="value">
+              {userProfile.role === "student"
+                ? "Học sinh"
+                : userProfile.role === "teacher"
+                ? "Giáo viên"
+                : "Quản trị viên"}
             </span>
           </div>
+          {userProfile.bio && (
+            <div className="info-item">
+              <span className="label">Giới thiệu:</span>
+              <span className="value">{userProfile.bio}</span>
+            </div>
+          )}
           <div className="info-item">
-            <span className="info-label">Ngày tham gia:</span>
-            <span className="info-value">
-              {new Date(profile.createdAt).toLocaleDateString("vi-VN")}
+            <span className="label">Ngày tham gia:</span>
+            <span className="value">
+              {new Date(userProfile.createdAt).toLocaleDateString("vi-VN")}
             </span>
-          </div>
-          {profile.location && (
-            <div className="info-item">
-              <span className="info-label">Địa điểm:</span>
-              <span className="info-value">{profile.location}</span>
-            </div>
-          )}
-          {profile.education && (
-            <div className="info-item">
-              <span className="info-label">Trường học:</span>
-              <span className="info-value">{profile.education}</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="profile-section">
-        <h2>Hoạt động gần đây</h2>
-        {profile.recentActivities && profile.recentActivities.length > 0 ? (
-          <div className="activity-timeline">
-            {profile.recentActivities.map((activity, index) => (
-              <div key={index} className="activity-item">
-                <div className="activity-icon">
-                  <i className={`fas fa-${getActivityIcon(activity.type)}`}></i>
-                </div>
-                <div className="activity-content">
-                  <p>{activity.description}</p>
-                  <span className="activity-time">
-                    {formatTimeAgo(activity.createdAt)}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="no-data">Chưa có hoạt động nào gần đây</p>
-        )}
-      </div>
-
-      <div className="profile-section">
-        <h2>Thống kê đóng góp</h2>
-        <div className="contribution-stats">
-          <div className="contribution-grid">
-            {/* Giả lập dữ liệu đóng góp giống GitHub */}
-            {Array.from({ length: 52 }, (_, weekIndex) => (
-              <div key={`week-${weekIndex}`} className="contribution-week">
-                {Array.from({ length: 7 }, (_, dayIndex) => {
-                  const level = Math.floor(Math.random() * 5); // 0-4 levels of contribution
-                  return (
-                    <div
-                      key={`day-${weekIndex}-${dayIndex}`}
-                      className={`contribution-day level-${level}`}
-                      title={`${level} đóng góp vào ngày này`}
-                    ></div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-          <div className="contribution-legend">
-            <span>Ít hơn</span>
-            <div className="contribution-day level-0"></div>
-            <div className="contribution-day level-1"></div>
-            <div className="contribution-day level-2"></div>
-            <div className="contribution-day level-3"></div>
-            <div className="contribution-day level-4"></div>
-            <span>Nhiều hơn</span>
           </div>
         </div>
       </div>
 
-      {isCurrentUser && (
-        <div className="profile-actions">
-          <Link to="/settings" className="btn-secondary">
-            <i className="fas fa-cog"></i> Cài đặt tài khoản
-          </Link>
+      <div className="stats-section">
+        <h3>Thống kê</h3>
+        <div className="stats-grid">
+          <div className="stat-card">
+            <div className="stat-icon">
+              <i className="fas fa-graduation-cap"></i>
+            </div>
+            <div className="stat-info">
+              <h4>Khóa học</h4>
+              <p>{userProfile.enrolledCourses?.length || 0}</p>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon">
+              <i className="fas fa-file-alt"></i>
+            </div>
+            <div className="stat-info">
+              <h4>Tài liệu</h4>
+              <p>{userProfile.documents?.length || 0}</p>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon">
+              <i className="fas fa-clipboard-list"></i>
+            </div>
+            <div className="stat-info">
+              <h4>Đề thi</h4>
+              <p>{userProfile.exams?.length || 0}</p>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon">
+              <i className="fas fa-users"></i>
+            </div>
+            <div className="stat-info">
+              <h4>Người theo dõi</h4>
+              <p>{userProfile.followers?.length || 0}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {scores.length > 0 && (
+        <div className="scores-section">
+          <h3>Điểm số gần đây</h3>
+          <div className="scores-list">
+            {scores.slice(0, 5).map((score, index) => (
+              <div key={index} className="score-item">
+                <div className="score-info">
+                  <h4>{score.examTitle}</h4>
+                  <p>
+                    Điểm:{" "}
+                    <span className="highlight">
+                      {score.score}/{score.totalScore}
+                    </span>
+                  </p>
+                </div>
+                <div className="score-date">
+                  {new Date(score.date).toLocaleDateString("vi-VN")}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {contributions.length > 0 && (
+        <div className="contributions-section">
+          <h3>Đóng góp gần đây</h3>
+          <div className="contributions-list">
+            {contributions.slice(0, 5).map((contribution, index) => (
+              <div key={index} className="contribution-item">
+                <div className="contribution-icon">
+                  <i
+                    className={`fas ${
+                      contribution.type === "document"
+                        ? "fa-file-alt"
+                        : contribution.type === "exam"
+                        ? "fa-clipboard-list"
+                        : "fa-comment-alt"
+                    }`}
+                  ></i>
+                </div>
+                <div className="contribution-info">
+                  <h4>{contribution.title}</h4>
+                  <p>{contribution.description}</p>
+                </div>
+                <div className="contribution-date">
+                  {new Date(contribution.date).toLocaleDateString("vi-VN")}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
   );
-};
-
-// Hàm phụ trợ để lấy icon cho từng loại hoạt động
-const getActivityIcon = (type) => {
-  switch (type) {
-    case "course":
-      return "graduation-cap";
-    case "document":
-      return "file-alt";
-    case "comment":
-      return "comment";
-    case "exam":
-      return "clipboard-check";
-    case "post":
-      return "edit";
-    default:
-      return "circle";
-  }
-};
-
-// Hàm phụ trợ để định dạng thời gian
-const formatTimeAgo = (dateString) => {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffInSeconds = Math.floor((now - date) / 1000);
-
-  if (diffInSeconds < 60) {
-    return "vừa xong";
-  }
-
-  const diffInMinutes = Math.floor(diffInSeconds / 60);
-  if (diffInMinutes < 60) {
-    return `${diffInMinutes} phút trước`;
-  }
-
-  const diffInHours = Math.floor(diffInMinutes / 60);
-  if (diffInHours < 24) {
-    return `${diffInHours} giờ trước`;
-  }
-
-  const diffInDays = Math.floor(diffInHours / 24);
-  if (diffInDays < 30) {
-    return `${diffInDays} ngày trước`;
-  }
-
-  const diffInMonths = Math.floor(diffInDays / 30);
-  if (diffInMonths < 12) {
-    return `${diffInMonths} tháng trước`;
-  }
-
-  const diffInYears = Math.floor(diffInMonths / 12);
-  return `${diffInYears} năm trước`;
 };
 
 export default OverviewTab;

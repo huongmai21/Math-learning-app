@@ -1,28 +1,64 @@
-import api from "./api";
+import api from "./api"
 
+// Lấy tất cả thông báo của người dùng
 export const getNotifications = async (userId) => {
   try {
-    const response = await api.get(`/notifications/me`);
-    return response.data;
+    const response = await api.get(`/notifications/${userId || "me"}`)
+    return response.data
   } catch (error) {
-    throw new Error(error.message || "Không thể lấy thông báo");
+    console.error("Error fetching notifications:", error)
+    throw error
   }
-};
+}
 
-export const deleteNotification = async (id) => {
+// Đánh dấu thông báo đã đọc
+export const markNotificationAsRead = async (notificationId) => {
   try {
-    const response = await api.delete(`/notifications/${id}`);
-    return response.data;
+    const response = await api.put(`/notifications/${notificationId}/read`)
+    return response.data
   } catch (error) {
-    throw new Error(error.message || "Không thể xóa thông báo");
+    console.error("Error marking notification as read:", error)
+    throw error
   }
-};
+}
 
-export const markNotificationRead = async (id) => {
+// Đánh dấu tất cả thông báo đã đọc
+export const markAllNotificationsAsRead = async () => {
   try {
-    const response = await api.put(`/notifications/${id}/read`);
-    return response.data;
+    const response = await api.put("/notifications/read-all")
+    return response.data
   } catch (error) {
-    throw new Error(error.message || "Không thể đánh dấu thông báo đã đọc");
+    console.error("Error marking all notifications as read:", error)
+    throw error
   }
-};
+}
+
+// Xóa thông báo
+export const deleteNotification = async (notificationId) => {
+  try {
+    const response = await api.delete(`/notifications/${notificationId}`)
+    return response.data
+  } catch (error) {
+    console.error("Error deleting notification:", error)
+    throw error
+  }
+}
+
+// Tạo thông báo mới (chủ yếu dùng cho admin)
+export const createNotification = async (notificationData) => {
+  try {
+    const response = await api.post("/notifications", notificationData)
+    return response.data
+  } catch (error) {
+    console.error("Error creating notification:", error)
+    throw error
+  }
+}
+
+export default {
+  getNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  deleteNotification,
+  createNotification,
+}

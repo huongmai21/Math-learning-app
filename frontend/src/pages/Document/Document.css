@@ -84,10 +84,7 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.doc-title {
-  font-size: 28px;
-  font-weight: bold;
-  color: #1e90ff;
+
 .doc-title {
   font-size: 28px;
   font-weight: bold;
@@ -192,7 +189,6 @@
   margin-bottom: 20px;
 }
 
-.doc-thumbnail {
 .doc-thumbnail {
   max-width: 100%;
   height: auto;
@@ -538,7 +534,7 @@
   text-align: center;
 }
 
-@media (max-width: 768px) {
+
 @media (max-width: 768px) {
   .container {
     padding: 10px;
@@ -563,14 +559,7 @@
     align-items: flex-start;
   }
 
-  .pdf-iframe {
-    height: 400px;
-  .doc-actions {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .pdf-iframe {
+   .pdf-iframe {
     height: 400px;
   }
 }

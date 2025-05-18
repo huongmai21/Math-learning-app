@@ -116,10 +116,11 @@ main,
 .search-bar,
 .search-bar * {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-/* Đảm bảo icon trong search-button không bị ảnh hưởng bởi style toàn cục */
-.search-button i {
+.search-bar__button i {
   display: inline-flex;
   align-items: center;
   justify-content: center;

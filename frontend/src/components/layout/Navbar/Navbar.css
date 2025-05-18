@@ -1,4 +1,4 @@
-/* frontend/src/styles/Navbar.css */
+/* frontend/src/components/layout/Navbar/Navbar.css */
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 
 :root {
@@ -138,6 +138,7 @@ body {
   transition: opacity 0.3s ease, transform 0.3s ease;
   transform: translateY(-10px);
   opacity: 0;
+  z-index: 1001;
 }
 
 .dropdown.active .items {
@@ -209,26 +210,28 @@ body {
   position: absolute;
   top: 100%;
   right: 0px;
-  width: 150px;
+  width: 180px;
   margin-top: 15px;
   background: var(--dropdown-bg);
   color: #e4e4e4;
   border-radius: 5px;
   box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
   z-index: 1000;
-  /* display: block; */
   transition: opacity 0.2s ease, transform 0.2s ease;
   transform: translateY(-10px);
   opacity: 1;
 }
 
+.notification-dropdown {
+  width: 250px;
+  right: -10px;
+}
 
 .profile-dropdown[aria-expanded="true"],
 .notification-dropdown[aria-expanded="true"] {
   transform: translateY(0);
   opacity: 1;
 }
-
 
 .notification-container {
   position: relative;
@@ -257,24 +260,37 @@ body {
 
 .notification-item {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
   padding: 10px 15px;
   font-size: 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+}
+
+.notification-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 .notification-time {
   font-size: 12px;
   color: #bbb;
+  margin-top: 4px;
 }
 
 .delete-notification {
+  position: absolute;
+  top: 8px;
+  right: 8px;
   background: none;
   border: none;
   color: var(--primary-color);
   cursor: pointer;
   font-size: 14px;
+  opacity: 0.7;
+}
+
+.delete-notification:hover {
+  opacity: 1;
 }
 
 .settings-container {

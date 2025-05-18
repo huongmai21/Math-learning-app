@@ -1,590 +1,269 @@
-import React, { useState, useEffect } from "react";
-import { useSelector } from "react-redux";
+"use client";
+
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useSelector } from "react-redux";
+import { getAllExams, getRecommendedExams } from "../../services/examService";
 import { toast } from "react-toastify";
-import SearchBar from "../../components/common/SearchBar/SearchBar";
-import CommentSection from "../../components/common/Comment/CommentSection";
-import ReactPaginate from "react-paginate";
-import axios from "axios";
 import "./Exam.css";
 
 const ExamList = () => {
-  const { user } = useSelector((state) => state.auth);
+  const { user, isAuthenticated } = useSelector((state) => state.auth);
   const [exams, setExams] = useState([]);
   const [recommendedExams, setRecommendedExams] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    educationLevel: "",
+    grade: "",
     subject: "",
-    status: "",
     difficulty: "",
+    status: "",
   });
   const [searchQuery, setSearchQuery] = useState("");
-  const [filters, setFilters] = useState({
-    educationLevel: "",
-    subject: "",
-    status: "",
-    difficulty: "",
-  });
-  const [searchQuery, setSearchQuery] = useState("");
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [examLeaderboards, setExamLeaderboards] = useState({});
-  const [countdowns, setCountdowns] = useState({});
-  const [countdowns, setCountdowns] = useState({});
-  const itemsPerPage = 9;
-
-  const loadExams = async (pageToLoad = 1) => {
-    try {
-      setLoading(true);
-      const params = {
-        ...filters,
-        search: searchQuery,
-        page: pageToLoad,
-        limit: itemsPerPage,
-      };
-      const response = await axios.get("http://localhost:5000/exams", {
-        params,
-      });
-      const response = await axios.get("http://localhost:5000/exams", {
-        params,
-      });
-      setExams(response.data.exams);
-      setTotalPages(response.data.totalPages);
-      setPage(pageToLoad);
-    } catch (err) {
-      toast.error(
-        "Lỗi khi tải danh sách đề thi: " + (err.message || "Vui lòng thử lại.")
-      );
-      toast.error(
-        "Lỗi khi tải danh sách đề thi: " + (err.message || "Vui lòng thử lại.")
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
-    loadExams();
-    const fetchRecommendations = async () => {
+    const fetchExams = async () => {
       try {
-        const response = await axios.get(
-          "http://localhost:5000/exams/recommended"
-        );
-        const response = await axios.get(
-          "http://localhost:5000/exams/recommended"
-        );
-        setRecommendedExams(response.data.recommendedExams);
-      } catch (err) {
-        console.error("Lỗi khi lấy bài thi gợi ý:", err);
-        console.error("Lỗi khi lấy bài thi gợi ý:", err);
+        setLoading(true);
+        const response = await getAllExams();
+        setExams(response.data || []);
+
+        // Nếu đã đăng nhập, lấy đề thi được đề xuất
+        if (isAuthenticated && user) {
+          try {
+            const recommendedResponse = await getRecommendedExams();
+            setRecommendedExams(recommendedResponse.data || []);
+          } catch (error) {
+            console.error("Không thể lấy đề thi đề xuất:", error);
+            // Không hiển thị toast lỗi khi không thể lấy đề thi đề xuất
+          }
+        }
+      } catch (error) {
+        console.error("Lỗi khi lấy danh sách đề thi:", error);
+        toast.error("Không thể tải danh sách đề thi");
+      } finally {
+        setLoading(false);
       }
     };
-    fetchRecommendations();
 
-    // Cài đặt bộ đếm ngược
-    const timer = setInterval(() => {
-      const newCountdowns = {};
-      exams.forEach((exam) => {
-        const now = new Date();
-        const startTime = new Date(exam.startTime);
-        const endTime = new Date(exam.endTime);
-        if (startTime > now) {
-          const timeLeft = startTime - now;
-          newCountdowns[exam._id] = formatTimeLeft(timeLeft);
-        } else if (endTime > now) {
-          const timeLeft = endTime - now;
-          newCountdowns[exam._id] = formatTimeLeft(timeLeft);
-        }
-      });
-      setCountdowns(newCountdowns);
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [filters, searchQuery, exams]);
-
-  const formatTimeLeft = (time) => {
-    const seconds = Math.floor((time / 1000) % 60);
-    const minutes = Math.floor((time / (1000 * 60)) % 60);
-    const hours = Math.floor((time / (1000 * 60 * 60)) % 24);
-    const days = Math.floor(time / (1000 * 60 * 60 * 24));
-    return `${days} ngày, ${hours}:${minutes}:${seconds}`;
-  };
-
-    // Cài đặt bộ đếm ngược
-    const timer = setInterval(() => {
-      const newCountdowns = {};
-      exams.forEach((exam) => {
-        const now = new Date();
-        const startTime = new Date(exam.startTime);
-        const endTime = new Date(exam.endTime);
-        if (startTime > now) {
-          const timeLeft = startTime - now;
-          newCountdowns[exam._id] = formatTimeLeft(timeLeft);
-        } else if (endTime > now) {
-          const timeLeft = endTime - now;
-          newCountdowns[exam._id] = formatTimeLeft(timeLeft);
-        }
-      });
-      setCountdowns(newCountdowns);
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [filters, searchQuery, exams]);
-
-  const formatTimeLeft = (time) => {
-    const seconds = Math.floor((time / 1000) % 60);
-    const minutes = Math.floor((time / (1000 * 60)) % 60);
-    const hours = Math.floor((time / (1000 * 60 * 60)) % 24);
-    const days = Math.floor(time / (1000 * 60 * 60 * 24));
-    return `${days} ngày, ${hours}:${minutes}:${seconds}`;
-  };
+    fetchExams();
+  }, [isAuthenticated, user]);
 
   const handleFilterChange = (e) => {
-    setFilters({ ...filters, [e.target.name]: e.target.value });
-    setPage(1);
+    const { name, value } = e.target;
+    setFilters((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSearch = (query) => {
-    setSearchQuery(query);
-    setPage(1);
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
   };
 
-  const handleFollow = async (examId) => {
-    try {
-      await axios.post(`http://localhost:5000/exams/${examId}/follow`);
-      toast.success("Quan tâm bài thi thành công!");
-      toast.success("Quan tâm bài thi thành công!");
-      loadExams(page);
-    } catch (err) {
-      toast.error(
-        "Quan tâm bài thi thất bại: " + (err.message || "Vui lòng thử lại.")
-      );
-      toast.error(
-        "Quan tâm bài thi thất bại: " + (err.message || "Vui lòng thử lại.")
-      );
-    }
+  const resetFilters = () => {
+    setFilters({
+      grade: "",
+      subject: "",
+      difficulty: "",
+      status: "",
+    });
+    setSearchQuery("");
   };
 
-  const fetchExamLeaderboard = async (examId) => {
-    if (examLeaderboards[examId]) return;
-    try {
-      const response = await axios.get(
-        `http://localhost:5000/exams/${examId}/leaderboard`
-      );
-      const response = await axios.get(
-        `http://localhost:5000/exams/${examId}/leaderboard`
-      );
-      setExamLeaderboards((prev) => ({
-        ...prev,
-        [examId]: response.data.leaderboard,
-      }));
-    } catch (err) {
-      toast.error(
-        "Lỗi khi lấy bảng xếp hạng bài thi: " +
-          (err.message || "Vui lòng thử lại.")
-      );
-      toast.error(
-        "Lỗi khi lấy bảng xếp hạng bài thi: " +
-          (err.message || "Vui lòng thử lại.")
-      );
-    }
-  };
+  const filteredExams = exams.filter((exam) => {
+    const matchesSearch = exam.title
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
+    const matchesGrade = filters.grade ? exam.grade === filters.grade : true;
+    const matchesSubject = filters.subject
+      ? exam.subject === filters.subject
+      : true;
+    const matchesDifficulty = filters.difficulty
+      ? exam.difficulty === filters.difficulty
+      : true;
+    const matchesStatus = filters.status
+      ? exam.status === filters.status
+      : true;
 
-  const getStatus = (startTime, endTime) => {
-    const now = new Date();
-    if (startTime > now) return "Sắp diễn ra";
-    if (startTime <= now && endTime >= now) return "Đang diễn ra";
-    return "Kết thúc";
-    if (startTime > now) return "Sắp diễn ra";
-    if (startTime <= now && endTime >= now) return "Đang diễn ra";
-    return "Kết thúc";
-  };
+    return (
+      matchesSearch &&
+      matchesGrade &&
+      matchesSubject &&
+      matchesDifficulty &&
+      matchesStatus
+    );
+  });
 
-  const getSubjectLabel = (subject) => {
-    switch (subject) {
-      case "math":
-        return "Toán";
-      case "advanced_math":
-        return "Toán cao cấp";
-      case "calculus":
-        return "Giải tích";
-      case "algebra":
-        return "Đại số";
-      case "probability_statistics":
-        return "Xác suất thống kê";
-      case "differential_equations":
-        return "Phương trình vi phân";
-      default:
-        return subject;
-      case "math":
-        return "Toán";
-      case "advanced_math":
-        return "Toán cao cấp";
-      case "calculus":
-        return "Giải tích";
-      case "algebra":
-        return "Đại số";
-      case "probability_statistics":
-        return "Xác suất thống kê";
-      case "differential_equations":
-        return "Phương trình vi phân";
-      default:
-        return subject;
-    }
-  };
+  if (loading) {
+    return (
+      <div className="exam-list-container loading">
+        <div className="loading-spinner">Đang tải...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="exam-list-container">
-      <h2>Thi đấu</h2>
+      <h1>Thi đấu</h1>
 
-      <SearchBar onSearch={handleSearch} />
+      <div className="search-filter-container">
+        <div className="search-bar">
+          <input
+            type="text"
+            placeholder="Tìm kiếm đề thi..."
+            value={searchQuery}
+            onChange={handleSearchChange}
+          />
+          <button className="search-button">
+            <i className="fas fa-search"></i>
+          </button>
+        </div>
 
-      <div className="filters">
-        <select
-          name="educationLevel"
-          onChange={handleFilterChange}
-          value={filters.educationLevel}
-        >
-        <select
-          name="educationLevel"
-          onChange={handleFilterChange}
-          value={filters.educationLevel}
-        >
-          <option value="">Tất cả cấp học</option>
-          {[...Array(12).keys()].map((i) => (
-            <option key={i + 1} value={`grade${i + 1}`}>
-              Lớp {i + 1}
-            </option>
-          {[...Array(12).keys()].map((i) => (
-            <option key={i + 1} value={`grade${i + 1}`}>
-              Lớp {i + 1}
-            </option>
-          ))}
-          <option value="university">Đại học</option>
-        </select>
-        <select
-          name="subject"
-          onChange={handleFilterChange}
-          value={filters.subject}
-        >
-        <select
-          name="subject"
-          onChange={handleFilterChange}
-          value={filters.subject}
-        >
-          <option value="">Tất cả môn</option>
-          {filters.educationLevel === "university" ? (
-          {filters.educationLevel === "university" ? (
-            <>
-              <option value="advanced_math">Toán cao cấp</option>
-              <option value="calculus">Giải tích</option>
-              <option value="algebra">Đại số</option>
-              <option value="probability_statistics">Xác suất thống kê</option>
-              <option value="differential_equations">
-                Phương trình vi phân
-              </option>
-              <option value="differential_equations">
-                Phương trình vi phân
-              </option>
-            </>
-          ) : (
-            <option value="math">Toán</option>
-          )}
-        </select>
-        <select
-          name="status"
-          onChange={handleFilterChange}
-          value={filters.status}
-        >
-        <select
-          name="status"
-          onChange={handleFilterChange}
-          value={filters.status}
-        >
-          <option value="">Tất cả trạng thái</option>
-          <option value="upcoming">Sắp diễn ra</option>
-          <option value="ongoing">Đang diễn ra</option>
-          <option value="ended">Kết thúc</option>
-        </select>
-        <select
-          name="difficulty"
-          onChange={handleFilterChange}
-          value={filters.difficulty}
-        >
-        <select
-          name="difficulty"
-          onChange={handleFilterChange}
-          value={filters.difficulty}
-        >
-          <option value="">Tất cả độ khó</option>
-          <option value="easy">Dễ</option>
-          <option value="medium">Trung bình</option>
-          <option value="hard">Khó</option>
-        </select>
-        <button
-          onClick={() =>
-            setFilters({
-              educationLevel: "",
-              subject: "",
-              status: "",
-              difficulty: "",
-            })
-          }
-        >
-        <button
-          onClick={() =>
-            setFilters({
-              educationLevel: "",
-              subject: "",
-              status: "",
-              difficulty: "",
-            })
-          }
-        >
-          Xóa bộ lọc
-        </button>
+        <div className="filters">
+          <select
+            name="grade"
+            value={filters.grade}
+            onChange={handleFilterChange}
+          >
+            <option value="">Tất cả cấp học</option>
+            <option value="primary">Tiểu học</option>
+            <option value="secondary">THCS</option>
+            <option value="high">THPT</option>
+            <option value="university">Đại học</option>
+          </select>
+
+          <select
+            name="subject"
+            value={filters.subject}
+            onChange={handleFilterChange}
+          >
+            <option value="">Tất cả môn</option>
+            <option value="algebra">Đại số</option>
+            <option value="geometry">Hình học</option>
+            <option value="calculus">Giải tích</option>
+            <option value="statistics">Thống kê</option>
+          </select>
+
+          <select
+            name="difficulty"
+            value={filters.difficulty}
+            onChange={handleFilterChange}
+          >
+            <option value="">Tất cả trạng thái</option>
+            <option value="easy">Dễ</option>
+            <option value="medium">Trung bình</option>
+            <option value="hard">Khó</option>
+          </select>
+
+          <select
+            name="status"
+            value={filters.status}
+            onChange={handleFilterChange}
+          >
+            <option value="">Tất cả độ khó</option>
+            <option value="public">Công khai</option>
+            <option value="private">Riêng tư</option>
+          </select>
+
+          <button className="reset-button" onClick={resetFilters}>
+            Xóa bộ lọc
+          </button>
+        </div>
       </div>
 
-      {!filters.educationLevel &&
-        !filters.subject &&
-        !filters.status &&
-        !filters.difficulty &&
-        !searchQuery && (
-          <div className="recommended-exams">
-            <h3>Đề xuất cho bạn</h3>
-            {recommendedExams.length > 0 ? (
-              <div className="exam-grid">
-                {recommendedExams.map((exam) => (
-                  <div
-                    key={exam._id}
-                    className={`exam-card ${getStatus(
-                      exam.startTime,
-                      exam.endTime
-                    ).replace(/\s/g, "-")}`}
-                  >
-                    <h3>{exam.title}</h3>
-                    <p>{exam.description?.substring(0, 100)}...</p>
-                    <p>
-                      Cấp học:{" "}
-                      {exam.educationLevel === "university"
-                        ? "Đại học"
-                        : `Lớp ${exam.educationLevel.replace("grade", "")}`}
-                    </p>
-                    <p>Môn: {getSubjectLabel(exam.subject)}</p>
-                    <Link to={`/exams/${exam._id}`} className="btn">
-                      Xem chi tiết
-                    </Link>
+      {isAuthenticated && recommendedExams.length > 0 && (
+        <div className="recommended-exams">
+          <h2>Đề xuất cho bạn</h2>
+          <div className="exam-grid">
+            {recommendedExams.map((exam) => (
+              <div key={exam._id} className="exam-card">
+                <div className="exam-card-header">
+                  <span className={`difficulty-badge ${exam.difficulty}`}>
+                    {exam.difficulty}
+                  </span>
+                  <h3>{exam.title}</h3>
+                </div>
+                <div className="exam-card-body">
+                  <p>{exam.description}</p>
+                  <div className="exam-info">
+                    <span>
+                      <i className="fas fa-graduation-cap"></i> {exam.grade}
+                    </span>
+                    <span>
+                      <i className="fas fa-book"></i> {exam.subject}
+                    </span>
+                    <span>
+                      <i className="fas fa-clock"></i> {exam.duration} phút
+                    </span>
+                    <span>
+                      <i className="fas fa-question-circle"></i>{" "}
+                      {exam.questions?.length || 0} câu hỏi
+                    </span>
                   </div>
-                ))}
+                </div>
+                <div className="exam-card-footer">
+                  <Link to={`/exams/${exam._id}`} className="take-exam-button">
+                    Làm bài
+                  </Link>
+                </div>
               </div>
-            ) : (
-              <p>Chưa có bài thi gợi ý.</p>
-            )}
+            ))}
           </div>
-        )}
-      {!filters.educationLevel &&
-        !filters.subject &&
-        !filters.status &&
-        !filters.difficulty &&
-        !searchQuery && (
-          <div className="recommended-exams">
-            <h3>Đề xuất cho bạn</h3>
-            {recommendedExams.length > 0 ? (
-              <div className="exam-grid">
-                {recommendedExams.map((exam) => (
-                  <div
-                    key={exam._id}
-                    className={`exam-card ${getStatus(
-                      exam.startTime,
-                      exam.endTime
-                    ).replace(/\s/g, "-")}`}
-                  >
-                    <h3>{exam.title}</h3>
-                    <p>{exam.description?.substring(0, 100)}...</p>
-                    <p>
-                      Cấp học:{" "}
-                      {exam.educationLevel === "university"
-                        ? "Đại học"
-                        : `Lớp ${exam.educationLevel.replace("grade", "")}`}
-                    </p>
-                    <p>Môn: {getSubjectLabel(exam.subject)}</p>
-                    <Link to={`/exams/${exam._id}`} className="btn">
-                      Xem chi tiết
-                    </Link>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p>Chưa có bài thi gợi ý.</p>
-            )}
-          </div>
-        )}
-
-      {loading ? (
-        <p>Đang tải...</p>
-      ) : (
-        <div className="exam-grid">
-          {exams.length > 0 ? (
-            exams.map((exam) => (
-              <div
-                key={exam._id}
-                className={`exam-card ${getStatus(
-                  exam.startTime,
-                  exam.endTime
-                ).replace(/\s/g, "-")}`}
-              >
-              <div
-                key={exam._id}
-                className={`exam-card ${getStatus(
-                  exam.startTime,
-                  exam.endTime
-                ).replace(/\s/g, "-")}`}
-              >
-                <h3>{exam.title}</h3>
-                <p>{exam.description?.substring(0, 100)}...</p>
-                <p>
-                  Cấp học:{" "}
-                  {exam.educationLevel === "university"
-                    ? "Đại học"
-                    : `Lớp ${exam.educationLevel.replace("grade", "")}`}
-                </p>
-                <p>
-                  Cấp học:{" "}
-                  {exam.educationLevel === "university"
-                    ? "Đại học"
-                    : `Lớp ${exam.educationLevel.replace("grade", "")}`}
-                </p>
-                <p>Môn: {getSubjectLabel(exam.subject)}</p>
-                <p>Độ khó: {exam.difficulty}</p>
-                <p>
-                  Thời gian bắt đầu: {new Date(exam.startTime).toLocaleString()}
-                </p>
-                <p>
-                  Thời gian kết thúc: {new Date(exam.endTime).toLocaleString()}
-                </p>
-                <p>
-                  Thời gian bắt đầu: {new Date(exam.startTime).toLocaleString()}
-                </p>
-                <p>
-                  Thời gian kết thúc: {new Date(exam.endTime).toLocaleString()}
-                </p>
-                <p>Trạng thái: {getStatus(exam.startTime, exam.endTime)}</p>
-                {countdowns[exam._id] && (
-                  <p>
-                    {getStatus(exam.startTime, exam.endTime) === "Sắp diễn ra"
-                      ? "Bắt đầu sau: "
-                      : "Kết thúc sau: "}
-                    {countdowns[exam._id]}
-                  </p>
-                )}
-                {countdowns[exam._id] && (
-                  <p>
-                    {getStatus(exam.startTime, exam.endTime) === "Sắp diễn ra"
-                      ? "Bắt đầu sau: "
-                      : "Kết thúc sau: "}
-                    {countdowns[exam._id]}
-                  </p>
-                )}
-                <p>Lượt tham gia: {exam.attempts}</p>
-                {user && (
-                  <button onClick={() => handleFollow(exam._id)}>
-                    {exam.followers.includes(user._id)
-                      ? "Đã quan tâm"
-                      : "Quan tâm"}
-                    {exam.followers.includes(user._id)
-                      ? "Đã quan tâm"
-                      : "Quan tâm"}
-                  </button>
-                )}
-                {getStatus(exam.startTime, exam.endTime) === "Đang diễn ra" && (
-                  <Link to={`/exams/${exam._id}`} className="btn">
-                    Tham gia
-                  </Link>
-                {getStatus(exam.startTime, exam.endTime) === "Đang diễn ra" && (
-                  <Link to={`/exams/${exam._id}`} className="btn">
-                    Tham gia
-                  </Link>
-                )}
-                {getStatus(exam.startTime, exam.endTime) === "Kết thúc" && (
-                  <Link to={`/exams/${exam._id}/answers`} className="btn">
-                    Xem đáp án
-                  </Link>
-                {getStatus(exam.startTime, exam.endTime) === "Kết thúc" && (
-                  <Link to={`/exams/${exam._id}/answers`} className="btn">
-                    Xem đáp án
-                  </Link>
-                )}
-                <button
-                  onClick={() => fetchExamLeaderboard(exam._id)}
-                  className="btn"
-                >
-                  Xem bảng xếp hạng
-                </button>
-                <button
-                  onClick={() => fetchExamLeaderboard(exam._id)}
-                  className="btn"
-                >
-                  Xem bảng xếp hạng
-                </button>
-                {examLeaderboards[exam._id] && (
-                  <div className="leaderboard-list">
-                    {examLeaderboards[exam._id].length > 0 ? (
-                      examLeaderboards[exam._id].map((entry, index) => (
-                        <div key={entry._id} className="leaderboard-item">
-                          <span className="rank">{index + 1}</span>
-                          <span className="username">
-                            {entry.user.username}
-                          </span>
-                          <span className="score">
-                            Điểm: {entry.totalScore}
-                          </span>
-                          <span className="time">
-                            Thời gian:{" "}
-                            {new Date(entry.endTime).toLocaleString()}
-                          </span>
-                          <span className="username">
-                            {entry.user.username}
-                          </span>
-                          <span className="score">
-                            Điểm: {entry.totalScore}
-                          </span>
-                          <span className="time">
-                            Thời gian:{" "}
-                            {new Date(entry.endTime).toLocaleString()}
-                          </span>
-                        </div>
-                      ))
-                    ) : (
-                      <p>Chưa có người tham gia bài thi này.</p>
-                    )}
-                  </div>
-                )}
-                <CommentSection referenceId={exam._id} referenceType="exam" />
-              </div>
-            ))
-          ) : (
-            <p>Không tìm thấy bài thi nào.</p>
-          )}
         </div>
       )}
 
-      {totalPages > 1 && (
-        <ReactPaginate
-          breakLabel="..."
-          nextLabel="Tiếp >"
-          onPageChange={(event) => loadExams(event.selected + 1)}
-          pageRangeDisplayed={5}
-          pageCount={totalPages}
-          previousLabel="< Trước"
-          renderOnZeroPageCount={null}
-          containerClassName="pagination"
-          activeClassName="active"
-        />
+      <div className="all-exams">
+        <h2>Tất cả đề thi</h2>
+        {filteredExams.length > 0 ? (
+          <div className="exam-grid">
+            {filteredExams.map((exam) => (
+              <div key={exam._id} className="exam-card">
+                <div className="exam-card-header">
+                  <span className={`difficulty-badge ${exam.difficulty}`}>
+                    {exam.difficulty}
+                  </span>
+                  <h3>{exam.title}</h3>
+                </div>
+                <div className="exam-card-body">
+                  <p>{exam.description}</p>
+                  <div className="exam-info">
+                    <span>
+                      <i className="fas fa-graduation-cap"></i> {exam.grade}
+                    </span>
+                    <span>
+                      <i className="fas fa-book"></i> {exam.subject}
+                    </span>
+                    <span>
+                      <i className="fas fa-clock"></i> {exam.duration} phút
+                    </span>
+                    <span>
+                      <i className="fas fa-question-circle"></i>{" "}
+                      {exam.questions?.length || 0} câu hỏi
+                    </span>
+                  </div>
+                </div>
+                <div className="exam-card-footer">
+                  <Link to={`/exams/${exam._id}`} className="take-exam-button">
+                    Làm bài
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="no-exams">
+            <p>Chưa có bài thi gợi ý.</p>
+            <p>Đang tải...</p>
+          </div>
+        )}
+      </div>
+
+      {user?.role === "teacher" && (
+        <div className="create-exam-container">
+          <Link to="/exams/create" className="create-exam-button">
+            <i className="fas fa-plus"></i> Tạo đề thi mới
+          </Link>
+        </div>
       )}
     </div>
   );
 };
 
 export default ExamList;
-

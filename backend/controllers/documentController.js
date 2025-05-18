@@ -229,7 +229,6 @@ exports.searchDocuments = asyncHandler(async (req, res, next) => {
     );
 
   const total = await Document.countDocuments(query);
-  const total = await Document.countDocuments(query);
 
   res.status(200).json({
     success: true,
@@ -239,24 +238,7 @@ exports.searchDocuments = asyncHandler(async (req, res, next) => {
   });
 });
 
-exports.getPopularDocuments = asyncHandler(async (req, res, next) => {
-  const { limit = 4 } = req.query;
-  let query = { status: "published" };
-  if (req.path.includes("grade1")) {
-    query.educationLevel = "primary";
-  } else if (req.path.includes("grade2")) {
-    query.educationLevel = "secondary";
-  } else if (req.path.includes("grade3")) {
-    query.educationLevel = "highschool";
-  } else if (req.path.includes("university")) {
-    query.educationLevel = "university";
-  }
 
-  const documents = await Document.find(query)
-    .sort({ downloads: -1 })
-    .limit(Number(limit))
-    .populate("uploadedBy", "username avatar")
-    .select("title thumbnail educationLevel documentType downloads views");
 exports.getPopularDocuments = asyncHandler(async (req, res, next) => {
   const { limit = 4 } = req.query;
   let query = { status: "published" };
@@ -279,14 +261,7 @@ exports.getPopularDocuments = asyncHandler(async (req, res, next) => {
   res.status(200).json({ success: true, data: documents || [] });
 });
 
-exports.getRelatedDocuments = asyncHandler(async (req, res, next) => {
-  const { educationLevel, subject, excludeId } = req.query;
-  let query = {
-    status: "published",
-    _id: { $ne: excludeId },
-    educationLevel,
-  };
-  if (subject) query.subject = subject;
+
 exports.getRelatedDocuments = asyncHandler(async (req, res, next) => {
   const { educationLevel, subject, excludeId } = req.query;
   let query = {

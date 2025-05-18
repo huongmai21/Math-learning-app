@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Helmet } from "react-helmet";
-import { fetchNews } from "../services/api";
+import { getNews } from "../../services/newsService";
 import "./NewsPage.css";
 
 const NewsPage = () => {
@@ -19,7 +19,7 @@ const NewsPage = () => {
     const loadNews = async () => {
       setLoading(true);
       try {
-        const response = await fetchNews({ page, limit: 5, category, search });
+        const response = await getNews({ page, limit: 5, category, search });
         setNews(response.data);
         setTotalPages(response.totalPages);
       } catch (err) {

@@ -1,98 +1,126 @@
 "use client";
 
-// frontend/src/pages/Auth/AuthForm.jsx
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { refreshUser, login, clearError } from "../../redux/slices/authSlice";
-import { register } from "../../services/authService";
+import {
+  login,
+  register,
+  refreshUser,
+  clearError,
+} from "../../redux/slices/authSlice";
 import { toast } from "react-toastify";
 import "./LogReg.css";
 
 const AuthForm = () => {
   const dispatch = useDispatch();
-  const { error, loading } = useSelector((state) => state.auth);
+  const { user, error, loading, isAuthenticated } = useSelector(
+    (state) => state.auth
+  );
   const [formData, setFormData] = useState({
     username: "",
     email: "",
     password: "",
-    role: "",
+    confirmPassword: "",
+    role: "student", // Mặc định là học sinh
   });
-  const [errors, setErrors] = useState({
-    username: "",
-    email: "",
-    password: "",
-  });
+  const [errors, setErrors] = useState({});
   const [isLogin, setIsLogin] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
+  // Kiểm tra nếu đã đăng nhập thì chuyển hướng đến trang hồ sơ
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      navigate("/users/profile");
+    }
+  }, [isAuthenticated, user, navigate]);
+
   useEffect(() => {
     const pathname = location.pathname;
     setIsLogin(pathname === "/auth/login");
     dispatch(clearError());
-    setErrors({ username: "", email: "", password: "" });
+    setErrors({});
   }, [location.pathname, dispatch]);
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!isLogin) {
+      if (!formData.username || formData.username.length < 3) {
+        newErrors.username = "Tên người dùng phải có ít nhất 3 ký tự";
+      }
+
+      if (formData.password !== formData.confirmPassword) {
+        newErrors.confirmPassword = "Mật khẩu xác nhận không khớp";
+      }
+
+      if (!formData.role) {
+        newErrors.role = "Vui lòng chọn vai trò";
+      }
+    }
+
+    if (!formData.email || !/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = "Email không hợp lệ";
+    }
+
+    if (!formData.password || formData.password.length < 6) {
+      newErrors.password = "Mật khẩu phải có ít nhất 6 ký tự";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prevData) => ({ ...prevData, [name]: value }));
-    setErrors((prevErrors) => ({ ...prevErrors, [name]: "" }));
+    // Xóa lỗi khi người dùng nhập lại
+    if (errors[name]) {
+      setErrors((prevErrors) => ({ ...prevErrors, [name]: "" }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
     setIsLoading(true);
-    setErrors({});
 
     try {
-      console.log("Đang gửi form:", isLogin ? "đăng nhập" : "đăng ký");
-      console.log("Dữ liệu form:", formData);
-
       if (isLogin) {
-        const result = await dispatch(
+        await dispatch(
           login({
             email: formData.email,
             password: formData.password,
           })
         ).unwrap();
-        console.log("Login result:", result);
-        const token = localStorage.getItem("token"); // Kiểm tra token đã lưu
-        if (token) {
-          const refreshedUser = await dispatch(refreshUser()).unwrap();
-          if (refreshedUser) {
-            navigate("/users/profile", { replace: true }); // Chuyển ngay tới profile
-          } else {
-            toast.error(
-              "Đăng nhập thất bại (không lấy được thông tin người dùng)"
-            );
-          }
-        } else {
-          toast.error("Token không được lưu, vui lòng thử lại");
-        }
+
+        // Sau khi đăng nhập thành công, lấy thông tin người dùng
+        await dispatch(refreshUser()).unwrap();
+
+        // Chuyển hướng đến trang hồ sơ
+        navigate("/users/profile");
       } else {
-        try {
-          const response = await register({
+        // Đăng ký
+        await dispatch(
+          register({
             username: formData.username,
             email: formData.email,
             password: formData.password,
             role: formData.role,
-          });
-          toast.success("Đăng ký thành công! Vui lòng đăng nhập.");
-          navigate("/auth/login");
-        } catch (error) {
-          const responseData = error.response?.data;
-          if (responseData && responseData.errors) {
-            setErrors({
-              username: responseData.errors.username || "",
-              email: responseData.errors.email || "",
-              password: responseData.errors.password || "",
-            });
-          } else {
-            toast.error("Đăng ký thất bại, vui lòng kiểm tra lại thông tin");
-          }
-        }
+          })
+        ).unwrap();
+
+        // Sau khi đăng ký thành công, lấy thông tin người dùng
+        await dispatch(refreshUser()).unwrap();
+
+        // Chuyển hướng đến trang hồ sơ
+        navigate("/users/profile");
       }
     } catch (error) {
       console.error("Lỗi xử lý form:", error);
@@ -100,9 +128,7 @@ const AuthForm = () => {
       if (error.errors) {
         setErrors(error.errors);
       } else {
-        setErrors({
-          general: error.message || "Đã xảy ra lỗi. Vui lòng thử lại.",
-        });
+        toast.error(error.message || "Đã xảy ra lỗi. Vui lòng thử lại.");
       }
     } finally {
       setIsLoading(false);
@@ -165,7 +191,7 @@ const AuthForm = () => {
         <div className={`logreg-box ${isLogin ? "" : "active"}`}>
           <div className={`form-box login ${isLogin ? "active" : ""}`}>
             <form onSubmit={handleSubmit}>
-              <h2>Sign In</h2>
+              <h2>Đăng nhập</h2>
               {error && <p className="error">{error}</p>}
               <div className="input-box">
                 <span className="icon">
@@ -178,7 +204,7 @@ const AuthForm = () => {
                   value={formData.email}
                   onChange={handleChange}
                   required
-                  disabled={loading}
+                  disabled={loading || isLoading}
                 />
                 {errors.email && <p className="error">{errors.email}</p>}
               </div>
@@ -189,24 +215,25 @@ const AuthForm = () => {
                 <input
                   type="password"
                   name="password"
-                  placeholder="Password"
+                  placeholder="Mật khẩu"
                   value={formData.password}
                   onChange={handleChange}
                   required
-                  disabled={loading}
+                  disabled={loading || isLoading}
                 />
                 {errors.password && <p className="error">{errors.password}</p>}
               </div>
               <div className="remember-forgot">
                 <label>
-                  <input type="checkbox" disabled={loading} /> Remember me
+                  <input type="checkbox" disabled={loading || isLoading} /> Ghi
+                  nhớ đăng nhập
                 </label>
                 <button
                   type="button"
                   onClick={() => navigate("/forgot-password")}
-                  disabled={loading}
+                  disabled={loading || isLoading}
                 >
-                  Forgot password?
+                  Quên mật khẩu?
                 </button>
               </div>
               <button
@@ -214,17 +241,17 @@ const AuthForm = () => {
                 className="btn"
                 disabled={loading || isLoading}
               >
-                {loading || isLoading ? "Signing in..." : "Sign In"}
+                {loading || isLoading ? "Đang đăng nhập..." : "Đăng nhập"}
               </button>
               <div className="login-register">
                 <p>
-                  Don't have an account?{" "}
+                  Chưa có tài khoản?{" "}
                   <button
                     type="button"
                     onClick={() => navigate("/auth/register")}
-                    disabled={loading}
+                    disabled={loading || isLoading}
                   >
-                    Sign Up
+                    Đăng ký
                   </button>
                 </p>
               </div>
@@ -232,7 +259,7 @@ const AuthForm = () => {
           </div>
           <div className={`form-box register ${!isLogin ? "active" : ""}`}>
             <form onSubmit={handleSubmit}>
-              <h2>Sign Up</h2>
+              <h2>Đăng ký</h2>
               {error && <p className="error">{error}</p>}
               <div className="input-box">
                 <span className="icon">
@@ -241,11 +268,11 @@ const AuthForm = () => {
                 <input
                   type="text"
                   name="username"
-                  placeholder="Username"
+                  placeholder="Tên người dùng"
                   value={formData.username}
                   onChange={handleChange}
                   required
-                  disabled={loading}
+                  disabled={loading || isLoading}
                 />
                 {errors.username && <p className="error">{errors.username}</p>}
               </div>
@@ -260,7 +287,7 @@ const AuthForm = () => {
                   value={formData.email}
                   onChange={handleChange}
                   required
-                  disabled={loading}
+                  disabled={loading || isLoading}
                 />
                 {errors.email && <p className="error">{errors.email}</p>}
               </div>
@@ -271,13 +298,30 @@ const AuthForm = () => {
                 <input
                   type="password"
                   name="password"
-                  placeholder="Password"
+                  placeholder="Mật khẩu"
                   value={formData.password}
                   onChange={handleChange}
                   required
-                  disabled={loading}
+                  disabled={loading || isLoading}
                 />
                 {errors.password && <p className="error">{errors.password}</p>}
+              </div>
+              <div className="input-box">
+                <span className="icon">
+                  <i className="fas fa-lock"></i>
+                </span>
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  placeholder="Xác nhận mật khẩu"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  required
+                  disabled={loading || isLoading}
+                />
+                {errors.confirmPassword && (
+                  <p className="error">{errors.confirmPassword}</p>
+                )}
               </div>
               <div className="input-box">
                 <span className="icon">
@@ -288,19 +332,22 @@ const AuthForm = () => {
                   value={formData.role}
                   onChange={handleChange}
                   required
-                  disabled={loading}
+                  disabled={loading || isLoading}
+                  className="role-select"
                 >
-                  <option value="" disabled>
-                    Select your role
-                  </option>
-                  <option value="teacher">Teacher</option>
-                  <option value="student">Student</option>
+                  <option value="student">Học sinh</option>
+                  <option value="teacher">Giáo viên</option>
                 </select>
+                {errors.role && <p className="error">{errors.role}</p>}
               </div>
               <div className="remember-forgot">
                 <label>
-                  <input type="checkbox" required disabled={loading} /> I agree
-                  to the terms & conditions
+                  <input
+                    type="checkbox"
+                    required
+                    disabled={loading || isLoading}
+                  />{" "}
+                  Tôi đồng ý với các điều khoản và điều kiện
                 </label>
               </div>
               <button
@@ -308,17 +355,17 @@ const AuthForm = () => {
                 className="btn"
                 disabled={loading || isLoading}
               >
-                {loading || isLoading ? "Signing up..." : "Sign Up"}
+                {loading || isLoading ? "Đang đăng ký..." : "Đăng ký"}
               </button>
               <div className="login-register">
                 <p>
-                  Already have an account?{" "}
+                  Đã có tài khoản?{" "}
                   <button
                     type="button"
                     onClick={() => navigate("/auth/login")}
-                    disabled={loading}
+                    disabled={loading || isLoading}
                   >
-                    Sign In
+                    Đăng nhập
                   </button>
                 </p>
               </div>

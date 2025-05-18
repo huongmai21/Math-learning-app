@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from "react";
 import ReactPaginate from "react-paginate";
 import { fetchNews, fetchNewsById } from "../../services/newsService"; // Cập nhật import
-import Navbar from "../../components/layout/Navbar/Navbar";
-import SearchBar from "../../components/common/Search/SearchBar";
-import Footer  from "../../components/layout/Footer/Footer";
+import SearchBar from "../../components/common/SearchBar/SearchBar";
 import "./News.css";
 
 const NewsEducation = () => {
@@ -38,7 +36,6 @@ const NewsEducation = () => {
 
   return (
     <div>
-      <Navbar />
       <div className="news-container">
         <h1>Thông tin giáo dục</h1>
         <SearchBar onSearch={handleSearch} placeholder="Tìm kiếm thông tin giáo dục..." />
@@ -118,7 +115,6 @@ const NewsEducation = () => {
           </div>
         )}
       </div>
-      <Footer/>
     </div>
   );
 };

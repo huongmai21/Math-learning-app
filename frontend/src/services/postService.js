@@ -1,157 +1,130 @@
-import api from "./api"
+import api from "./api";
 
-// Lấy danh sách bài đăng
-export const getPosts = async (params = {}) => {
+// Lấy tất cả bài đăng
+export const getAllPosts = async (page = 1, limit = 10) => {
   try {
-    const response = await api.get("/posts", { params })
-    return response.data
+    const response = await api.get(`/posts?page=${page}&limit=${limit}`);
+    return response.data;
   } catch (error) {
-    throw error.response?.data || { message: "Không thể lấy danh sách bài đăng" }
+    console.error("Error fetching posts:", error);
+    throw error;
   }
-}
+};
 
-// Lấy chi tiết bài đăng
-export const getPostById = async (id) => {
+// Lấy bài đăng theo ID
+export const getPostById = async (postId) => {
   try {
-    const response = await api.get(`/posts/${id}`)
-    return response.data
+    const response = await api.get(`/posts/${postId}`);
+    return response.data;
   } catch (error) {
-    throw error.response?.data || { message: "Không thể lấy chi tiết bài đăng" }
+    console.error(`Error fetching post with ID ${postId}:`, error);
+    throw error;
   }
-}
+};
 
 // Tạo bài đăng mới
 export const createPost = async (postData) => {
   try {
-    const response = await api.post("/posts", postData)
-    return response.data
+    const response = await api.post("/posts", postData);
+    return response.data;
   } catch (error) {
-    throw error.response?.data || { message: "Không thể tạo bài đăng" }
+    console.error("Error creating post:", error);
+    throw error;
   }
-}
+};
 
 // Cập nhật bài đăng
-export const updatePost = async (id, postData) => {
+export const updatePost = async (postId, postData) => {
   try {
-    const response = await api.put(`/posts/${id}`, postData)
-    return response.data
+    const response = await api.put(`/posts/${postId}`, postData);
+    return response.data;
   } catch (error) {
-    throw error.response?.data || { message: "Không thể cập nhật bài đăng" }
+    console.error(`Error updating post with ID ${postId}:`, error);
+    throw error;
   }
-}
+};
 
 // Xóa bài đăng
-export const deletePost = async (id) => {
+export const deletePost = async (postId) => {
   try {
-    const response = await api.delete(`/posts/${id}`)
-    return response.data
+    const response = await api.delete(`/posts/${postId}`);
+    return response.data;
   } catch (error) {
-    throw error.response?.data || { message: "Không thể xóa bài đăng" }
+    console.error(`Error deleting post with ID ${postId}:`, error);
+    throw error;
   }
-}
+};
 
 // Thích bài đăng
-export const likePost = async (id) => {
+export const likePost = async (postId) => {
   try {
-    const response = await api.post(`/posts/${id}/like`)
-    return response.data
+    const response = await api.post(`/posts/${postId}/like`);
+    return response.data;
   } catch (error) {
-    throw error.response?.data || { message: "Không thể thích bài đăng" }
+    console.error(`Error liking post with ID ${postId}:`, error);
+    throw error;
   }
-}
+};
 
-// Đánh dấu bài đăng
-export const bookmarkPost = async (id) => {
+// Bỏ thích bài đăng
+export const unlikePost = async (postId) => {
   try {
-    const response = await api.post(`/posts/${id}/bookmark`)
-    return response.data
+    const response = await api.delete(`/posts/${postId}/like`);
+    return response.data;
   } catch (error) {
-    throw error.response?.data || { message: "Không thể đánh dấu bài đăng" }
+    console.error(`Error unliking post with ID ${postId}:`, error);
+    throw error;
   }
-}
+};
 
-// Lấy bài đăng đã đánh dấu
-export const getBookmarkedPosts = async (params = {}) => {
+// Lấy bài đăng theo danh mục
+export const getPostsByCategory = async (category, page = 1, limit = 10) => {
   try {
-    const response = await api.get("/posts/user/bookmarks", { params })
-    return response.data
+    const response = await api.get(
+      `/posts/category/${category}?page=${page}&limit=${limit}`
+    );
+    return response.data;
   } catch (error) {
-    throw error.response?.data || { message: "Không thể lấy bài đăng đã đánh dấu" }
+    console.error(`Error fetching posts by category ${category}:`, error);
+    throw error;
   }
-}
+};
 
-// Lấy bài đăng phổ biến
-export const getPopularPosts = async (params = {}) => {
+// Lấy bài đăng theo người dùng
+export const getPostsByUser = async (userId, page = 1, limit = 10) => {
   try {
-    const response = await api.get("/posts/popular", { params })
-    return response.data
+    const response = await api.get(
+      `/posts/user/${userId}?page=${page}&limit=${limit}`
+    );
+    return response.data;
   } catch (error) {
-    throw error.response?.data || { message: "Không thể lấy bài đăng phổ biến" }
+    console.error(`Error fetching posts by user ${userId}:`, error);
+    throw error;
   }
-}
+};
 
 // Tìm kiếm bài đăng
-export const searchPosts = async (query, params = {}) => {
+export const searchPosts = async (query, page = 1, limit = 10) => {
   try {
-    const response = await api.get("/posts/search", {
-      params: { q: query, ...params },
-    })
-    return response.data
+    const response = await api.get(
+      `/posts/search?q=${query}&page=${page}&limit=${limit}`
+    );
+    return response.data;
   } catch (error) {
-    throw error.response?.data || { message: "Không thể tìm kiếm bài đăng" }
+    console.error(`Error searching posts with query ${query}:`, error);
+    throw error;
   }
-}
+};
 
-// Cập nhật trạng thái bài đăng
-export const updatePostStatus = async (id, status) => {
-  try {
-    const response = await api.put(`/posts/${id}/status`, { status })
-    return response.data
-  } catch (error) {
-    throw error.response?.data || { message: "Không thể cập nhật trạng thái bài đăng" }
-  }
-}
-
-// Cập nhật câu trả lời AI
-export const updateAiResponse = async (id, aiResponse) => {
-  try {
-    const response = await api.put(`/posts/${id}/ai-response`, { aiResponse })
-    return response.data
-  } catch (error) {
-    throw error.response?.data || { message: "Không thể cập nhật câu trả lời AI" }
-  }
-}
-
-// Upload ảnh
-export const uploadPostImage = async (imageFile) => {
-  try {
-    const formData = new FormData()
-    formData.append("image", imageFile)
-
-    const response = await api.post("/posts/upload/image", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    })
-    return response.data
-  } catch (error) {
-    throw error.response?.data || { message: "Không thể tải lên hình ảnh" }
-  }
-}
-
-// Upload file
-export const uploadPostFile = async (file) => {
-  try {
-    const formData = new FormData()
-    formData.append("file", file)
-
-    const response = await api.post("/posts/upload/file", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    })
-    return response.data
-  } catch (error) {
-    throw error.response?.data || { message: "Không thể tải lên file" }
-  }
-}
+export default {
+  getAllPosts,
+  getPostById,
+  createPost,
+  updatePost,
+  deletePost,
+  likePost,
+  unlikePost,
+  getPostsByCategory,
+  getPostsByUser,
+  searchPosts,
+};

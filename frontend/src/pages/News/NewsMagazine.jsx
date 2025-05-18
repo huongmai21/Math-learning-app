@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react";
 import ReactPaginate from "react-paginate";
 import { fetchNews, fetchNewsById } from "../../services/newsService"; // Cập nhật import
 import Navbar from "../../components/layout/Navbar/Navbar";
-import SearchBar from "../../components/common/Search/SearchBar";
-import Footer  from "../../components/layout/Footer/Footer";
+import SearchBar from "../../components/common/SearchBar/SearchBar";
 
 import "./News.css";
 
@@ -119,7 +118,6 @@ const NewsMagazine = () => {
           </div>
         )}
       </div>
-      <Footer/>
     </div>
   );
 };

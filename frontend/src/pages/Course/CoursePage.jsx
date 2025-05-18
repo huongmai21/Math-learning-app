@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Helmet } from "react-helmet";
 import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
-import { getCourses, getCourseById } from "../../services/courseService";
+import { getAllCourses, getCourseById } from "../../services/courseService";
 import {
   addBookmark,
   removeBookmark,
@@ -31,7 +31,7 @@ const CoursePage = () => {
     const loadCourses = async () => {
       setLoading(true);
       try {
-        const response = await getCourses({
+        const response = await getAllCourses({
           page,
           limit: 6,
           category: category === "all" ? undefined : category,

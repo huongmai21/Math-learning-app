@@ -1,135 +1,87 @@
-import React, { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
-import { useSelector } from "react-redux";
-import { loadStripe } from "@stripe/stripe-js";
-import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
-import { toast } from "react-toastify";
-import { Helmet } from "react-helmet";
-import { getCourseById, createPaymentIntent, enrollCourse } from "../../services/courseService";
-import "./PaymentPage.css";
+"use client"
 
-// Khởi tạo Stripe với public key
-const stripePromise = loadStripe("your_stripe_publishable_key");
-
-const CheckoutForm = ({ course, clientSecret }) => {
-  const stripe = useStripe();
-  const elements = useElements();
-  const navigate = useNavigate();
-  const { user } = useSelector((state) => state.auth);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-
-    if (!stripe || !elements) {
-      setError("Stripe chưa sẵn sàng. Vui lòng thử lại!");
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: {
-          card: elements.getElement(CardElement),
-          billing_details: {
-            name: user.username,
-            email: user.email,
-          },
-        },
-      });
-
-      if (stripeError) {
-        setError(stripeError.message);
-        setLoading(false);
-        return;
-      }
-
-      if (paymentIntent.status === "succeeded") {
-        await enrollCourse(course._id);
-        toast.success("Thanh toán thành công! Bạn đã đăng ký khóa học!");
-        navigate(`/courses/${course._id}`);
-      }
-    } catch (err) {
-      setError(err || "Thanh toán thất bại!");
-      setLoading(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="checkout-form">
-      <div className="form-group">
-        <label>Thông tin thẻ</label>
-        <CardElement
-          className="card-element"
-          options={{
-            style: {
-              base: {
-                fontSize: "16px",
-                color: "#333",
-                "::placeholder": { color: "#999" },
-              },
-              invalid: { color: "#e74c3c" },
-            },
-          }}
-        />
-      </div>
-      {error && <p className="error">{error}</p>}
-      <button type="submit" className="pay-button" disabled={!stripe || loading}>
-        {loading ? "Đang xử lý..." : `Thanh toán ${course.price.toLocaleString()} VND`}
-      </button>
-    </form>
-  );
-};
+import { useState, useEffect } from "react"
+import { useParams, useNavigate, Link } from "react-router-dom"
+import { useSelector } from "react-redux"
+import { toast } from "react-toastify"
+import { Helmet } from "react-helmet"
+import { getCourseById, enrollCourse } from "../../services/courseService"
+import "./PaymentPage.css"
 
 const PaymentPage = () => {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const { user, token } = useSelector((state) => state.auth);
-  const [course, setCourse] = useState(null);
-  const [clientSecret, setClientSecret] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const { user, token } = useSelector((state) => state.auth)
+  const [course, setCourse] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [processingPayment, setProcessingPayment] = useState(false)
 
   useEffect(() => {
     if (!user || !token) {
-      toast.error("Vui lòng đăng nhập để thanh toán!");
-      navigate("/auth/login");
-      return;
+      toast.error("Vui lòng đăng nhập để thanh toán!")
+      navigate("/auth/login")
+      return
     }
 
-    const fetchCourseAndPaymentIntent = async () => {
-      setLoading(true);
+    const fetchCourse = async () => {
+      setLoading(true)
       try {
-        const courseResponse = await getCourseById(id);
-        setCourse(courseResponse.data);
-        const paymentResponse = await createPaymentIntent(id, courseResponse.data.price);
-        setClientSecret(paymentResponse.clientSecret);
+        const courseResponse = await getCourseById(id)
+        setCourse(courseResponse.data)
       } catch (err) {
-        setError(err || "Không thể tải thông tin thanh toán!");
+        setError(err?.message || "Không thể tải thông tin khóa học!")
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
-    fetchCourseAndPaymentIntent();
-  }, [id, user, token, navigate]);
+    }
+    fetchCourse()
+  }, [id, user, token, navigate])
 
   const handleImageError = (e) => {
-    e.target.src = "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png";
-  };
+    e.target.src = "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png"
+  }
+
+  const handleEnrollFree = async () => {
+    if (course.price === 0) {
+      try {
+        setProcessingPayment(true)
+        await enrollCourse(course._id)
+        toast.success("Đăng ký khóa học thành công!")
+        navigate(`/courses/${course._id}`)
+      } catch (err) {
+        toast.error(err?.message || "Đăng ký khóa học thất bại!")
+      } finally {
+        setProcessingPayment(false)
+      }
+    }
+  }
+
+  const handleMockPayment = async () => {
+    try {
+      setProcessingPayment(true)
+      // Giả lập thanh toán
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+      await enrollCourse(course._id)
+      toast.success("Thanh toán thành công! Bạn đã đăng ký khóa học!")
+      navigate(`/courses/${course._id}`)
+    } catch (err) {
+      toast.error(err?.message || "Thanh toán thất bại!")
+    } finally {
+      setProcessingPayment(false)
+    }
+  }
 
   if (loading) {
-    return <div className="loading">Đang tải...</div>;
+    return <div className="loading-container">Đang tải thông tin khóa học...</div>
   }
 
   if (error) {
-    return <div className="error">{error}</div>;
+    return <div className="error-container">{error}</div>
   }
 
   if (!course) {
-    return <div className="no-results">Khóa học không tồn tại.</div>;
+    return <div className="no-results">Khóa học không tồn tại.</div>
   }
 
   return (
@@ -159,15 +111,75 @@ const PaymentPage = () => {
         </div>
         <div className="payment-form-section">
           <h3>Thông tin thanh toán</h3>
-          {clientSecret && (
-            <Elements stripe={stripePromise}>
-              <CheckoutForm course={course} clientSecret={clientSecret} />
-            </Elements>
+
+          {course.price === 0 ? (
+            <button onClick={handleEnrollFree} className="enroll-free-button" disabled={processingPayment}>
+              {processingPayment ? "Đang xử lý..." : "Đăng ký miễn phí"}
+            </button>
+          ) : (
+            <div className="payment-options">
+              <div className="payment-method">
+                <h4>Phương thức thanh toán</h4>
+                <div className="payment-methods-list">
+                  <label className="payment-method-item">
+                    <input type="radio" name="payment-method" defaultChecked />
+                    <span className="method-icon">
+                      <i className="fas fa-credit-card"></i>
+                    </span>
+                    <span className="method-name">Thẻ tín dụng/ghi nợ</span>
+                  </label>
+                  <label className="payment-method-item">
+                    <input type="radio" name="payment-method" />
+                    <span className="method-icon">
+                      <i className="fas fa-university"></i>
+                    </span>
+                    <span className="method-name">Chuyển khoản ngân hàng</span>
+                  </label>
+                  <label className="payment-method-item">
+                    <input type="radio" name="payment-method" />
+                    <span className="method-icon">
+                      <i className="fas fa-wallet"></i>
+                    </span>
+                    <span className="method-name">Ví điện tử</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="card-details">
+                <h4>Thông tin thẻ</h4>
+                <div className="form-group">
+                  <label>Số thẻ</label>
+                  <input type="text" placeholder="1234 5678 9012 3456" />
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Ngày hết hạn</label>
+                    <input type="text" placeholder="MM/YY" />
+                  </div>
+                  <div className="form-group">
+                    <label>CVV</label>
+                    <input type="text" placeholder="123" />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Tên chủ thẻ</label>
+                  <input type="text" placeholder="NGUYEN VAN A" />
+                </div>
+              </div>
+
+              <button onClick={handleMockPayment} className="pay-button" disabled={processingPayment}>
+                {processingPayment ? "Đang xử lý..." : `Thanh toán ${course.price.toLocaleString()} VND`}
+              </button>
+
+              <div className="secure-payment">
+                <i className="fas fa-lock"></i> Thanh toán an toàn và bảo mật
+              </div>
+            </div>
           )}
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default PaymentPage;
+export default PaymentPage

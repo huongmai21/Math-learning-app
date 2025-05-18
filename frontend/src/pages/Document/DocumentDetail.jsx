@@ -1,8 +1,7 @@
-import React, { useEffect, useState, useRef } from "react";
-import React, { useEffect, useState, useRef } from "react";
+"use client";
+
+import { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { useSelector } from "react-redux";
-import { toast } from "react-toastify";
 import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import {
@@ -29,13 +28,7 @@ const socket = io("http://localhost:5000", { transports: ["websocket"] });
 const DocumentDetail = () => {
   const { id } = useParams();
   const { user } = useSelector((state) => state.auth);
-  const { user } = useSelector((state) => state.auth);
   const [document, setDocument] = useState(null);
-  const [isBookmarked, setIsBookmarked] = useState(false);
-  const [comments, setComments] = useState([]);
-  const [newComment, setNewComment] = useState("");
-  const [editingComment, setEditingComment] = useState(null);
-  const [editContent, setEditContent] = useState("");
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
@@ -81,7 +74,7 @@ const DocumentDetail = () => {
   }, [id, user]);
 
   useEffect(() => {
-    if (document?.content && /\\\(.*?\\\)|\\\[.*?\\\]/.test(document.content)) {
+    if (document?.content && /\\$$.*?\\$$|\\\[.*?\\\]/.test(document.content)) {
       const loadMathJax = () => {
         if (!window.MathJax) {
           const script = document.createElement("script");
@@ -114,7 +107,7 @@ const DocumentDetail = () => {
 
   const handleDownload = async (format = "pdf") => {
     if (!user) {
-      toast.error("Vui lòng đăng nhập để tải tài liệu!");
+      toast.error("Vui lòng đăng nhập để t��i tài liệu!");
       return;
     }
     try {
@@ -280,7 +273,7 @@ const DocumentDetail = () => {
   const handleSolveProblem = async () => {
     if (
       !document?.content ||
-      !/\\\(.*?\\\)|\\\[.*?\\\]/.test(document.content)
+      !/\\$$.*?\\$$|\\\[.*?\\\]/.test(document.content)
     ) {
       toast.error("Không tìm thấy bài toán để giải!");
       return;
@@ -557,7 +550,6 @@ const DocumentDetail = () => {
           )}
         </div>
       </div>
-      <RelatedDocuments currentDoc={document} />
       <RelatedDocuments currentDoc={document} />
     </div>
   );

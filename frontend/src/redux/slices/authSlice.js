@@ -6,6 +6,8 @@ import { toast } from "react-toastify"
 export const login = createAsyncThunk("auth/login", async (credentials, { rejectWithValue }) => {
   try {
     const data = await authService.login(credentials)
+    // Lưu token vào localStorage
+    localStorage.setItem("token", data.token)
     return data
   } catch (error) {
     return rejectWithValue(error.message || "Đăng nhập thất bại")
@@ -15,6 +17,8 @@ export const login = createAsyncThunk("auth/login", async (credentials, { reject
 export const register = createAsyncThunk("auth/register", async (userData, { rejectWithValue }) => {
   try {
     const data = await authService.register(userData)
+    // Lưu token vào localStorage
+    localStorage.setItem("token", data.token)
     return data
   } catch (error) {
     return rejectWithValue(error.message || "Đăng ký thất bại")
@@ -34,7 +38,6 @@ export const refreshUser = createAsyncThunk("auth/refreshUser", async (_, { reje
 // Thêm updateUser thunk
 export const updateUser = createAsyncThunk("auth/updateUser", async (userData, { rejectWithValue }) => {
   try {
-    // Giả sử có một API endpoint để cập nhật thông tin người dùng
     const response = await fetch("/api/users/update", {
       method: "PUT",
       headers: {

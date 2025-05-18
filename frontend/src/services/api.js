@@ -1,45 +1,62 @@
-import axios from "axios"
-import { toast } from "react-toastify"
-
-const baseURL = import.meta.env.VITE_API_URL || "http://localhost:5000"
+import axios from "axios";
+import { toast } from "react-toastify";
 
 const api = axios.create({
-  baseURL,
+  baseURL: "http://localhost:5000/api",
   headers: {
     "Content-Type": "application/json",
   },
-})
+});
 
-// Interceptor để thêm token vào header của mỗi request
+// Thêm interceptor để tự động thêm token vào header
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token")
+    const token = localStorage.getItem("token");
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+      config.headers.Authorization = `Bearer ${token}`;
     }
-    return config
+    return config;
   },
   (error) => {
-    return Promise.reject(error)
-  },
-)
+    return Promise.reject(error);
+  }
+);
 
-// Interceptor để xử lý lỗi response
+// Thêm interceptor để xử lý lỗi
 api.interceptors.response.use(
   (response) => {
-    return response
+    return response;
   },
   (error) => {
+    // Không hiển thị toast cho một số lỗi cụ thể
+    const skipErrorToast = [
+      "/api/auth/me", // Bỏ qua lỗi khi kiểm tra token
+      "/api/exams/recommended", // Bỏ qua lỗi khi lấy đề thi gợi ý
+      "/api/ai/math-question", // Bỏ qua lỗi khi gọi AI
+    ];
+
+    const requestUrl = error.config.url;
+    const shouldSkipToast = skipErrorToast.some((url) =>
+      requestUrl.includes(url)
+    );
+
+    if (!shouldSkipToast) {
+      const errorMessage =
+        error.response?.data?.message || "Đã xảy ra lỗi, vui lòng thử lại sau";
+      toast.error(errorMessage);
+    }
+
     // Xử lý lỗi 401 (Unauthorized)
     if (error.response && error.response.status === 401) {
-      localStorage.removeItem("token")
-      localStorage.removeItem("user")
-      toast.error("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!")
-      // Chuyển hướng đến trang đăng nhập nếu cần
-      window.location.href = "/login"
+      // Nếu không phải là lỗi khi kiểm tra token, đăng xuất người dùng
+      if (!requestUrl.includes("/api/auth/me")) {
+        localStorage.removeItem("token");
+        window.location.href = "/auth/login";
+      }
     }
-    return Promise.reject(error)
-  },
-)
 
-export default api
+    return Promise.reject(error);
+  }
+);
+
+export default api;

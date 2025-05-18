@@ -17,6 +17,9 @@ import {
   sendMessage,
   closeStudyRoom,
 } from "../../services/studyRoomService"
+import VideoCallInterface from "../../components/video/VideoCallInterface"
+import WhiteboardInterface from "../../components/whiteboard/WhiteboardInterface"
+import EmojiPicker from "../../components/common/EmojiPicker"
 import "./StudyRoom.css"
 
 const StudyRoom = () => {
@@ -51,8 +54,17 @@ const StudyRoom = () => {
     maxMembers: 20,
   })
 
+  // Thêm state cho video call và whiteboard
+  const [isVideoCallActive, setIsVideoCallActive] = useState(false)
+  const [isWhiteboardActive, setIsWhiteboardActive] = useState(false)
+  const [activeInterface, setActiveInterface] = useState("chat") // chat, video, whiteboard
+  const [participants, setParticipants] = useState([])
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+
   const messagesEndRef = useRef(null)
   const messageInputRef = useRef(null)
+  const videoCallRef = useRef(null)
+  const whiteboardRef = useRef(null)
 
   // Scroll to bottom of messages
   const scrollToBottom = () => {
@@ -103,6 +115,7 @@ const StudyRoom = () => {
           const response = await getStudyRoomById(id)
           setCurrentRoom(response.data)
           setMessages(response.data.messages || [])
+          setParticipants(response.data.members || [])
 
           // Join socket room
           if (socket) {
@@ -122,6 +135,11 @@ const StudyRoom = () => {
       return () => {
         if (socket) {
           socket.emit("leave_room", id)
+        }
+
+        // Dừng video call khi rời phòng
+        if (isVideoCallActive) {
+          handleEndVideoCall()
         }
       }
     }
@@ -160,6 +178,7 @@ const StudyRoom = () => {
         getStudyRoomById(currentRoom._id)
           .then((response) => {
             setCurrentRoom(response.data)
+            setParticipants(response.data.members || [])
           })
           .catch((error) => {
             console.error("Error refreshing room details:", error)
@@ -174,10 +193,34 @@ const StudyRoom = () => {
         getStudyRoomById(currentRoom._id)
           .then((response) => {
             setCurrentRoom(response.data)
+            setParticipants(response.data.members || [])
           })
           .catch((error) => {
             console.error("Error refreshing room details:", error)
           })
+      })
+
+      // Listen for video call events
+      socket.on("video_call_started", () => {
+        toast.info("Cuộc gọi video đã bắt đầu. Bạn có thể tham gia!")
+      })
+
+      socket.on("video_call_ended", () => {
+        if (isVideoCallActive) {
+          setIsVideoCallActive(false)
+          setActiveInterface("chat")
+          toast.info("Cuộc gọi video đã kết thúc")
+        }
+      })
+
+      socket.on("whiteboard_started", () => {
+        toast.info("Bảng trắng đã được mở. Bạn có thể tham gia!")
+      })
+
+      socket.on("whiteboard_update", (data) => {
+        if (whiteboardRef.current) {
+          whiteboardRef.current.updateCanvas(data)
+        }
       })
 
       // Cleanup
@@ -186,9 +229,13 @@ const StudyRoom = () => {
         socket.off("user_typing")
         socket.off("user_joined")
         socket.off("user_left")
+        socket.off("video_call_started")
+        socket.off("video_call_ended")
+        socket.off("whiteboard_started")
+        socket.off("whiteboard_update")
       }
     }
-  }, [socket, currentRoom, user])
+  }, [socket, currentRoom, user, isVideoCallActive])
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -293,6 +340,7 @@ const StudyRoom = () => {
     try {
       await sendMessage(currentRoom._id, { content: newMessage })
       setNewMessage("")
+      setShowEmojiPicker(false)
 
       // Focus back on input
       messageInputRef.current?.focus()
@@ -306,6 +354,53 @@ const StudyRoom = () => {
     if (socket && currentRoom) {
       socket.emit("typing", { roomId: currentRoom._id })
     }
+  }
+
+  // Handle emoji selection
+  const handleEmojiSelect = (emoji) => {
+    setNewMessage((prev) => prev + emoji)
+  }
+
+  // Handle start video call
+  const handleStartVideoCall = () => {
+    if (socket && currentRoom) {
+      setIsVideoCallActive(true)
+      setActiveInterface("video")
+      socket.emit("start_video_call", { roomId: currentRoom._id })
+      toast.success("Bắt đầu cuộc gọi video")
+    }
+  }
+
+  // Handle end video call
+  const handleEndVideoCall = () => {
+    if (socket && currentRoom && isVideoCallActive) {
+      setIsVideoCallActive(false)
+      setActiveInterface("chat")
+      socket.emit("end_video_call", { roomId: currentRoom._id })
+      toast.info("Kết thúc cuộc gọi video")
+    }
+  }
+
+  // Handle start whiteboard
+  const handleStartWhiteboard = () => {
+    if (socket && currentRoom) {
+      setIsWhiteboardActive(true)
+      setActiveInterface("whiteboard")
+      socket.emit("start_whiteboard", { roomId: currentRoom._id })
+      toast.success("Bắt đầu sử dụng bảng trắng")
+    }
+  }
+
+  // Handle whiteboard update
+  const handleWhiteboardUpdate = (data) => {
+    if (socket && currentRoom) {
+      socket.emit("update_whiteboard", { roomId: currentRoom._id, data })
+    }
+  }
+
+  // Handle switch interface
+  const handleSwitchInterface = (interfaceType) => {
+    setActiveInterface(interfaceType)
   }
 
   // Render room list
@@ -376,13 +471,45 @@ const StudyRoom = () => {
           <h2>{currentRoom.title}</h2>
           <div className="room-actions">
             {isMember && (
-              <button className="btn-danger" onClick={handleLeaveRoom}>
-                Rời phòng
-              </button>
+              <>
+                <button
+                  className={`btn-interface ${activeInterface === "chat" ? "active" : ""}`}
+                  onClick={() => handleSwitchInterface("chat")}
+                >
+                  <i className="fas fa-comments"></i> Chat
+                </button>
+                <button
+                  className={`btn-interface ${activeInterface === "video" ? "active" : ""}`}
+                  onClick={() => {
+                    if (!isVideoCallActive) {
+                      handleStartVideoCall()
+                    } else {
+                      handleSwitchInterface("video")
+                    }
+                  }}
+                >
+                  <i className="fas fa-video"></i> Video
+                </button>
+                <button
+                  className={`btn-interface ${activeInterface === "whiteboard" ? "active" : ""}`}
+                  onClick={() => {
+                    if (!isWhiteboardActive) {
+                      handleStartWhiteboard()
+                    } else {
+                      handleSwitchInterface("whiteboard")
+                    }
+                  }}
+                >
+                  <i className="fas fa-chalkboard"></i> Bảng trắng
+                </button>
+                <button className="btn-danger" onClick={handleLeaveRoom}>
+                  <i className="fas fa-sign-out-alt"></i> Rời phòng
+                </button>
+              </>
             )}
             {isCreator && (
               <button className="btn-warning" onClick={handleCloseRoom}>
-                Đóng phòng
+                <i className="fas fa-times-circle"></i> Đóng phòng
               </button>
             )}
           </div>
@@ -405,7 +532,8 @@ const StudyRoom = () => {
                     <img
                       src={
                         member.avatar ||
-                        "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746717237/default-avatar_ysrrdy.png"
+                        "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746717237/default-avatar_ysrrdy.png" ||
+                        "/placeholder.svg"
                       }
                       alt={member.username}
                       className="member-avatar"
@@ -420,60 +548,100 @@ const StudyRoom = () => {
             </div>
           </div>
 
-          <div className="chat-panel">
-            <div className="messages-container">
-              {messages.length === 0 ? (
-                <div className="empty-messages">
-                  <p>Chưa có tin nhắn nào. Hãy bắt đầu cuộc trò chuyện!</p>
-                </div>
-              ) : (
-                messages.map((message, index) => (
-                  <div
-                    key={index}
-                    className={`message ${message.sender._id === user._id ? "my-message" : "other-message"}`}
-                  >
-                    <div className="message-avatar">
-                      <img
-                        src={
-                          message.sender.avatar ||
-                          "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746717237/default-avatar_ysrrdy.png"
-                        }
-                        alt={message.sender.username}
-                      />
+          <div className="interactive-panel">
+            {activeInterface === "chat" && (
+              <div className="chat-panel">
+                <div className="messages-container">
+                  {messages.length === 0 ? (
+                    <div className="empty-messages">
+                      <p>Chưa có tin nhắn nào. Hãy bắt đầu cuộc trò chuyện!</p>
                     </div>
-                    <div className="message-content">
-                      <div className="message-header">
-                        <span className="message-sender">{message.sender.username}</span>
-                        <span className="message-time">{new Date(message.createdAt).toLocaleTimeString()}</span>
+                  ) : (
+                    messages.map((message, index) => (
+                      <div
+                        key={index}
+                        className={`message ${message.sender._id === user._id ? "my-message" : "other-message"}`}
+                      >
+                        <div className="message-avatar">
+                          <img
+                            src={
+                              message.sender.avatar ||
+                              "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746717237/default-avatar_ysrrdy.png" ||
+                              "/placeholder.svg"
+                            }
+                            alt={message.sender.username}
+                          />
+                        </div>
+                        <div className="message-content">
+                          <div className="message-header">
+                            <span className="message-sender">{message.sender.username}</span>
+                            <span className="message-time">{new Date(message.createdAt).toLocaleTimeString()}</span>
+                          </div>
+                          <div className="message-text">{message.content}</div>
+                        </div>
                       </div>
-                      <div className="message-text">{message.content}</div>
+                    ))
+                  )}
+                  <div ref={messagesEndRef} />
+
+                  {usersTyping.length > 0 && (
+                    <div className="typing-indicator">
+                      {usersTyping.map((user) => user.username).join(", ")} đang nhập...
                     </div>
-                  </div>
-                ))
-              )}
-              <div ref={messagesEndRef} />
-
-              {usersTyping.length > 0 && (
-                <div className="typing-indicator">
-                  {usersTyping.map((user) => user.username).join(", ")} đang nhập...
+                  )}
                 </div>
-              )}
-            </div>
 
-            {isMember && (
-              <form className="message-form" onSubmit={handleSendMessage}>
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyDown={handleTyping}
-                  placeholder="Nhập tin nhắn..."
-                  ref={messageInputRef}
-                />
-                <button type="submit" disabled={!newMessage.trim()}>
-                  <i className="fas fa-paper-plane"></i>
-                </button>
-              </form>
+                {isMember && (
+                  <form className="message-form" onSubmit={handleSendMessage}>
+                    <button type="button" className="emoji-button" onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
+                      <i className="far fa-smile"></i>
+                    </button>
+                    {showEmojiPicker && (
+                      <div className="emoji-picker-container">
+                        <EmojiPicker onEmojiSelect={handleEmojiSelect} />
+                      </div>
+                    )}
+                    <input
+                      type="text"
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyDown={handleTyping}
+                      placeholder="Nhập tin nhắn..."
+                      ref={messageInputRef}
+                    />
+                    <button type="submit" disabled={!newMessage.trim()}>
+                      <i className="fas fa-paper-plane"></i>
+                    </button>
+                  </form>
+                )}
+              </div>
+            )}
+
+            {activeInterface === "video" && (
+              <div className="video-panel">
+                {isVideoCallActive ? (
+                  <VideoCallInterface
+                    roomId={currentRoom._id}
+                    participants={participants}
+                    user={user}
+                    onEndCall={handleEndVideoCall}
+                    ref={videoCallRef}
+                  />
+                ) : (
+                  <div className="video-placeholder">
+                    <p>Cuộc gọi video chưa được bắt đầu</p>
+                    <button className="btn-primary" onClick={handleStartVideoCall}>
+                      <i className="fas fa-video"></i> Bắt đầu cuộc gọi
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeInterface === "whiteboard" && (
+              <div className="whiteboard-panel">
+                <WhiteboardInterface roomId={currentRoom._id} onUpdate={handleWhiteboardUpdate} ref={whiteboardRef} />
+              </div>
             )}
           </div>
         </div>

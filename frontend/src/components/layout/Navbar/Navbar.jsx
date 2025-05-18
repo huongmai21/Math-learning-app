@@ -1,53 +1,33 @@
-import React, { useState, useContext, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
-import { logout } from "../../../redux/slices/authSlice";
-import { toast } from "react-toastify";
-import ThemeContext from "../../../context/ThemeContext";
-import {
-  getNotifications,
-  deleteNotification,
-} from "../../../services/notificationService";
-import useDropdown from "../../../hooks/useDropdown";
-import io from "socket.io-client";
-import io from "socket.io-client";
-import "./Navbar.css";
+"use client"
 
-const socket = io("http://localhost:5000");
-
-const socket = io("http://localhost:5000");
+import { useState, useContext, useEffect } from "react"
+import { Link, useNavigate, useLocation } from "react-router-dom"
+import { useDispatch, useSelector } from "react-redux"
+import { logout } from "../../../redux/slices/authSlice"
+import { toast } from "react-toastify"
+import  ThemeContext  from "../../../context/ThemeContext"
+import { getNotifications, deleteNotification, markNotificationAsRead } from "../../../services/notificationService"
+import useDropdown from "../../../hooks/useDropdown"
+import "./Navbar.css"
 
 const Navbar = () => {
-  const { user, loading } = useSelector((state) => state.auth);
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const { theme, toggleTheme } = useContext(ThemeContext);
+  const { user, isAuthenticated, loading } = useSelector((state) => state.auth)
+  const dispatch = useDispatch()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { theme, toggleTheme } = useContext(ThemeContext)
 
-  const [notifications, setNotifications] = useState([]);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [notifications, setNotifications] = useState([])
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
-  const {
-    isOpen: documentsOpen,
-    toggle: toggleDocuments,
-    ref: documentsRef,
-  } = useDropdown();
-  const { isOpen: newsOpen, toggle: toggleNews, ref: newsRef } = useDropdown();
-  const {
-    isOpen: profileOpen,
-    toggle: toggleProfile,
-    ref: profileRef,
-  } = useDropdown();
-  const {
-    isOpen: notificationsOpen,
-    toggle: toggleNotifications,
-    ref: notificationsRef,
-  } = useDropdown();
-  const {
-    isOpen: settingsOpen,
-    toggle: toggleSettings,
-    ref: settingsRef,
-  } = useDropdown();
+  // Sử dụng custom hook cho dropdown
+  const { isOpen: documentsOpen, toggle: toggleDocuments, ref: documentsRef } = useDropdown()
+  const { isOpen: newsOpen, toggle: toggleNews, ref: newsRef } = useDropdown()
+  const { isOpen: profileOpen, toggle: toggleProfile, ref: profileRef } = useDropdown()
+  const { isOpen: notificationsOpen, toggle: toggleNotifications, ref: notificationsRef } = useDropdown()
+  const { isOpen: settingsOpen, toggle: toggleSettings, ref: settingsRef } = useDropdown()
 
+  // Cấu hình menu
   const menuItems = [
     {
       title: "Tài liệu",
@@ -74,93 +54,76 @@ const Navbar = () => {
       ],
     },
     { title: "Khóa học", to: "/courses", isDropdown: false },
-    ...(user
-      ? [
-          { title: "Thi đấu", to: "/exams", isDropdown: false },
-          { title: "Góc học tập", to: "/study-corner", isDropdown: false },
-          { title: "Phòng học nhóm", to: "/study-room", isDropdown: false },
-        ]
-      : []),
-  ];
+    { title: "Đề thi", to: "/exams", isDropdown: false },
+    { title: "Góc học tập", to: "/study-corner", isDropdown: false },
+    { title: "Phòng học nhóm", to: "/study-room", isDropdown: false },
+  ]
 
+  // Lấy thông báo
   useEffect(() => {
     const loadNotifications = async () => {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("token")
       if (user && token) {
+        // Chỉ gọi API nếu có user và token
         try {
-          const response = await getNotifications(user._id);
-          setNotifications(response.data || []);
+          const response = await getNotifications(user._id)
+          setNotifications(response.data || [])
         } catch (error) {
-          toast.error("Không thể tải thông báo");
-          toast.error("Không thể tải thông báo");
+          console.error("Error loading notifications:", error)
         }
       }
-    };
-    loadNotifications();
-
-    // Join user room for real-time notifications
-    if (user) {
-      socket.emit("join", user._id);
     }
+    loadNotifications()
+  }, [user])
 
-    // Listen for new notifications
-    socket.on("newNotification", (notification) => {
-      setNotifications((prev) => [notification, ...prev]);
-      toast.info(notification.message, { position: "top-right" });
-    });
+  // Đóng menu mobile khi chuyển trang
+  useEffect(() => {
+    setIsMobileMenuOpen(false)
+  }, [location])
 
-    // Cleanup
-    return () => {
-      socket.off("newNotification");
-    };
-
-    // Join user room for real-time notifications
-    if (user) {
-      socket.emit("join", user._id);
-    }
-
-    // Listen for new notifications
-    socket.on("newNotification", (notification) => {
-      setNotifications((prev) => [notification, ...prev]);
-      toast.info(notification.message, { position: "top-right" });
-    });
-
-    // Cleanup
-    return () => {
-      socket.off("newNotification");
-    };
-  }, [user]);
-
+  // Xử lý đăng xuất
   const handleLogout = () => {
-    dispatch(logout());
-    toast.success("Đăng xuất thành công!");
-    toast.success("Đăng xuất thành công!");
-    navigate("/auth/login");
-  };
+    dispatch(logout())
+    toast.success("Đăng xuất thành công!", {
+      position: "top-right",
+      autoClose: 3000,
+    })
+    navigate("/auth/login")
+  }
 
-  const handleDeleteNotification = async (id) => {
+  // Xử lý xóa thông báo
+  const handleDeleteNotification = async (id, e) => {
+    e.stopPropagation() // Ngăn sự kiện click lan ra ngoài
     try {
-      await deleteNotification(id);
-      setNotifications(notifications.filter((notif) => notif._id !== id));
-      toast.success("Xóa thông báo thành công!");
-      toast.success("Xóa thông báo thành công!");
+      await deleteNotification(id)
+      setNotifications(notifications.filter((notif) => notif._id !== id))
+      toast.success("Xóa thông báo thành công!", { position: "top-right" })
     } catch (error) {
-      toast.error("Không thể xóa thông báo");
-      toast.error("Không thể xóa thông báo");
+      toast.error("Không thể xóa thông báo", { position: "top-right" })
     }
-  };
+  }
 
+  // Xử lý đánh dấu thông báo đã đọc
+  const handleMarkAsRead = async (id) => {
+    try {
+      await markNotificationAsRead(id)
+      setNotifications(notifications.map((notif) => (notif._id === id ? { ...notif, isRead: true } : notif)))
+      navigate("/notifications")
+    } catch (error) {
+      console.error("Error marking notification as read:", error)
+    }
+  }
+
+  // Toggle menu di động
   const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
-  };
+    setIsMobileMenuOpen(!isMobileMenuOpen)
+  }
 
-  const defaultAvatar =
-    "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746717237/default-avatar_ysrrdy.png";
+  const defaultAvatar = "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746717237/default-avatar_ysrrdy.png"
 
   return (
     <header className="header" aria-label="Thanh điều hướng chính">
       <div className="navbar-container">
-        <Link to="/" className="logo" aria-label="FunMath - Trang chủ">
         <Link to="/" className="logo" aria-label="FunMath - Trang chủ">
           <i className="fa-solid fa-bahai"></i> FunMath
         </Link>
@@ -172,10 +135,7 @@ const Navbar = () => {
         >
           {isMobileMenuOpen ? "✖" : "☰"}
         </button>
-        <nav
-          className={`navbar ${isMobileMenuOpen ? "active" : ""}`}
-          aria-label="Menu điều hướng"
-        >
+        <nav className={`navbar ${isMobileMenuOpen ? "active" : ""}`} aria-label="Menu điều hướng">
           {menuItems.map((item, index) =>
             item.isDropdown ? (
               <div
@@ -192,12 +152,7 @@ const Navbar = () => {
                 {item.open && (
                   <div className="items" role="menu">
                     {item.items.map((subItem, subIndex) => (
-                      <Link
-                        key={subIndex}
-                        to={subItem.to}
-                        style={{ "--i": subIndex + 1 }}
-                        role="menuitem"
-                      >
+                      <Link key={subIndex} to={subItem.to} style={{ "--i": subIndex + 1 }} role="menuitem">
                         {subItem.label}
                       </Link>
                     ))}
@@ -208,13 +163,13 @@ const Navbar = () => {
               <Link key={index} to={item.to} className="menu-item">
                 {item.title}
               </Link>
-            )
+            ),
           )}
         </nav>
       </div>
       {loading ? (
         <div className="loading">Đang tải...</div>
-      ) : user ? (
+      ) : isAuthenticated && user ? (
         <div className="user-actions">
           <div
             className="user-info"
@@ -233,36 +188,39 @@ const Navbar = () => {
             </div>
             <span className="profile-username">{user.username}</span>
             {profileOpen && (
-            {profileOpen && (
               <div className="profile-dropdown" role="menu">
-                <Link
-                  to="/users/profile"
-                  className="dropdown-item"
-                  role="menuitem"
-                >
+                <Link to="/users/profile" className="dropdown-item" role="menuitem">
                   Hồ sơ
                 </Link>
-                {(user?.role === "student" || user?.role === "teacher") && (
-                  <Link
-                    to="/courses/my-courses"
-                    className="dropdown-item"
-                    role="menuitem"
-                  >
-                    Khóa học của tôi
-                  </Link>
-                )}
-                {user?.role === "admin" && (
+                {user.role === "student" && (
                   <>
-                    <Link to="/admin" className="dropdown-item" role="menuitem">
-                      Quản lý hệ thống
+                    <Link to="/courses/my-courses" className="dropdown-item" role="menuitem">
+                      Khóa học của tôi
+                    </Link>
+                    <Link to="/achievements" className="dropdown-item" role="menuitem">
+                      Thành tích
                     </Link>
                   </>
                 )}
-                <button
-                  onClick={handleLogout}
-                  className="dropdown-item logout"
-                  role="menuitem"
-                >
+                {user.role === "teacher" && (
+                  <>
+                    <Link to="/courses/my-courses" className="dropdown-item" role="menuitem">
+                      Khóa học của tôi
+                    </Link>
+                    <Link to="/exams/create" className="dropdown-item" role="menuitem">
+                      Tạo đề thi
+                    </Link>
+                    <Link to="/documents/create" className="dropdown-item" role="menuitem">
+                      Tạo tài liệu
+                    </Link>
+                  </>
+                )}
+                {user.role === "admin" && (
+                  <Link to="/admin" className="dropdown-item" role="menuitem">
+                    Quản lý hệ thống
+                  </Link>
+                )}
+                <button onClick={handleLogout} className="dropdown-item logout" role="menuitem">
                   Đăng xuất
                 </button>
               </div>
@@ -276,9 +234,7 @@ const Navbar = () => {
             aria-expanded={notificationsOpen}
           >
             <i className="fa-solid fa-bell notification-icon"></i>
-            {notifications.length > 0 && (
-              <span className="notification-count">{notifications.length}</span>
-            )}
+            {notifications.length > 0 && <span className="notification-count">{notifications.length}</span>}
             {notificationsOpen && (
               <div className="notification-dropdown" role="menu">
                 {notifications.length > 0 ? (
@@ -287,15 +243,13 @@ const Navbar = () => {
                       key={notif._id}
                       className="notification-item"
                       role="menuitem"
+                      onClick={() => handleMarkAsRead(notif._id)}
                     >
-                      <Link to={notif.link || "#"}>{notif.message}</Link>
-                      <Link to={notif.link || "#"}>{notif.message}</Link>
-                      <span className="notification-time">
-                        {new Date(notif.createdAt).toLocaleTimeString("vi-VN")}
-                      </span>
+                      <span>{notif.message}</span>
+                      <span className="notification-time">{new Date(notif.createdAt).toLocaleTimeString("vi-VN")}</span>
                       <button
                         className="delete-notification"
-                        onClick={() => handleDeleteNotification(notif._id)}
+                        onClick={(e) => handleDeleteNotification(notif._id, e)}
                         aria-label={`Xóa thông báo: ${notif.message}`}
                       >
                         ✕
@@ -316,39 +270,21 @@ const Navbar = () => {
               aria-expanded={settingsOpen}
             ></i>
             {settingsOpen && (
-              <div
-                className="settings-modal"
-                role="dialog"
-                aria-labelledby="settings-title"
-              >
+              <div className="settings-modal" role="dialog" aria-labelledby="settings-title">
                 <div className="settings-content">
                   <h3 id="settings-title">Cài đặt</h3>
                   <div className="settings-option">
                     <label htmlFor="notifications-toggle">Thông báo</label>
-                    <input
-                      id="notifications-toggle"
-                      type="checkbox"
-                      defaultChecked
-                    />
+                    <input id="notifications-toggle" type="checkbox" defaultChecked />
                   </div>
                   <div className="settings-option">
                     <label>Chế độ hiển thị</label>
                     <button className="theme-toggle" onClick={toggleTheme}>
-                      <i
-                        className={
-                          theme === "light"
-                            ? "fa-solid fa-sun"
-                            : "fa-solid fa-moon"
-                        }
-                      ></i>
+                      <i className={theme === "light" ? "fa-solid fa-sun" : "fa-solid fa-moon"}></i>
                       {theme === "light" ? "Sáng" : "Tối"}
                     </button>
                   </div>
-                  <button
-                    className="close-settings"
-                    onClick={toggleSettings}
-                    aria-label="Đóng cài đặt"
-                  >
+                  <button className="close-settings" onClick={toggleSettings} aria-label="Đóng cài đặt">
                     Đóng
                   </button>
                 </div>
@@ -367,7 +303,7 @@ const Navbar = () => {
         </div>
       )}
     </header>
-  );
-};
+  )
+}
 
-export default Navbar;
+export default Navbar
