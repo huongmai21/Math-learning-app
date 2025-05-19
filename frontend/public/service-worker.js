@@ -38,7 +38,7 @@ self.addEventListener("fetch", (event) => {
 
         caches.open(CACHE_NAME).then((cache) => {
           // Không cache API requests
-          if (!event.request.url.includes("/api/")) {
+          if (!event.request.url.includes("/")) {
             cache.put(event.request, responseToCache)
           }
         })

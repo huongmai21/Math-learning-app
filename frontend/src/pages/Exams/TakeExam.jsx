@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 import './Exam.css';
 
 const TakeExam = () => {
@@ -10,6 +12,7 @@ const TakeExam = () => {
   const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState(null);
+  const [modalImage, setModalImage] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -19,14 +22,18 @@ const TakeExam = () => {
     })
       .then((res) => res.json())
       .then((data) => {
-        setExam(data.exam);
-        setQuestions(data.questions);
-        setLoading(false);
+        if (data.success) {
+          setExam(data.exam);
+          setQuestions(data.exam.questions || []);
+          setLoading(false);
 
-        // Khôi phục câu trả lời từ localStorage (nếu có)
-        const savedAnswers = localStorage.getItem(`exam_${id}_answers`);
-        if (savedAnswers) {
-          setAnswers(JSON.parse(savedAnswers));
+          const savedAnswers = localStorage.getItem(`exam_${id}_answers`);
+          if (savedAnswers) {
+            setAnswers(JSON.parse(savedAnswers));
+          }
+        } else {
+          toast.error(data.message || 'Không thể tải bài thi');
+          setLoading(false);
         }
       })
       .catch((err) => {
@@ -35,10 +42,15 @@ const TakeExam = () => {
         setLoading(false);
       });
 
-    // Cài đặt bộ đếm thời gian
     const timer = setInterval(() => {
       if (exam) {
         const now = new Date();
+        if (now < new Date(exam.startTime) || now > new Date(exam.endTime)) {
+          clearInterval(timer);
+          toast.error('Bài thi không trong thời gian làm!');
+          navigate('/exams');
+          return;
+        }
         const endTime = new Date(exam.endTime);
         const timeDiff = endTime - now;
         if (timeDiff <= 0) {
@@ -52,19 +64,19 @@ const TakeExam = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [id, exam]);
+  }, [id, exam, navigate]);
 
   const formatTimeLeft = (time) => {
-    const seconds = Math.floor((time / 1000) % 60);
-    const minutes = Math.floor((time / (1000 * 60)) % 60);
-    const hours = Math.floor((time / (1000 * 60 * 60)) % 24);
-    return `${hours}:${minutes}:${seconds}`;
+    const totalSeconds = Math.floor(time / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   };
 
   const selectAnswer = (questionId, value) => {
     const newAnswers = { ...answers, [questionId]: value };
     setAnswers(newAnswers);
-    // Lưu tạm vào localStorage
     localStorage.setItem(`exam_${id}_answers`, JSON.stringify(newAnswers));
   };
 
@@ -88,7 +100,7 @@ const TakeExam = () => {
       const data = await response.json();
       if (response.ok) {
         toast.success(`Nộp bài thành công! Điểm: ${data.score}`);
-        localStorage.removeItem(`exam_${id}_answers`); // Xóa dữ liệu tạm sau khi nộp
+        localStorage.removeItem(`exam_${id}_answers`);
         navigate('/exams');
       } else {
         toast.error(data.message || 'Lỗi khi nộp bài');
@@ -97,6 +109,22 @@ const TakeExam = () => {
       console.error(err);
       toast.error('Lỗi server');
     }
+  };
+
+  const renderMath = (text) => {
+    try {
+      return katex.renderToString(text, {
+        throwOnError: false,
+        displayMode: false,
+      });
+    } catch (error) {
+      return text;
+    }
+  };
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Đã sao chép công thức!");
   };
 
   if (loading) return <p>Đang tải...</p>;
@@ -113,32 +141,93 @@ const TakeExam = () => {
       {questions.map((q, index) => (
         <div key={q._id} className="question">
           <h3>
-            Câu {index + 1}: <span dangerouslySetInnerHTML={{ __html: q.question_text }} />
+            Câu {index + 1}:{" "}
+            <span
+              dangerouslySetInnerHTML={{ __html: renderMath(q.questionText) }}
+            />
+            <button
+              onClick={() => copyToClipboard(q.questionText)}
+              className="copy-button"
+            >
+              Copy
+            </button>
           </h3>
-          {q.question_type === 'multiple_choice' ? (
+          {q.images && q.images.length > 0 && (
+            <div className="question-images">
+              {q.images.map((img, i) => (
+                <img
+                  key={i}
+                  src={img}
+                  alt={`Hình minh họa ${i}`}
+                  width="100"
+                  onClick={() => setModalImage(img)}
+                  style={{ cursor: "pointer" }}
+                />
+              ))}
+            </div>
+          )}
+          {q.questionType === 'multiple-choice' ? (
             q.options.map((option, i) => (
               <div key={i}>
                 <input
                   type="radio"
-                  name={q._id}
-                  value={option}
-                  onChange={() => selectAnswer(q._id, option)}
-                  checked={answers[q._id] === option}
+                  name={`question-${q._id}`}
+                  value={option.text}
+                  onChange={() => selectAnswer(q._id, option.text)}
+                  checked={answers[q._id] === option.text}
                 />
-                <label>{option}</label>
+                <label>{option.text}</label>
               </div>
             ))
-          ) : (
+          ) : q.questionType === 'true-false' ? (
+            <>
+              <div>
+                <input
+                  type="radio"
+                  name={`question-${q._id}`}
+                  value="true"
+                  onChange={() => selectAnswer(q._id, "true")}
+                  checked={answers[q._id] === "true"}
+                />
+                <label>Đúng</label>
+              </div>
+              <div>
+                <input
+                  type="radio"
+                  name={`question-${q._id}`}
+                  value="false"
+                  onChange={() => selectAnswer(q._id, "false")}
+                  checked={answers[q._id] === "false"}
+                />
+                <label>Sai</label>
+              </div>
+            </>
+          ) : q.questionType === 'fill-in' || q.questionType === 'essay' ? (
             <textarea
               onChange={(e) => selectAnswer(q._id, e.target.value)}
               value={answers[q._id] || ''}
               placeholder="Nhập câu trả lời của bạn"
             />
-          )}
+          ) : q.questionType === 'math-equation' ? (
+            <input
+              type="text"
+              onChange={(e) => selectAnswer(q._id, e.target.value)}
+              value={answers[q._id] || ''}
+              placeholder="Nhập công thức (ví dụ: $x = 5$)"
+            />
+          ) : null}
         </div>
       ))}
       <button onClick={saveProgress}>Lưu tạm</button>
       <button onClick={submitExam}>Nộp bài</button>
+
+      {modalImage && (
+        <div className="modal" onClick={() => setModalImage(null)}>
+          <div className="modal-content">
+            <img src={modalImage} alt="Hình lớn" />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

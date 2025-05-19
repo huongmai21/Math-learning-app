@@ -2,19 +2,15 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const ErrorResponse = require("../utils/errorResponse");
+const redisUtils = require("../config/redis");
 
 const authenticateToken = async (req, res, next) => {
   let token;
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith("Bearer")
-  ) {
+  if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
     try {
       token = req.headers.authorization.replace("Bearer ", "");
       if (!token) {
-        return next(
-          new ErrorResponse("Không có token, vui lòng đăng nhập!", 401)
-        );
+        return next(new ErrorResponse("Không có token, vui lòng đăng nhập!", 401));
       }
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -23,6 +19,7 @@ const authenticateToken = async (req, res, next) => {
         return next(new ErrorResponse("Người dùng không tồn tại!", 401));
       }
 
+      req.userid = decoded.id;
       req.user = user;
       console.log(`Authenticated user: ${decoded.id}`);
       next();
@@ -33,9 +30,7 @@ const authenticateToken = async (req, res, next) => {
         token: req.headers.authorization?.substring(0, 10) + "...",
       });
       if (err.name === "TokenExpiredError") {
-        return next(
-          new ErrorResponse("Token đã hết hạn, vui lòng đăng nhập lại!", 401)
-        );
+        return next(new ErrorResponse("Token đã hết hạn, vui lòng đăng nhập lại!", 401));
       }
       return next(new ErrorResponse("Token không hợp lệ!", 401));
     }
@@ -54,10 +49,12 @@ const checkRole = (...roles) => {
 };
 
 const logout = async (req, res) => {
-  const token = req.headers.authorization.replace("Bearer ", "");
-  if (redisConnected) {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  if (token) {
     try {
-      await client.setEx(`blacklist:${token}`, 7200, "2"); // Thu hồi token trong 2 giờ
+      const client = redisUtils.getClient();
+      await client.setEx(`blacklist:${token}`, 86400, "24"); // Thu hồi token trong 24 giờ
+      console.log(`Token blacklisted: ${token.substring(0, 10)}...`);
     } catch (err) {
       console.error("Error adding token to Redis blacklist:", err);
     }

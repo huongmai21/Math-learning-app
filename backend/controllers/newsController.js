@@ -1,15 +1,15 @@
-const News = require('../models/News.js');
+const News = require("../models/News.js");
 
 // Lấy tất cả tin tức (phân trang, lọc theo category và tìm kiếm)
 exports.getAllNews = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 5; // Giảm limit để phù hợp với giao diện
+    const page = Number.parseInt(req.query.page) || 1;
+    const limit = Number.parseInt(req.query.limit) || 5;
     const skip = (page - 1) * limit;
     const category = req.query.category || "education";
     const search = req.query.search?.toLowerCase() || "";
 
-    let query = { category };
+    const query = { category };
     if (search) {
       query.$or = [
         { title: { $regex: search, $options: "i" } },
@@ -22,7 +22,7 @@ exports.getAllNews = async (req, res) => {
       .sort({ publishedAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('author', 'username fullName');
+      .populate("author", "username fullName");
 
     const total = await News.countDocuments(query);
 
@@ -32,13 +32,37 @@ exports.getAllNews = async (req, res) => {
       total,
       totalPages: Math.ceil(total / limit),
       currentPage: page,
-      news
+      news,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Không thể lấy danh sách tin tức!',
-      error: error.message
+      message: "Không thể lấy danh sách tin tức!",
+      error: error.message,
+    });
+  }
+};
+
+// Lấy tin tức nổi bật
+exports.getFeaturedNews = async (req, res) => {
+  try {
+    const limit = Number.parseInt(req.query.limit) || 3;
+
+    const featuredNews = await News.find({ featured: true, status: "approved" })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .populate("author", "username avatar");
+
+    res.status(200).json({
+      success: true,
+      count: featuredNews.length,
+      news: featuredNews,
+    });
+  } catch (error) {
+    console.error("Error fetching featured news:", error);
+    res.status(500).json({
+      success: false,
+      message: "Không thể lấy tin tức nổi bật",
     });
   }
 };
@@ -46,13 +70,15 @@ exports.getAllNews = async (req, res) => {
 // Lấy chi tiết một tin tức
 exports.getNewsById = async (req, res) => {
   try {
-    const news = await News.findById(req.params.id)
-      .populate('author', 'username fullName');
-    
+    const news = await News.findById(req.params.id).populate(
+      "author",
+      "username fullName"
+    );
+
     if (!news) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy tin tức!'
+        message: "Không tìm thấy tin tức!",
       });
     }
 
@@ -62,13 +88,13 @@ exports.getNewsById = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      news
+      news,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Không thể lấy chi tiết tin tức!',
-      error: error.message
+      message: "Không thể lấy chi tiết tin tức!",
+      error: error.message,
     });
   }
 };
@@ -77,15 +103,16 @@ exports.getNewsById = async (req, res) => {
 exports.createNews = async (req, res) => {
   try {
     // Kiểm tra quyền hạn
-    if (req.user.role !== 'admin' && req.user.role !== 'teacher') {
+    if (req.user.role !== "admin" && req.user.role !== "teacher") {
       return res.status(403).json({
         success: false,
-        message: 'Bạn không có quyền thực hiện hành động này!'
+        message: "Bạn không có quyền thực hiện hành động này!",
       });
     }
 
-    const { title, content, summary, thumbnail, image, tags, category } = req.body;
-    
+    const { title, content, summary, thumbnail, image, tags, category } =
+      req.body;
+
     const newNews = new News({
       title,
       content,
@@ -94,21 +121,21 @@ exports.createNews = async (req, res) => {
       thumbnail,
       image,
       tags,
-      category
+      category,
     });
 
     await newNews.save();
 
     res.status(201).json({
       success: true,
-      message: 'Tạo tin tức thành công!',
-      news: newNews
+      message: "Tạo tin tức thành công!",
+      news: newNews,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Tạo tin tức thất bại!',
-      error: error.message
+      message: "Tạo tin tức thất bại!",
+      error: error.message,
     });
   }
 };
@@ -116,21 +143,22 @@ exports.createNews = async (req, res) => {
 // Cập nhật tin tức
 exports.updateNews = async (req, res) => {
   try {
-    const { title, content, summary, thumbnail, image, tags, category } = req.body;
-    
+    const { title, content, summary, thumbnail, image, tags, category } =
+      req.body;
+
     const news = await News.findById(req.params.id);
     if (!news) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy tin tức!'
+        message: "Không tìm thấy tin tức!",
       });
     }
 
     // Kiểm tra quyền sửa tin tức
-    if (news.author.toString() !== req.user.id && req.user.role !== 'admin') {
+    if (news.author.toString() !== req.user.id && req.user.role !== "admin") {
       return res.status(403).json({
         success: false,
-        message: 'Bạn không có quyền sửa tin tức này!'
+        message: "Bạn không có quyền sửa tin tức này!",
       });
     }
 
@@ -144,21 +172,21 @@ exports.updateNews = async (req, res) => {
         image,
         tags,
         category,
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
       },
       { new: true }
     );
 
     res.status(200).json({
       success: true,
-      message: 'Cập nhật tin tức thành công!',
-      news: updatedNews
+      message: "Cập nhật tin tức thành công!",
+      news: updatedNews,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Cập nhật tin tức thất bại!',
-      error: error.message
+      message: "Cập nhật tin tức thất bại!",
+      error: error.message,
     });
   }
 };
@@ -170,15 +198,15 @@ exports.deleteNews = async (req, res) => {
     if (!news) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy tin tức!'
+        message: "Không tìm thấy tin tức!",
       });
     }
 
     // Kiểm tra quyền xóa tin tức
-    if (news.author.toString() !== req.user.id && req.user.role !== 'admin') {
+    if (news.author.toString() !== req.user.id && req.user.role !== "admin") {
       return res.status(403).json({
         success: false,
-        message: 'Bạn không có quyền xóa tin tức này!'
+        message: "Bạn không có quyền xóa tin tức này!",
       });
     }
 
@@ -186,13 +214,48 @@ exports.deleteNews = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Xóa tin tức thành công!'
+      message: "Xóa tin tức thành công!",
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Xóa tin tức thất bại!',
-      error: error.message
+      message: "Xóa tin tức thất bại!",
+      error: error.message,
     });
   }
 };
+
+// Tìm kiếm gợi ý (autocomplete)
+exports.getNewsSuggestions = async (req, res) => {
+  try {
+    const query = req.query.query?.toLowerCase() || "";
+    if (!query) {
+      return res.status(200).json({
+        success: true,
+        suggestions: [],
+      });
+    }
+
+    const suggestions = await News.find({
+      $or: [
+        { title: { $regex: query, $options: "i" } },
+        { summary: { $regex: query, $options: "i" } },
+        { tags: { $regex: query, $options: "i" } },
+      ],
+    })
+      .limit(5)
+      .select("title");
+
+    res.status(200).json({
+      success: true,
+      suggestions: suggestions.map((news) => news.title),
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Không thể lấy gợi ý tin tức!",
+      error: error.message,
+    });
+  }
+};
+

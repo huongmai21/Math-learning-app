@@ -38,7 +38,7 @@ export const refreshUser = createAsyncThunk("auth/refreshUser", async (_, { reje
 // Thêm updateUser thunk
 export const updateUser = createAsyncThunk("auth/updateUser", async (userData, { rejectWithValue }) => {
   try {
-    const response = await fetch("/api/users/update", {
+    const response = await fetch("/users/update", {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",

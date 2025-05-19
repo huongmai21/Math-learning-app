@@ -1,5 +1,7 @@
+"use client";
+
 // src/pages/HomePage.jsx
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { io } from "socket.io-client";
@@ -28,21 +30,24 @@ const HomePage = () => {
       description: "Học Toán dễ dàng và thú vị hơn bao giờ hết!",
       buttonText: user ? "Bắt đầu học ngay" : "Đăng nhập để học ngay",
       onClick: () => navigate(user ? "/courses" : "/auth/login"),
-      image: "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934624/1_bsngjz.png",
+      image:
+        "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934624/1_bsngjz.png",
     },
     {
       title: "Khám phá khóa học mới",
       description: "Hàng loạt khóa học Toán học thú vị đang chờ bạn!",
       buttonText: "Xem khóa học",
       onClick: () => navigate("/courses"),
-      image: "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png",
+      image:
+        "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png",
     },
     {
       title: "Tham gia thi đấu",
       description: "Thử thách bản thân với các cuộc thi Toán học!",
       buttonText: "Thi đấu ngay",
       onClick: () => navigate("/exam"),
-      image: "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934942/4_fpzzq2.png",
+      image:
+        "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934942/4_fpzzq2.png",
     },
   ];
 
@@ -50,7 +55,7 @@ const HomePage = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 10000); // Chuyển slide mỗi 5 giây
+    }, 10000); // Chuyển slide mỗi 10 giây
     return () => clearInterval(interval);
   }, [slides.length]);
 
@@ -94,13 +99,17 @@ const HomePage = () => {
     const loadData = async () => {
       setLoading(true);
       try {
+        // Sử dụng getNewsPress và getCoursesPress đã được cập nhật
         const [newsData, coursesData] = await Promise.all([
           getNewsPress({ limit: 3 }),
           getCoursesPress({ limit: 3 }),
         ]);
-        setNews(newsData.news || newsData.data || []);
-        setCourses(coursesData.data || coursesData || []);
+
+        // Kiểm tra và xử lý dữ liệu trả về
+        setNews(newsData.news || []);
+        setCourses(coursesData.data || []);
       } catch (err) {
+        console.error("Error loading data:", err);
         setError("Không thể tải dữ liệu");
       } finally {
         setLoading(false);
@@ -199,7 +208,10 @@ const HomePage = () => {
                 transition={{ duration: 0.3 }}
               >
                 <img
-                  src={item.image || "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934626/3_q1etwh.png"}
+                  src={
+                    item.image ||
+                    "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934626/3_q1etwh.png"
+                  }
                   alt={item.title}
                   className="news-image"
                   onError={handleImageError}
@@ -277,7 +289,10 @@ const HomePage = () => {
                 transition={{ duration: 0.3 }}
               >
                 <img
-                  src={course.image || "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png"}
+                  src={
+                    course.image ||
+                    "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png"
+                  }
                   alt={course.title}
                   className="course-image"
                   onError={handleImageError}

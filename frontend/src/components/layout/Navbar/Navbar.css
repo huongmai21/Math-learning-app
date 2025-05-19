@@ -39,7 +39,7 @@ body {
   top: 0;
   left: 0;
   width: 100%;
-  padding: 8px 5%;
+  padding: 0 5%;
   background: var(--header-bg);
   display: flex;
   justify-content: space-between;
@@ -150,7 +150,7 @@ body {
 .dropdown .items a {
   display: block;
   font-size: 14px;
-  color: #e4e4e4;
+  color: #ffffff;
   text-decoration: none;
   padding: 10px 15px;
   transition: background-color 0.3s ease;
@@ -158,6 +158,7 @@ body {
 
 .dropdown .items a:hover {
   background-color: var(--primary-color);
+  color: #ffffff;
 }
 
 .user-actions {
@@ -176,11 +177,15 @@ body {
 }
 
 .avatar {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   overflow: hidden;
   border: 2px solid var(--primary-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 26px;
 }
 
 .avatar img {
@@ -203,6 +208,7 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-top: 26px;
 }
 
 .profile-dropdown,
@@ -385,7 +391,7 @@ body {
 .dropdown-item {
   display: block;
   padding: 10px 15px;
-  color: #e4e4e4;
+  color: #ffffff;
   font-size: 14px;
   text-decoration: none;
   transition: background-color 0.3s ease;
@@ -393,6 +399,7 @@ body {
 
 .dropdown-item:hover {
   background-color: var(--primary-color);
+  color: #ffffff;
 }
 
 .logout {
@@ -402,23 +409,24 @@ body {
   width: 100%;
   text-align: left;
   cursor: pointer;
+  color: #ffffff;
 }
 
 .auth-links {
   display: flex;
   gap: 12px;
-  flex-wrap: nowrap; /* Ngăn wrap xuống dòng */
+  flex-wrap: nowrap;
 }
 
 .auth-link {
   color: #e4e4e4;
   text-decoration: none;
   font-size: 14px;
-  padding: 6px 12px; /* Giảm padding để tiết kiệm không gian */
+  padding: 6px 12px;
   border: 1px solid var(--primary-color);
   border-radius: 5px;
   transition: background-color 0.3s ease;
-  white-space: nowrap; /* Ngăn chữ xuống dòng */
+  white-space: nowrap;
 }
 
 .auth-link:hover {
@@ -531,10 +539,10 @@ body {
 
   .profile-dropdown,
   .notification-dropdown {
-    right: 0; /* Căn phải để phù hợp với avatar */
+    right: 0;
     left: auto;
     width: 200px;
-    top: calc(100% + 5px); /* Đảm bảo khoảng cách trên mobile */
+    top: calc(100% + 5px);
   }
 
   .profile-username {
@@ -550,12 +558,12 @@ body {
   }
 
   .auth-links {
-    flex-direction: column; /* Cho phép xuống dòng trên mobile */
+    flex-direction: column;
     gap: 8px;
     align-items: flex-end;
   }
 
   .auth-link {
-    padding: 6px 10px; /* Giảm padding trên mobile */
+    padding: 6px 10px;
   }
 }

@@ -1,7 +1,11 @@
-"use client";
-import "./Sidebar.css";
+"use client"
+import { useState } from "react"
+import { Tooltip } from "react-tooltip"
+import "./Sidebar.css"
 
 const Sidebar = ({ activeTab, onTabChange, user, tabs = "default" }) => {
+  const [isCollapsed, setIsCollapsed] = useState(false)
+
   // Xác định danh sách tab dựa trên loại sidebar
   const getTabList = () => {
     if (tabs === "profile") {
@@ -11,7 +15,7 @@ const Sidebar = ({ activeTab, onTabChange, user, tabs = "default" }) => {
         { id: "friends", icon: "fa-users", label: "Bạn bè" },
         { id: "posts", icon: "fa-comments", label: "Học tập" },
         { id: "courses", icon: "fa-graduation-cap", label: "Khóa học" },
-      ];
+      ]
 
       // Thêm tab thống kê nếu là học sinh
       if (user?.role === "student") {
@@ -19,7 +23,7 @@ const Sidebar = ({ activeTab, onTabChange, user, tabs = "default" }) => {
           id: "stats",
           icon: "fa-chart-line",
           label: "Thống kê",
-        });
+        })
       }
 
       // Thêm tab tạo đề thi nếu là giáo viên
@@ -28,10 +32,10 @@ const Sidebar = ({ activeTab, onTabChange, user, tabs = "default" }) => {
           id: "create-exam",
           icon: "fa-file-alt",
           label: "Tạo đề thi",
-        });
+        })
       }
 
-      return tabList;
+      return tabList
     }
 
     // Sidebar mặc định
@@ -42,10 +46,10 @@ const Sidebar = ({ activeTab, onTabChange, user, tabs = "default" }) => {
       { id: "exams", icon: "fa-file-alt", label: "Đề thi" },
       { id: "forum", icon: "fa-comments", label: "Diễn đàn" },
       { id: "settings", icon: "fa-cog", label: "Cài đặt" },
-    ];
-  };
+    ]
+  }
 
-  const tabList = getTabList();
+  const tabList = getTabList()
 
   return (
     <div className="sidebar">
@@ -55,14 +59,17 @@ const Sidebar = ({ activeTab, onTabChange, user, tabs = "default" }) => {
             key={tab.id}
             className={`sidebar-item ${activeTab === tab.id ? "active" : ""}`}
             onClick={() => onTabChange(tab.id)}
+            data-tooltip-id={`tooltip-${tab.id}`}
+            data-tooltip-content={tab.label}
+            data-tooltip-place="right"
           >
             <i className={`fas ${tab.icon}`}></i>
-            <span>{tab.label}</span>
+            <Tooltip id={`tooltip-${tab.id}`} />
           </li>
         ))}
       </ul>
     </div>
-  );
-};
+  )
+}
 
-export default Sidebar;
+export default Sidebar

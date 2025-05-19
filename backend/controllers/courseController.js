@@ -9,7 +9,7 @@ const Notification = require("../models/Notification");
 
 exports.getCourses = asyncHandler(async (req, res, next) => {
   const { page = 1, limit = 6, category, instructorId } = req.query;
-  let query = { status: "approved" }; // Chỉ lấy khóa học đã được phê duyệt
+  const query = { status: "approved" }; // Chỉ lấy khóa học đã được phê duyệt
 
   if (category && category !== "all") {
     query.category = category;
@@ -29,6 +29,47 @@ exports.getCourses = asyncHandler(async (req, res, next) => {
     data: courses,
     totalPages: Math.ceil(total / limit),
     currentPage: Number(page),
+  });
+});
+
+// Lấy khóa học nổi bật
+exports.getFeaturedCourses = asyncHandler(async (req, res, next) => {
+  const limit = Number(req.query.limit) || 3;
+
+  // Lấy khóa học có nhiều người đăng ký nhất
+  const enrollmentCounts = await Enrollment.aggregate([
+    { $group: { _id: "$courseId", count: { $sum: 1 } } },
+    { $sort: { count: -1 } },
+    { $limit: limit },
+  ]);
+
+  const courseIds = enrollmentCounts.map((item) => item._id);
+
+  // Nếu không đủ khóa học nổi bật, bổ sung thêm khóa học mới nhất
+  let featuredCourses = [];
+  if (courseIds.length > 0) {
+    featuredCourses = await Course.find({
+      _id: { $in: courseIds },
+      status: "approved",
+    }).populate("instructorId", "username avatar");
+  }
+
+  // Nếu không đủ khóa học theo yêu cầu, lấy thêm khóa học mới nhất
+  if (featuredCourses.length < limit) {
+    const additionalCourses = await Course.find({
+      _id: { $nin: courseIds },
+      status: "approved",
+    })
+      .sort({ createdAt: -1 })
+      .limit(limit - featuredCourses.length)
+      .populate("instructorId", "username avatar");
+
+    featuredCourses = [...featuredCourses, ...additionalCourses];
+  }
+
+  res.status(200).json({
+    success: true,
+    data: featuredCourses,
   });
 });
 
@@ -210,7 +251,7 @@ exports.createPaymentIntent = asyncHandler(async (req, res, next) => {
   }
 
   const paymentIntent = await stripe.paymentIntents.create({
-    amount: amount * 100,
+    amount: amount * 100, // Stripe yêu cầu số tiền tính bằng đơn vị nhỏ nhất (VND không có đơn vị nhỏ hơn, nhưng vẫn nhân 100)
     currency: "vnd",
     metadata: { courseId: req.params.id, userId: req.user._id.toString() },
   });
@@ -321,7 +362,7 @@ exports.updateProgress = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse("Nội dung không tồn tại", 404));
   }
 
-  let user = await User.findById(req.user._id);
+  const user = await User.findById(req.user._id);
   let progress = user.progress.find(
     (p) => p.courseId.toString() === req.params.courseId
   );
@@ -372,7 +413,7 @@ exports.getProgress = asyncHandler(async (req, res, next) => {
       data: { courseId: req.params.courseId, completedContents: [] },
     });
   }
-  res0res.status(200).json({ success: true, data: progress });
+  res.status(200).json({ success: true, data: progress });
 });
 
 exports.createReview = asyncHandler(async (req, res, next) => {
@@ -429,3 +470,50 @@ exports.getReviews = asyncHandler(async (req, res, next) => {
   );
   res.status(200).json({ success: true, data: reviews });
 });
+
+// Thêm controller để lấy khóa học nổi bật
+const getFeaturedCourses = async (req, res) => {
+  try {
+    const limit = Number.parseInt(req.query.limit) || 3;
+
+    const featuredCourses = await Course.find({
+      featured: true,
+      status: "approved",
+    })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .populate("instructorId", "username avatar");
+
+    res.status(200).json({
+      success: true,
+      count: featuredCourses.length,
+      data: featuredCourses,
+    });
+  } catch (error) {
+    console.error("Error fetching featured courses:", error);
+    res.status(500).json({
+      success: false,
+      message: "Không thể lấy khóa học nổi bật",
+    });
+  }
+};
+
+// Thêm controller vào exports
+module.exports = {
+  getCourses: exports.getCourses,
+  getFeaturedCourses: exports.getFeaturedCourses,
+  getCourse: exports.getCourse,
+  createCourse: exports.createCourse,
+  updateCourse: exports.updateCourse,
+  deleteCourse: exports.deleteCourse,
+  enrollCourse: exports.enrollCourse,
+  createPaymentIntent: exports.createPaymentIntent,
+  addCourseContent: exports.addCourseContent,
+  updateCourseContent: exports.updateCourseContent,
+  deleteCourseContent: exports.deleteCourseContent,
+  updateProgress: exports.updateProgress,
+  getProgress: exports.getProgress,
+  createReview: exports.createReview,
+  getReviews: exports.getReviews,
+  getFeaturedCourses,
+};

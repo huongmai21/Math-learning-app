@@ -1,23 +1,26 @@
 // src/components/ErrorBoundary.jsx :Để tránh ứng dụng crash hoàn toàn khi có lỗi
-import React, { Component } from "react";
+import { Component } from "react"
 
 class ErrorBoundary extends Component {
-  state = { hasError: false };
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null, errorInfo: null }
+  }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true };
+    return { hasError: true }
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error("ErrorBoundary caught an error:", error, errorInfo);
+    console.error("ErrorBoundary caught an error:", error, errorInfo)
   }
 
   render() {
     if (this.state.hasError) {
-      return <h1>Something went wrong. Please try again later.</h1>;
+      return <h1>Something went wrong. Please try again later.</h1>
     }
-    return this.props.children;
+    return this.props.children
   }
 }
 
-export default ErrorBoundary;
+export default ErrorBoundary

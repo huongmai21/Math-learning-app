@@ -4,7 +4,7 @@ import { useSelector } from "react-redux";
 import { motion } from "framer-motion";
 import { Helmet } from "react-helmet";
 import { toast } from "react-toastify";
-import { getCourses } from "../../services/courseService";
+import { getAllCourses } from "../../services/courseService"; // Sửa từ getCourses thành getAllCourses
 import "./MyCourses.css";
 
 const MyCourses = () => {
@@ -25,7 +25,7 @@ const MyCourses = () => {
       setLoading(true);
       try {
         const params = user.role === "student" ? { enrolled: true } : { instructorId: user._id };
-        const response = await getCourses(params);
+        const response = await getAllCourses(params); // Sửa từ getCourses thành getAllCourses
         setCourses(response.data);
       } catch (err) {
         setError("Không thể tải danh sách khóa học!");
@@ -41,7 +41,7 @@ const MyCourses = () => {
   };
 
   const sectionVariants = {
-    hidden: { opacity: 0, y: 50 },
+ Goosebumps: { opacity: 0, y: 50 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
   };
 

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import katex from "katex";
+import "katex/dist/katex.min.css";
 import "./Exam.css";
 
 const CreateExam = () => {
@@ -8,15 +10,18 @@ const CreateExam = () => {
   const [description, setDescription] = useState("");
   const [educationLevel, setEducationLevel] = useState("");
   const [subject, setSubject] = useState("");
+  const [duration, setDuration] = useState(60);
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [difficulty, setDifficulty] = useState("easy");
   const [questions, setQuestions] = useState([
     {
-      question_text: "",
-      question_type: "multiple_choice",
+      questionText: "",
+      questionType: "multiple-choice",
       options: ["", "", "", ""],
-      correct_answer: "",
+      correctAnswer: "",
+      images: [],
+      preview: "",
     },
   ]);
   const navigate = useNavigate();
@@ -33,10 +38,12 @@ const CreateExam = () => {
     setQuestions([
       ...questions,
       {
-        question_text: "",
-        question_type: "multiple_choice",
+        questionText: "",
+        questionType: "multiple-choice",
         options: ["", "", "", ""],
-        correct_answer: "",
+        correctAnswer: "",
+        images: [],
+        preview: "",
       },
     ]);
   };
@@ -53,10 +60,53 @@ const CreateExam = () => {
     const newQuestions = [...questions];
     if (field === "options") {
       newQuestions[index].options[optionIndex] = value;
+      if (
+        newQuestions[index].questionType === "multiple-choice" &&
+        newQuestions[index].correctAnswer &&
+        !newQuestions[index].options.includes(newQuestions[index].correctAnswer)
+      ) {
+        newQuestions[index].correctAnswer = value;
+      }
+    } else if (field === "questionText") {
+      newQuestions[index][field] = value;
+      try {
+        const html = katex.renderToString(value, {
+          throwOnError: false,
+          displayMode: false,
+        });
+        newQuestions[index].preview = html;
+      } catch (error) {
+        newQuestions[index].preview = value;
+      }
     } else {
       newQuestions[index][field] = value;
     }
     setQuestions(newQuestions);
+  };
+
+  const handleImageUpload = async (index, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      const response = await fetch("http://localhost:5000/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json();
+      if (data.success) {
+        const newQuestions = [...questions];
+        newQuestions[index].images.push(data.imageUrl);
+        setQuestions(newQuestions);
+      } else {
+        toast.error("Không thể tải lên hình ảnh!");
+      }
+    } catch (error) {
+      toast.error("Lỗi khi tải lên hình ảnh!");
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -75,6 +125,7 @@ const CreateExam = () => {
           description,
           educationLevel,
           subject,
+          duration,
           startTime,
           endTime,
           difficulty,
@@ -148,17 +199,23 @@ const CreateExam = () => {
                 <option value="advanced_math">Toán cao cấp</option>
                 <option value="calculus">Giải tích</option>
                 <option value="algebra">Đại số</option>
-                <option value="probability_statistics">
-                  Xác suất thống kê
-                </option>
-                <option value="differential_equations">
-                  Phương trình vi phân
-                </option>
+                <option value="probability_statistics">Xác suất thống kê</option>
+                <option value="differential_equations">Phương trình vi phân</option>
               </>
             ) : (
               <option value="math">Toán</option>
             )}
           </select>
+        </div>
+        <div>
+          <label>Thời gian làm bài (phút):</label>
+          <input
+            type="number"
+            value={duration}
+            onChange={(e) => setDuration(Number(e.target.value))}
+            min="1"
+            required
+          />
         </div>
         <div>
           <label>Thời gian bắt đầu:</label>
@@ -193,28 +250,49 @@ const CreateExam = () => {
         <h3>Câu hỏi</h3>
         {questions.map((q, index) => (
           <div key={index} className="question-block">
-            <label>Câu hỏi:</label>
+            <label>Câu hỏi (hỗ trợ LaTeX):</label>
             <input
               type="text"
-              value={q.question_text}
+              value={q.questionText}
               onChange={(e) =>
-                updateQuestion(index, "question_text", e.target.value)
+                updateQuestion(index, "questionText", e.target.value)
               }
               required
-              placeholder="Nhập câu hỏi (hỗ trợ LaTeX, ví dụ: $x^2 + y^2 = 1$)"
+              placeholder="Ví dụ: $x^2 + y^2 = 1$"
             />
+            <div className="preview">
+              <label>Xem trước:</label>
+              <div
+                dangerouslySetInnerHTML={{ __html: q.preview || q.questionText }}
+              />
+            </div>
+            <label>Tải lên hình ảnh minh họa:</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => handleImageUpload(index, e)}
+            />
+            {q.images.length > 0 && (
+              <div className="uploaded-images">
+                {q.images.map((img, i) => (
+                  <img key={i} src={img} alt={`Hình minh họa ${i}`} width="100" />
+                ))}
+              </div>
+            )}
             <label>Loại câu hỏi:</label>
             <select
-              value={q.question_type}
+              value={q.questionType}
               onChange={(e) =>
-                updateQuestion(index, "question_type", e.target.value)
+                updateQuestion(index, "questionType", e.target.value)
               }
             >
-              <option value="multiple_choice">Trắc nghiệm</option>
-              <option value="short_answer">Trả lời ngắn</option>
+              <option value="multiple-choice">Trắc nghiệm</option>
+              <option value="true-false">Đúng/Sai</option>
+              <option value="fill-in">Điền khuyết</option>
               <option value="essay">Tự luận</option>
+              <option value="math-equation">Nhập công thức toán</option>
             </select>
-            {q.question_type === "multiple_choice" && (
+            {q.questionType === "multiple-choice" && (
               <>
                 <label>Lựa chọn:</label>
                 {q.options.map((option, i) => (
@@ -232,11 +310,40 @@ const CreateExam = () => {
                 <label>Đáp án đúng:</label>
                 <input
                   type="text"
-                  value={q.correct_answer}
+                  value={q.correctAnswer}
                   onChange={(e) =>
-                    updateQuestion(index, "correct_answer", e.target.value)
+                    updateQuestion(index, "correctAnswer", e.target.value)
                   }
                   required
+                />
+              </>
+            )}
+            {q.questionType === "true-false" && (
+              <>
+                <label>Đáp án đúng:</label>
+                <select
+                  value={q.correctAnswer}
+                  onChange={(e) =>
+                    updateQuestion(index, "correctAnswer", e.target.value)
+                  }
+                  required
+                >
+                  <option value="true">Đúng</option>
+                  <option value="false">Sai</option>
+                </select>
+              </>
+            )}
+            {(q.questionType === "fill-in" || q.questionType === "essay" || q.questionType === "math-equation") && (
+              <>
+                <label>Đáp án đúng:</label>
+                <input
+                  type="text"
+                  value={q.correctAnswer}
+                  onChange={(e) =>
+                    updateQuestion(index, "correctAnswer", e.target.value)
+                  }
+                  required
+                  placeholder={q.questionType === "math-equation" ? "Ví dụ: $x = 5$" : ""}
                 />
               </>
             )}

@@ -2,7 +2,7 @@ import axios from "axios";
 import { toast } from "react-toastify";
 
 const api = axios.create({
-  baseURL: "http://localhost:5000/api",
+  baseURL: "http://localhost:5000", // Đã sửa URL không có /api
   headers: {
     "Content-Type": "application/json",
   },
@@ -30,9 +30,9 @@ api.interceptors.response.use(
   (error) => {
     // Không hiển thị toast cho một số lỗi cụ thể
     const skipErrorToast = [
-      "/api/auth/me", // Bỏ qua lỗi khi kiểm tra token
-      "/api/exams/recommended", // Bỏ qua lỗi khi lấy đề thi gợi ý
-      "/api/ai/math-question", // Bỏ qua lỗi khi gọi AI
+      "/auth/me", // Bỏ qua lỗi khi kiểm tra token
+      "/exams/recommended", // Bỏ qua lỗi khi lấy đề thi gợi ý
+      "/ai/math-question", // Bỏ qua lỗi khi gọi AI
     ];
 
     const requestUrl = error.config.url;
@@ -49,7 +49,7 @@ api.interceptors.response.use(
     // Xử lý lỗi 401 (Unauthorized)
     if (error.response && error.response.status === 401) {
       // Nếu không phải là lỗi khi kiểm tra token, đăng xuất người dùng
-      if (!requestUrl.includes("/api/auth/me")) {
+      if (!requestUrl.includes("/auth/me")) {
         localStorage.removeItem("token");
         window.location.href = "/auth/login";
       }

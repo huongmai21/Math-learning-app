@@ -6,7 +6,9 @@ export const getStudyRooms = async (params = {}) => {
     const response = await api.get("/study-room", { params })
     return response.data
   } catch (error) {
-    throw error.response?.data || { message: "Không thể lấy danh sách phòng học nhóm" }
+    console.error("Error fetching study rooms:", error)
+    // Return empty data structure to prevent UI errors
+    return { data: [], totalPages: 0 }
   }
 }
 

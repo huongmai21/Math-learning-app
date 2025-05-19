@@ -49,6 +49,42 @@ exports.getCommentsByDocument = asyncHandler(async (req, res, next) => {
   });
 });
 
+exports.getCommentsByPost = asyncHandler(async (req, res, next) => {
+  const { postId } = req.params;
+  const { page = 1, limit = 5 } = req.query;
+
+  const skip = (page - 1) * limit;
+
+  const rootComments = await Comment.find({
+    referenceType: "post",
+    referenceId: postId,
+    parentComment: null,
+  })
+    .sort({ createdAt: -1 })
+    .skip(parseInt(skip))
+    .limit(parseInt(limit))
+    .populate("author", "username fullName");
+
+  const total = await Comment.countDocuments({
+    referenceType: "post",
+    referenceId: postId,
+    parentComment: null,
+  });
+
+  const rootIds = rootComments.map((c) => c._id);
+  const replies = await Comment.find({
+    parentComment: { $in: rootIds },
+  }).populate("author", "username");
+
+  res.status(200).json({
+    success: true,
+    comments: rootComments,
+    replies,
+    currentPage: parseInt(page),
+    totalPages: Math.ceil(total / limit),
+  });
+});
+
 exports.createComment = asyncHandler(async (req, res, next) => {
   const { referenceId, referenceType, content } = req.body;
 
@@ -79,34 +115,6 @@ exports.createComment = asyncHandler(async (req, res, next) => {
     "author",
     "username fullName"
   );
-
-  // Create notification for document owner
-  if (referenceType === "document") {
-    const document = await Document.findById(referenceId).populate(
-      "uploadedBy"
-    );
-    if (document && document.uploadedBy._id.toString() !== req.user.id) {
-      const notification = new Notification({
-        recipient: document.uploadedBy._id,
-        sender: req.user.id,
-        type: "comment",
-        title: "Bình luận mới",
-        message: `${req.user.username} đã bình luận trên tài liệu "${document.title}"`,
-        link: `/documents/detail/${referenceId}`,
-        relatedModel: "Document",
-        relatedId: referenceId,
-        importance: "medium",
-      });
-      await notification.save();
-      global.io.to(document.uploadedBy._id.toString()).emit("newNotification", {
-        _id: notification._id,
-        title: notification.title,
-        message: notification.message,
-        link: notification.link,
-        createdAt: new Date(),
-      });
-    }
-  }
 
   res.status(201).json({
     success: true,
@@ -147,4 +155,98 @@ exports.deleteComment = asyncHandler(async (req, res, next) => {
   await Comment.findByIdAndDelete(req.params.id);
 
   res.status(200).json({ success: true, message: "Đã xóa bình luận" });
+});
+
+exports.likeComment = asyncHandler(async (req, res, next) => {
+  const comment = await Comment.findById(req.params.id);
+  if (!comment) {
+    return next(new ErrorResponse("Không tìm thấy bình luận", 404));
+  }
+
+  const userId = req.user._id;
+  const isLiked = comment.likes.includes(userId);
+
+  if (isLiked) {
+    comment.likes = comment.likes.filter((id) => id.toString() !== userId.toString());
+  } else {
+    comment.likes.push(userId);
+  }
+
+  await comment.save();
+
+  res.status(200).json({
+    success: true,
+    likes: comment.likes,
+    isLiked: !isLiked,
+  });
+});
+
+exports.replyToComment = asyncHandler(async (req, res, next) => {
+  const { content } = req.body;
+  if (!content) {
+    return next(new ErrorResponse("Nội dung trả lời không được để trống", 400));
+  }
+
+  const parentComment = await Comment.findById(req.params.id);
+  if (!parentComment) {
+    return next(new ErrorResponse("Không tìm thấy bình luận gốc", 404));
+  }
+
+  const newReply = new Comment({
+    referenceType: parentComment.referenceType,
+    referenceId: parentComment.referenceId,
+    author: req.user.id,
+    content,
+    parentComment: parentComment._id,
+  });
+
+  await newReply.save();
+  const populatedReply = await newReply.populate("author", "username fullName");
+
+  res.status(201).json({
+    success: true,
+    message: "Đã trả lời bình luận",
+    reply: populatedReply,
+  });
+});
+
+exports.reportComment = asyncHandler(async (req, res, next) => {
+  const { reason } = req.body;
+  if (!reason) {
+    return next(new ErrorResponse("Lý do báo cáo không được để trống", 400));
+  }
+
+  const comment = await Comment.findById(req.params.id);
+  if (!comment) {
+    return next(new ErrorResponse("Không tìm thấy bình luận", 404));
+  }
+
+  // Logic lưu báo cáo (giả định thêm trường report vào model Comment)
+  comment.reports = comment.reports || [];
+  comment.reports.push({ userId: req.user.id, reason, reportedAt: new Date() });
+  await comment.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Đã báo cáo bình luận",
+  });
+});
+
+exports.getFeaturedComments = asyncHandler(async (req, res, next) => {
+  const { postId } = req.params;
+  const { limit = 3 } = req.query;
+
+  const featuredComments = await Comment.find({
+    referenceType: "post",
+    referenceId: postId,
+    parentComment: null,
+  })
+    .sort({ likes: -1, createdAt: -1 })
+    .limit(parseInt(limit))
+    .populate("author", "username fullName");
+
+  res.status(200).json({
+    success: true,
+    comments: featuredComments,
+  });
 });

@@ -13,7 +13,7 @@ const ExamList = () => {
   const [recommendedExams, setRecommendedExams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    grade: "",
+    educationLevel: "",
     subject: "",
     difficulty: "",
     status: "",
@@ -24,29 +24,35 @@ const ExamList = () => {
     const fetchExams = async () => {
       try {
         setLoading(true);
-        const response = await getAllExams();
+        const response = await getAllExams({
+          educationLevel: filters.educationLevel,
+          subject: filters.subject,
+          difficulty: filters.difficulty,
+          status: filters.status,
+          search: searchQuery,
+        });
         setExams(response.data || []);
 
-        // Nếu đã đăng nhập, lấy đề thi được đề xuất
         if (isAuthenticated && user) {
           try {
             const recommendedResponse = await getRecommendedExams();
             setRecommendedExams(recommendedResponse.data || []);
           } catch (error) {
             console.error("Không thể lấy đề thi đề xuất:", error);
-            // Không hiển thị toast lỗi khi không thể lấy đề thi đề xuất
+            setRecommendedExams([]);
           }
         }
       } catch (error) {
         console.error("Lỗi khi lấy danh sách đề thi:", error);
         toast.error("Không thể tải danh sách đề thi");
+        setExams([]);
       } finally {
         setLoading(false);
       }
     };
 
     fetchExams();
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, filters, searchQuery]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -59,7 +65,7 @@ const ExamList = () => {
 
   const resetFilters = () => {
     setFilters({
-      grade: "",
+      educationLevel: "",
       subject: "",
       difficulty: "",
       status: "",
@@ -68,23 +74,29 @@ const ExamList = () => {
   };
 
   const filteredExams = exams.filter((exam) => {
+    const now = new Date();
+    let status = "";
+    if (new Date(exam.startTime) > now) status = "upcoming";
+    else if (new Date(exam.endTime) < now) status = "ended";
+    else status = "ongoing";
+
     const matchesSearch = exam.title
       .toLowerCase()
       .includes(searchQuery.toLowerCase());
-    const matchesGrade = filters.grade ? exam.grade === filters.grade : true;
+    const matchesEducationLevel = filters.educationLevel
+      ? exam.educationLevel === filters.educationLevel
+      : true;
     const matchesSubject = filters.subject
       ? exam.subject === filters.subject
       : true;
     const matchesDifficulty = filters.difficulty
       ? exam.difficulty === filters.difficulty
       : true;
-    const matchesStatus = filters.status
-      ? exam.status === filters.status
-      : true;
+    const matchesStatus = filters.status ? status === filters.status : true;
 
     return (
       matchesSearch &&
-      matchesGrade &&
+      matchesEducationLevel &&
       matchesSubject &&
       matchesDifficulty &&
       matchesStatus
@@ -118,14 +130,16 @@ const ExamList = () => {
 
         <div className="filters">
           <select
-            name="grade"
-            value={filters.grade}
+            name="educationLevel"
+            value={filters.educationLevel}
             onChange={handleFilterChange}
           >
             <option value="">Tất cả cấp học</option>
-            <option value="primary">Tiểu học</option>
-            <option value="secondary">THCS</option>
-            <option value="high">THPT</option>
+            {[...Array(12).keys()].map((i) => (
+              <option key={i + 1} value={`grade${i + 1}`}>
+                Lớp {i + 1}
+              </option>
+            ))}
             <option value="university">Đại học</option>
           </select>
 
@@ -146,7 +160,7 @@ const ExamList = () => {
             value={filters.difficulty}
             onChange={handleFilterChange}
           >
-            <option value="">Tất cả trạng thái</option>
+            <option value="">Tất cả độ khó</option>
             <option value="easy">Dễ</option>
             <option value="medium">Trung bình</option>
             <option value="hard">Khó</option>
@@ -157,9 +171,10 @@ const ExamList = () => {
             value={filters.status}
             onChange={handleFilterChange}
           >
-            <option value="">Tất cả độ khó</option>
-            <option value="public">Công khai</option>
-            <option value="private">Riêng tư</option>
+            <option value="">Tất cả trạng thái</option>
+            <option value="upcoming">Sắp diễn ra</option>
+            <option value="ongoing">Đang diễn ra</option>
+            <option value="ended">Kết thúc</option>
           </select>
 
           <button className="reset-button" onClick={resetFilters}>
@@ -173,7 +188,10 @@ const ExamList = () => {
           <h2>Đề xuất cho bạn</h2>
           <div className="exam-grid">
             {recommendedExams.map((exam) => (
-              <div key={exam._id} className="exam-card">
+              <div
+                key={exam._id}
+                className={`exam-card ${exam.status || "upcoming"}`}
+              >
                 <div className="exam-card-header">
                   <span className={`difficulty-badge ${exam.difficulty}`}>
                     {exam.difficulty}
@@ -184,7 +202,8 @@ const ExamList = () => {
                   <p>{exam.description}</p>
                   <div className="exam-info">
                     <span>
-                      <i className="fas fa-graduation-cap"></i> {exam.grade}
+                      <i className="fas fa-graduation-cap"></i>{" "}
+                      {exam.educationLevel}
                     </span>
                     <span>
                       <i className="fas fa-book"></i> {exam.subject}
@@ -213,44 +232,55 @@ const ExamList = () => {
         <h2>Tất cả đề thi</h2>
         {filteredExams.length > 0 ? (
           <div className="exam-grid">
-            {filteredExams.map((exam) => (
-              <div key={exam._id} className="exam-card">
-                <div className="exam-card-header">
-                  <span className={`difficulty-badge ${exam.difficulty}`}>
-                    {exam.difficulty}
-                  </span>
-                  <h3>{exam.title}</h3>
-                </div>
-                <div className="exam-card-body">
-                  <p>{exam.description}</p>
-                  <div className="exam-info">
-                    <span>
-                      <i className="fas fa-graduation-cap"></i> {exam.grade}
+            {filteredExams.map((exam) => {
+              const now = new Date();
+              let status = "";
+              if (new Date(exam.startTime) > now) status = "upcoming";
+              else if (new Date(exam.endTime) < now) status = "ended";
+              else status = "ongoing";
+
+              return (
+                <div key={exam._id} className={`exam-card ${status}`}>
+                  <div className="exam-card-header">
+                    <span className={`difficulty-badge ${exam.difficulty}`}>
+                      {exam.difficulty}
                     </span>
-                    <span>
-                      <i className="fas fa-book"></i> {exam.subject}
-                    </span>
-                    <span>
-                      <i className="fas fa-clock"></i> {exam.duration} phút
-                    </span>
-                    <span>
-                      <i className="fas fa-question-circle"></i>{" "}
-                      {exam.questions?.length || 0} câu hỏi
-                    </span>
+                    <h3>{exam.title}</h3>
+                  </div>
+                  <div className="exam-card-body">
+                    <p>{exam.description}</p>
+                    <div className="exam-info">
+                      <span>
+                        <i className="fas fa-graduation-cap"></i>{" "}
+                        {exam.educationLevel}
+                      </span>
+                      <span>
+                        <i className="fas fa-book"></i> {exam.subject}
+                      </span>
+                      <span>
+                        <i className="fas fa-clock"></i> {exam.duration} phút
+                      </span>
+                      <span>
+                        <i className="fas fa-question-circle"></i>{" "}
+                        {exam.questions?.length || 0} câu hỏi
+                      </span>
+                    </div>
+                  </div>
+                  <div className="exam-card-footer">
+                    <Link
+                      to={`/exams/${exam._id}`}
+                      className="take-exam-button"
+                    >
+                      Làm bài
+                    </Link>
                   </div>
                 </div>
-                <div className="exam-card-footer">
-                  <Link to={`/exams/${exam._id}`} className="take-exam-button">
-                    Làm bài
-                  </Link>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="no-exams">
-            <p>Chưa có bài thi gợi ý.</p>
-            <p>Đang tải...</p>
+            <p>Không có bài thi nào phù hợp.</p>
           </div>
         )}
       </div>

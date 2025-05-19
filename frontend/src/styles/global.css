@@ -1,4 +1,30 @@
 /* frontend/src/styles/global.css */
+:root {
+  --primary-color: #ff6f61;
+  --secondary-color: #e05a4f;
+  --text-color: #333;
+  --background: #fff;
+  --light-gray: #f5f5f5;
+  --border-color: #ddd;
+  --success-color: #4caf50;
+  --warning-color: #ff9800;
+  --error-color: #f44336;
+  --info-color: #2196f3;
+  --card-bg: #ffffff;
+  --header-bg: #2c3e50;
+  --dropdown-bg: #34495e;
+}
+
+body.dark {
+  --text-color: #e0e4ea;
+  --background: #1a1a2e;
+  --light-gray: #2a2a3c;
+  --border-color: #444;
+  --card-bg: #2c3e50;
+  --header-bg: #1a252f;
+  --dropdown-bg: #2c3e50;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -8,11 +34,14 @@
 body {
   font-family: "Inter", sans-serif;
   line-height: 1.6;
-  color: #333;
+  color: var(--text-color);
+  background-color: var(--background);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 a {
   text-decoration: none;
+  color: var(--primary-color);
 }
 
 button {
@@ -20,13 +49,13 @@ button {
 }
 
 .error {
-  color: #ff6f61;
+  color: var(--error-color);
   text-align: center;
   margin: 20px 0;
 }
 
 :focus {
-  outline: 2px solid #ff6f61;
+  outline: 2px solid var(--primary-color);
   outline-offset: 2px;
 }
 
@@ -64,6 +93,14 @@ button {
   text-decoration: none;
   border-radius: 25px;
   font-weight: bold;
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.btn:hover {
+  background: var(--light-gray);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .courses,
@@ -75,6 +112,7 @@ button {
 .news h2 {
   font-size: 28px;
   margin-bottom: 20px;
+  color: var(--text-color);
 }
 
 .course-list,
@@ -86,10 +124,17 @@ button {
 
 .course-card,
 .news-card {
-  background: var(--background);
+  background: var(--card-bg);
   border-radius: 10px;
   padding: 20px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.course-card:hover,
+.news-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
 .course-card img,
@@ -104,6 +149,7 @@ button {
 .news-card h3 {
   font-size: 20px;
   margin: 10px 0;
+  color: var(--text-color);
 }
 
 .course-card p,
@@ -115,4 +161,25 @@ button {
 img {
   max-width: 100%;
   height: auto;
+}
+
+/* Padding cho main content để tránh bị navbar che */
+main {
+  padding-top: 70px;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .hero h1 {
+    font-size: 28px;
+  }
+
+  .hero p {
+    font-size: 16px;
+  }
+
+  .courses h2,
+  .news h2 {
+    font-size: 24px;
+  }
 }

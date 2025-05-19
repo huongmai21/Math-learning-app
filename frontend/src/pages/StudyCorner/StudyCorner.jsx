@@ -1,46 +1,65 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useRef } from "react"
-import { useNavigate, useParams, Link } from "react-router-dom"
-import { useSelector } from "react-redux"
-import { toast } from "react-toastify"
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useNavigate, useParams, Link } from "react-router-dom";
+import { useSelector } from "react-redux";
+import { toast } from "react-toastify";
+import { FixedSizeList as List } from "react-window";
+import AutoSizer from "react-virtualized-auto-sizer";
+import io from "socket.io-client";
+import { Tooltip } from "react-tooltip";
+import debounce from "lodash/debounce";
 import {
   getPosts,
   getPostById,
   createPost,
   deletePost,
-  likePost,
-  bookmarkPost,
-  getBookmarkedPosts,
+  toggleLikePost,
   updatePostStatus,
   updateAiResponse,
   uploadPostImage,
   uploadPostFile,
-} from "../../services/postService.js"
-import { getComments, createComment, deleteComment, likeComment } from "../../services/commentService.js"
-import "./StudyCorner.css"
+} from "../../services/postService.js";
+import {
+  getComments,
+  createComment,
+  deleteComment,
+  likeComment,
+} from "../../services/commentService.js";
+import {
+  addBookmark,
+  removeBookmark,
+  getBookmarks,
+  checkBookmarks,
+} from "../../services/bookmarkService.js";
+import { askMathQuestion } from "../../services/aiService.js";
+import "./StudyCorner.css";
 
 const StudyCorner = () => {
-  const { id, tab = "exercises" } = useParams()
-  const navigate = useNavigate()
-  const { user } = useSelector((state) => state.auth)
+  const { id, tab = "exercises" } = useParams();
+  const navigate = useNavigate();
+  const { user } = useSelector((state) => state.auth);
 
-  const [activeTab, setActiveTab] = useState(tab) // exercises, learning, sharing, bookmarks
-  const [posts, setPosts] = useState([])
-  const [currentPost, setCurrentPost] = useState(null)
-  const [comments, setComments] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [commentsLoading, setCommentsLoading] = useState(false)
-  const [page, setPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-  const [subject, setSubject] = useState("")
-  const [status, setStatus] = useState("")
-  const [search, setSearch] = useState("")
-  const [searchImage, setSearchImage] = useState(null)
-  const [showCreateForm, setShowCreateForm] = useState(false)
-  const [commentText, setCommentText] = useState("")
-  const [aiResponse, setAiResponse] = useState("")
-  const [isProcessingAi, setIsProcessingAi] = useState(false)
+  const [activeTab, setActiveTab] = useState(tab);
+  const [posts, setPosts] = useState([]);
+  const [bookmarkedPostIds, setBookmarkedPostIds] = useState([]);
+  const [currentPost, setCurrentPost] = useState(null);
+  const [comments, setComments] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [bookmarkLoading, setBookmarkLoading] = useState({});
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [createPostLoading, setCreatePostLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [subject, setSubject] = useState("");
+  const [status, setStatus] = useState("");
+  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState(""); // Thêm state để quản lý giá trị input
+  const [searchImage, setSearchImage] = useState(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const [aiResponse, setAiResponse] = useState("");
+  const [isProcessingAi, setIsProcessingAi] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     content: "",
@@ -50,24 +69,62 @@ const StudyCorner = () => {
     status: "open",
     images: [],
     files: [],
-  })
+  });
 
-  const fileInputRef = useRef(null)
-  const imageInputRef = useRef(null)
+  const socketRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const imageInputRef = useRef(null);
 
-  // Chuyển tab khi URL thay đổi
+  // Khởi tạo WebSocket
+  useEffect(() => {
+    if (user) {
+      socketRef.current = io("http://localhost:5000", {
+        transports: ["websocket"],
+      });
+
+      socketRef.current.on("connect", () => {
+        console.log("Connected to WebSocket");
+        socketRef.current.emit("join", user._id);
+      });
+
+      socketRef.current.on("bookmark_notification", ({ message }) => {
+        toast.info(message);
+      });
+
+      return () => {
+        socketRef.current.disconnect();
+      };
+    }
+  }, [user]);
+
   useEffect(() => {
     if (tab) {
-      setActiveTab(tab)
+      setActiveTab(tab);
     }
-  }, [tab])
+  }, [tab]);
 
-  // Load bài đăng theo tab
+  // Kiểm tra trạng thái bookmark
+  const loadBookmarkedPostIds = useCallback(
+    async (posts) => {
+      if (!user || !posts || posts.length === 0) return;
+
+      try {
+        const postIds = posts.map((post) => post._id);
+        const response = await checkBookmarks("post", postIds);
+        setBookmarkedPostIds(response.data || []);
+      } catch (error) {
+        console.error("Error checking bookmarks:", error);
+      }
+    },
+    [user]
+  );
+
+  // Tải danh sách bài đăng
   useEffect(() => {
     const loadPosts = async () => {
-      setLoading(true)
+      setLoading(true);
       try {
-        let response
+        let response;
 
         switch (activeTab) {
           case "exercises":
@@ -76,513 +133,649 @@ const StudyCorner = () => {
               category: "exercise",
               subject,
               status,
+              search,
               sortBy: "createdAt",
               sortOrder: "desc",
-            })
-            break
+            });
+            break;
           case "learning":
             response = await getPosts({
               page,
               category: "question",
               subject,
+              search,
               sortBy: "createdAt",
               sortOrder: "desc",
-            })
-            break
+            });
+            break;
           case "sharing":
             response = await getPosts({
               page,
               category: "share",
+              search,
               sortBy: "createdAt",
               sortOrder: "desc",
-            })
-            break
+            });
+            break;
           case "bookmarks":
-            response = await getBookmarkedPosts({ page })
-            break
+            response = await getBookmarks({
+              page,
+              referenceType: "post",
+              search,
+            });
+            break;
           default:
-            response = await getPosts({ page })
+            response = await getPosts({ page, search });
         }
 
-        setPosts(response.data)
-        setTotalPages(response.totalPages)
+        setPosts(response.data);
+        setTotalPages(response.totalPages);
+
+        if (activeTab !== "bookmarks") {
+          await loadBookmarkedPostIds(response.data);
+        }
       } catch (error) {
-        toast.error(error.message || "Không thể tải danh sách bài đăng")
+        toast.error(error.message || "Không thể tải danh sách bài đăng");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
     if (!id) {
-      loadPosts()
+      loadPosts();
     }
-  }, [activeTab, page, subject, status, id])
+  }, [
+    activeTab,
+    page,
+    subject,
+    status,
+    search,
+    id,
+    user,
+    loadBookmarkedPostIds,
+  ]);
 
-  // Load chi tiết bài đăng khi ID thay đổi
+  // Tải chi tiết bài đăng
   useEffect(() => {
     if (id) {
       const loadPostDetails = async () => {
-        setLoading(true)
+        setLoading(true);
         try {
-          const response = await getPostById(id)
-          setCurrentPost(response.data)
+          const response = await getPostById(id);
+          setCurrentPost(response.data);
 
-          // Load comments
-          loadComments(id)
+          if (user) {
+            const bookmarkResponse = await checkBookmarks("post", [id]);
+            setBookmarkedPostIds(bookmarkResponse.data || []);
+          }
+
+          loadComments(id);
         } catch (error) {
-          toast.error(error.message || "Không thể tải chi tiết bài đăng")
-          navigate("/study-corner")
+          toast.error(error.message || "Không thể tải chi tiết bài đăng");
+          navigate("/study-corner");
         } finally {
-          setLoading(false)
+          setLoading(false);
         }
-      }
+      };
 
-      loadPostDetails()
+      loadPostDetails();
     } else {
-      setCurrentPost(null)
-      setComments([])
+      setCurrentPost(null);
+      setComments([]);
+      setBookmarkedPostIds([]);
     }
-  }, [id, navigate])
+  }, [id, navigate, user]);
 
-  // Load comments
   const loadComments = async (postId) => {
-    setCommentsLoading(true)
+    setCommentsLoading(true);
     try {
-      const response = await getComments(postId)
-      setComments(response.data)
+      const response = await getComments(postId);
+      setComments(response.data);
     } catch (error) {
-      console.error("Error loading comments:", error)
+      console.error("Error loading comments:", error);
     } finally {
-      setCommentsLoading(false)
+      setCommentsLoading(false);
     }
-  }
+  };
 
-  // Handle form input change
   const handleInputChange = (e) => {
-    const { name, value } = e.target
+    const { name, value } = e.target;
     setFormData({
       ...formData,
       [name]: value,
-    })
-  }
+    });
+  };
 
-  // Handle image upload
   const handleImageUpload = async (e) => {
-    const files = Array.from(e.target.files)
-
-    if (files.length === 0) return
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
 
     const uploadPromises = files.map(async (file) => {
       try {
-        const response = await uploadPostImage(file)
-        return response.data.url
+        const response = await uploadPostImage(file);
+        return response.url;
       } catch (error) {
-        toast.error(`Không thể tải lên hình ảnh: ${file.name}`)
-        return null
+        toast.error(`Không thể tải lên hình ảnh: ${file.name}`);
+        return null;
       }
-    })
+    });
 
-    const uploadedUrls = await Promise.all(uploadPromises)
-    const validUrls = uploadedUrls.filter(Boolean)
+    const uploadedUrls = await Promise.all(uploadPromises);
+    const validUrls = uploadedUrls.filter(Boolean);
 
     setFormData({
       ...formData,
       images: [...formData.images, ...validUrls],
-    })
-  }
+    });
+  };
 
-  // Handle file upload
   const handleFileUpload = async (e) => {
-    const files = Array.from(e.target.files)
-
-    if (files.length === 0) return
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
 
     const uploadPromises = files.map(async (file) => {
       try {
-        const response = await uploadPostFile(file)
-        return response.data
+        const response = await uploadPostFile(file);
+        return response;
       } catch (error) {
-        toast.error(`Không thể tải lên file: ${file.name}`)
-        return null
+        toast.error(`Không thể tải lên file: ${file.name}`);
+        return null;
       }
-    })
+    });
 
-    const uploadedFiles = await Promise.all(uploadPromises)
-    const validFiles = uploadedFiles.filter(Boolean)
+    const uploadedFiles = await Promise.all(uploadPromises);
+    const validFiles = uploadedFiles.filter(Boolean);
 
     setFormData({
       ...formData,
       files: [...formData.files, ...validFiles],
-    })
-  }
+    });
+  };
 
-  // Handle create post form submission
   const handleCreatePost = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
+    setCreatePostLoading(true);
 
     try {
-      const response = await createPost(formData)
-      toast.success("Tạo bài đăng thành công!")
-      navigate(`/study-corner/${response.data._id}`)
-      setShowCreateForm(false)
+      const tagsArray = formData.tags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter((tag) => tag.length > 0);
+
+      const postData = {
+        ...formData,
+        tags: tagsArray,
+      };
+
+      const response = await createPost(postData);
+      toast.success("Tạo bài đăng thành công!");
+      navigate(`/study-corner/${response.data._id}`);
+      setShowCreateForm(false);
       setFormData({
         title: "",
         content: "",
         tags: "",
-        category: activeTab === "exercises" ? "exercise" : activeTab === "learning" ? "question" : "share",
+        category:
+          activeTab === "exercises"
+            ? "exercise"
+            : activeTab === "learning"
+            ? "question"
+            : "share",
         subject: "highschool",
         status: "open",
         images: [],
         files: [],
-      })
+      });
     } catch (error) {
-      toast.error(error.message || "Không thể tạo bài đăng")
+      toast.error(error.message || "Không thể tạo bài đăng");
+    } finally {
+      setCreatePostLoading(false);
     }
-  }
+  };
 
-  // Handle like post
   const handleLikePost = async (postId) => {
     if (!user) {
-      toast.error("Vui lòng đăng nhập để thích bài đăng")
-      return
+      toast.error("Vui lòng đăng nhập để thích bài đăng");
+      return;
     }
 
     try {
-      const response = await likePost(postId)
+      const response = await toggleLikePost(postId);
 
       if (currentPost && currentPost._id === postId) {
         setCurrentPost({
           ...currentPost,
-          likes: response.data.likes,
-        })
+          likes: response.likes,
+        });
       } else {
-        setPosts(posts.map((post) => (post._id === postId ? { ...post, likes: response.data.likes } : post)))
+        setPosts(
+          posts.map((post) =>
+            post._id === postId ? { ...post, likes: response.likes } : post
+          )
+        );
       }
 
-      toast.success(response.data.isLiked ? "Đã thích bài đăng" : "Đã bỏ thích bài đăng")
+      toast.success(
+        response.isLiked ? "Đã thích bài đăng" : "Đã bỏ thích bài đăng"
+      );
     } catch (error) {
-      toast.error(error.message || "Không thể thích bài đăng")
+      toast.error(error.message || "Không thể thích bài đăng");
     }
-  }
+  };
 
-  // Handle bookmark post
   const handleBookmarkPost = async (postId) => {
     if (!user) {
-      toast.error("Vui lòng đăng nhập để đánh dấu bài đăng")
-      return
+      toast.error("Vui lòng đăng nhập để đánh dấu bài đăng");
+      return;
     }
+
+    setBookmarkLoading((prev) => ({ ...prev, [postId]: true }));
 
     try {
-      const response = await bookmarkPost(postId)
+      const isBookmarked = bookmarkedPostIds.includes(postId);
 
-      if (currentPost && currentPost._id === postId) {
-        setCurrentPost({
-          ...currentPost,
-          bookmarks: response.data.bookmarks,
-        })
+      if (isBookmarked) {
+        await removeBookmark("post", postId);
+        setBookmarkedPostIds(bookmarkedPostIds.filter((id) => id !== postId));
+        socketRef.current.emit("bookmark", {
+          userId: user._id,
+          referenceType: "post",
+          referenceId: postId,
+          action: "remove",
+        });
       } else {
-        setPosts(posts.map((post) => (post._id === postId ? { ...post, bookmarks: response.data.bookmarks } : post)))
+        await addBookmark("post", postId);
+        setBookmarkedPostIds([...bookmarkedPostIds, postId]);
+        socketRef.current.emit("bookmark", {
+          userId: user._id,
+          referenceType: "post",
+          referenceId: postId,
+          action: "add",
+        });
       }
-
-      toast.success(response.data.isBookmarked ? "Đã đánh dấu bài đăng" : "Đã bỏ đánh dấu bài đăng")
     } catch (error) {
-      toast.error(error.message || "Không thể đánh dấu bài đăng")
+      toast.error(error.message || "Không thể đánh dấu bài đăng");
+    } finally {
+      setBookmarkLoading((prev) => ({ ...prev, [postId]: false }));
     }
-  }
+  };
 
-  // Handle delete post
   const handleDeletePost = async (postId) => {
     if (window.confirm("Bạn có chắc chắn muốn xóa bài đăng này?")) {
       try {
-        await deletePost(postId)
-        toast.success("Xóa bài đăng thành công!")
+        await deletePost(postId);
+        toast.success("Xóa bài đăng thành công!");
 
         if (currentPost && currentPost._id === postId) {
-          navigate("/study-corner")
+          navigate("/study-corner");
         } else {
-          setPosts(posts.filter((post) => post._id !== postId))
+          setPosts(posts.filter((post) => post._id !== postId));
         }
       } catch (error) {
-        toast.error(error.message || "Không thể xóa bài đăng")
+        toast.error(error.message || "Không thể xóa bài đăng");
       }
     }
-  }
+  };
 
-  // Handle update post status
   const handleUpdateStatus = async (postId, newStatus) => {
     try {
-      const response = await updatePostStatus(postId, newStatus)
+      const response = await updatePostStatus(postId, newStatus);
 
       if (currentPost && currentPost._id === postId) {
         setCurrentPost({
           ...currentPost,
-          status: response.data.status,
-        })
+          status: response.status,
+        });
       } else {
-        setPosts(posts.map((post) => (post._id === postId ? { ...post, status: response.data.status } : post)))
+        setPosts(
+          posts.map((post) =>
+            post._id === postId ? { ...post, status: response.status } : post
+          )
+        );
       }
 
-      toast.success("Cập nhật trạng thái thành công!")
+      toast.success("Cập nhật trạng thái thành công!");
     } catch (error) {
-      toast.error(error.message || "Không thể cập nhật trạng thái")
+      toast.error(error.message || "Không thể cập nhật trạng thái");
     }
-  }
+  };
 
-  // Handle create comment
   const handleCreateComment = async (e) => {
-    e.preventDefault()
-
-    if (!commentText.trim() || !currentPost) return
+    e.preventDefault();
+    if (!commentText.trim() || !currentPost) return;
 
     try {
       const response = await createComment({
         postId: currentPost._id,
         content: commentText,
-      })
+      });
 
-      setComments([...comments, response.data])
-      setCommentText("")
+      setComments([...comments, response.data]);
+      setCommentText("");
 
-      // Nếu là bài tập và trạng thái đang mở, cập nhật thành đang chờ
-      if (currentPost.category === "exercise" && currentPost.status === "open") {
-        handleUpdateStatus(currentPost._id, "pending")
+      if (
+        currentPost.category === "exercise" &&
+        currentPost.status === "open"
+      ) {
+        handleUpdateStatus(currentPost._id, "pending");
       }
     } catch (error) {
-      toast.error(error.message || "Không thể tạo bình luận")
+      toast.error(error.message || "Không thể tạo bình luận");
     }
-  }
+  };
 
-  // Handle like comment
   const handleLikeComment = async (commentId) => {
     if (!user) {
-      toast.error("Vui lòng đăng nhập để thích bình luận")
-      return
+      toast.error("Vui lòng đăng nhập để thích bình luận");
+      return;
     }
 
     try {
-      const response = await likeComment(commentId)
-
+      const response = await likeComment(commentId);
       setComments(
-        comments.map((comment) => (comment._id === commentId ? { ...comment, likes: response.data.likes } : comment)),
-      )
+        comments.map((comment) =>
+          comment._id === commentId
+            ? { ...comment, likes: response.data.likes }
+            : comment
+        )
+      );
     } catch (error) {
-      toast.error(error.message || "Không thể thích bình luận")
+      toast.error(error.message || "Không thể thích bình luận");
     }
-  }
+  };
 
-  // Handle delete comment
   const handleDeleteComment = async (commentId) => {
     if (window.confirm("Bạn có chắc chắn muốn xóa bình luận này?")) {
       try {
-        await deleteComment(commentId)
-        setComments(comments.filter((comment) => comment._id !== commentId))
-        toast.success("Xóa bình luận thành công!")
+        await deleteComment(commentId);
+        setComments(comments.filter((comment) => comment._id !== commentId));
+        toast.success("Xóa bình luận thành công!");
       } catch (error) {
-        toast.error(error.message || "Không thể xóa bình luận")
+        toast.error(error.message || "Không thể xóa bình luận");
       }
     }
-  }
+  };
 
-  // Handle AI response
   const handleAiResponse = async () => {
-    if (!currentPost) return
+    if (!currentPost) return;
 
-    setIsProcessingAi(true)
+    setIsProcessingAi(true);
 
     try {
-      // Giả lập xử lý AI (trong thực tế, bạn sẽ gọi API AI)
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      const question = `${currentPost.title}\n\n${currentPost.content}`;
+      const aiResult = await askMathQuestion(question);
+      const response = await updateAiResponse(currentPost._id, aiResult.answer);
 
-      // Tạo câu trả lời mẫu dựa trên nội dung bài đăng
-      const sampleResponse = `Dựa trên bài toán của bạn, tôi có thể giúp giải như sau:
-      
-      **Phân tích bài toán:**
-      ${currentPost.title}
-      
-      **Cách giải:**
-      1. Đầu tiên, chúng ta cần xác định các biến và điều kiện.
-      2. Áp dụng công thức phù hợp với bài toán.
-      3. Giải phương trình và tìm kết quả.
-      
-      **Kết quả:**
-      Sau khi tính toán, chúng ta có đáp án là x = 5.
-      
-      Hy vọng điều này giúp ích cho bạn! Nếu bạn cần giải thích thêm, hãy cho tôi biết.`
-
-      setAiResponse(sampleResponse)
-
-      // Cập nhật câu trả lời AI vào bài đăng
-      await updateAiResponse(currentPost._id, sampleResponse)
-
-      // Cập nhật state
+      setAiResponse(aiResult.answer);
       setCurrentPost({
         ...currentPost,
-        aiResponse: sampleResponse,
+        aiResponse: response.aiResponse,
         isAiAnswered: true,
-      })
+      });
 
-      toast.success("Đã nhận được câu trả lời từ AI!")
+      toast.success("Đã nhận được câu trả lời từ AI!");
     } catch (error) {
-      toast.error("Không thể xử lý yêu cầu AI")
+      toast.error(error.message || "Không thể xử lý yêu cầu AI");
     } finally {
-      setIsProcessingAi(false)
+      setIsProcessingAi(false);
     }
-  }
+  };
 
-  // Handle search by image
+  const debouncedSearch = useMemo(
+    () =>
+      debounce((value) => {
+        setSearch(value);
+        setPage(1);
+      }, 500),
+    []
+  );
+
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value); // Cập nhật giá trị input ngay lập tức
+    debouncedSearch(value);
+  };
+
   const handleSearchByImage = async (e) => {
-    const file = e.target.files[0]
-    if (!file) return
+    const file = e.target.files[0];
+    if (!file) return;
 
-    setSearchImage(file)
+    setSearchImage(file);
 
-    // Giả lập tìm kiếm bằng hình ảnh
-    setLoading(true)
+    setLoading(true);
     try {
-      // Trong thực tế, bạn sẽ tải lên hình ảnh và gửi đến API nhận dạng
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      const formData = new FormData();
+      formData.append("image", file);
 
-      // Giả lập kết quả tìm kiếm
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
       const response = await getPosts({
         category: "exercise",
-        subject: "highschool",
-        limit: 5,
-      })
+        subject,
+        search: "math problem",
+        page: 1,
+      });
 
-      setPosts(response.data)
-      setTotalPages(response.totalPages)
+      setPosts(response.data);
+      setTotalPages(response.totalPages);
+      setPage(1);
 
-      toast.success("Đã tìm kiếm bằng hình ảnh!")
+      toast.success("Đã tìm kiếm bằng hình ảnh!");
     } catch (error) {
-      toast.error("Không thể tìm kiếm bằng hình ảnh")
+      toast.error(error.message || "Không thể tìm kiếm bằng hình ảnh");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  // Render post list
-  const renderPostList = () => {
+  const formatDate = (date) => {
+    return new Date(date).toLocaleDateString("vi-VN", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  };
+
+  const formatDateTime = (date) => {
+    return new Date(date).toLocaleString("vi-VN", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  };
+
+  const PostRow = useCallback(
+    ({ index, style }) => {
+      const post = posts[index];
+      const isBookmarked = bookmarkedPostIds.includes(post._id);
+
+      return (
+        <div style={style} className="post-card">
+          <div className="post-header">
+            <div className="post-author">
+              <img
+                src={
+                  post.userId?.avatar ||
+                  "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746717237/default-avatar_ysrrdy.png"
+                }
+                alt={post.userId?.username || "Người dùng"}
+                className="author-avatar"
+              />
+              <div>
+                <h4>{post.userId?.username || "Người dùng"}</h4>
+                <span className="post-date">{formatDate(post.createdAt)}</span>
+              </div>
+            </div>
+            {post.status && (
+              <div className={`post-status ${post.status}`}>
+                {post.status === "open"
+                  ? "Đang mở"
+                  : post.status === "pending"
+                  ? "Đang chờ"
+                  : "Đã giải"}
+              </div>
+            )}
+          </div>
+
+          <h3 className="post-title">
+            <Link to={`/study-corner/${post._id}`}>{post.title}</Link>
+          </h3>
+
+          <div className="post-content-preview">
+            {post.content.length > 200
+              ? `${post.content.substring(0, 200)}...`
+              : post.content}
+          </div>
+
+          {post.images && post.images.length > 0 && (
+            <div className="post-images-preview">
+              <img
+                src={post.images[0] || "/placeholder.svg"}
+                alt="Hình ảnh bài đăng"
+              />
+              {post.images.length > 1 && (
+                <div className="more-images">+{post.images.length - 1}</div>
+              )}
+            </div>
+          )}
+
+          <div className="post-tags">
+            {post.tags &&
+              post.tags.map((tag, index) => (
+                <span key={index} className="tag">
+                  #{tag}
+                </span>
+              ))}
+          </div>
+
+          <div className="post-footer">
+            <div className="post-stats">
+              <span>
+                <i className="fas fa-eye"></i> {post.views || 0}
+              </span>
+              <span>
+                <i className="fas fa-comment"></i> {post.commentCount || 0}
+              </span>
+              <span>
+                <i className="fas fa-heart"></i>{" "}
+                {post.likes ? post.likes.length : 0}
+              </span>
+            </div>
+
+            <div className="post-actions">
+              <button
+                className={`action-button ${
+                  post.likes && user && post.likes.includes(user._id)
+                    ? "liked"
+                    : ""
+                }`}
+                onClick={() => handleLikePost(post._id)}
+                data-tooltip-id={`tooltip-like-${post._id}`}
+                data-tooltip-content="Thích bài đăng"
+              >
+                <i className="fas fa-heart"></i>
+              </button>
+              <Tooltip id={`tooltip-like-${post._id}`} />
+
+              <button
+                className={`action-button ${isBookmarked ? "bookmarked" : ""}`}
+                onClick={() => handleBookmarkPost(post._id)}
+                disabled={bookmarkLoading[post._id]}
+                data-tooltip-id={`tooltip-bookmark-${post._id}`}
+                data-tooltip-content={isBookmarked ? "Bỏ lưu" : "Lưu bài đăng"}
+              >
+                {bookmarkLoading[post._id] ? (
+                  <div
+                    className="spinner"
+                    style={{ width: "16px", height: "16px" }}
+                  ></div>
+                ) : (
+                  <i className="fas fa-bookmark"></i>
+                )}
+              </button>
+              <Tooltip id={`tooltip-bookmark-${post._id}`} />
+
+              {user &&
+                (post.userId?._id === user._id || user.role === "admin") && (
+                  <>
+                    <button
+                      className="action-button delete"
+                      onClick={() => handleDeletePost(post._id)}
+                      data-tooltip-id={`tooltip-delete-${post._id}`}
+                      data-tooltip-content="Xóa bài đăng"
+                    >
+                      <i className="fas fa-trash"></i>
+                    </button>
+                    <Tooltip id={`tooltip-delete-${post._id}`} />
+                  </>
+                )}
+            </div>
+          </div>
+        </div>
+      );
+    },
+    [
+      posts,
+      user,
+      bookmarkedPostIds,
+      bookmarkLoading,
+      handleLikePost,
+      handleBookmarkPost,
+      handleDeletePost,
+    ]
+  );
+
+  const renderPostList = useCallback(() => {
     if (loading && posts.length === 0) {
-      return <div className="loading-spinner">Đang tải...</div>
+      return <div className="loading-spinner">Đang tải...</div>;
     }
 
     if (posts.length === 0) {
       return (
         <div className="empty-state">
           <p>Không có bài đăng nào.</p>
-          <button className="btn-primary" onClick={() => setShowCreateForm(true)}>
-            Tạo bài đăng mới
-          </button>
+          {user && (
+            <button
+              className="btn-primary"
+              onClick={() => setShowCreateForm(true)}
+            >
+              Tạo bài đăng mới
+            </button>
+          )}
         </div>
-      )
+      );
     }
 
     return (
-      <div className="post-list">
-        {posts.map((post) => (
-          <div key={post._id} className="post-card">
-            <div className="post-header">
-              <div className="post-author">
-                <img
-                  src={
-                    post.userId?.avatar ||
-                    "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746717237/default-avatar_ysrrdy.png"
-                  }
-                  alt={post.userId?.username || "Người dùng"}
-                  className="author-avatar"
-                />
-                <div>
-                  <h4>{post.userId?.username || "Người dùng"}</h4>
-                  <span className="post-date">{new Date(post.createdAt).toLocaleDateString()}</span>
-                </div>
-              </div>
-              {post.status && (
-                <div className={`post-status ${post.status}`}>
-                  {post.status === "open" ? "Đang mở" : post.status === "pending" ? "Đang chờ" : "Đã giải"}
-                </div>
-              )}
-            </div>
-
-            <h3 className="post-title">
-              <Link to={`/study-corner/${post._id}`}>{post.title}</Link>
-            </h3>
-
-            <div className="post-content-preview">
-              {post.content.length > 200 ? `${post.content.substring(0, 200)}...` : post.content}
-            </div>
-
-            {post.images && post.images.length > 0 && (
-              <div className="post-images-preview">
-                <img src={post.images[0] || "/placeholder.svg"} alt="Hình ảnh bài đăng" />
-                {post.images.length > 1 && <div className="more-images">+{post.images.length - 1}</div>}
-              </div>
-            )}
-
-            <div className="post-tags">
-              {post.tags &&
-                post.tags.map((tag, index) => (
-                  <span key={index} className="tag">
-                    #{tag}
-                  </span>
-                ))}
-            </div>
-
-            <div className="post-footer">
-              <div className="post-stats">
-                <span>
-                  <i className="fas fa-eye"></i> {post.views || 0}
-                </span>
-                <span>
-                  <i className="fas fa-comment"></i> {post.commentCount || 0}
-                </span>
-                <span>
-                  <i className="fas fa-heart"></i> {post.likes ? post.likes.length : 0}
-                </span>
-              </div>
-
-              <div className="post-actions">
-                <button
-                  className={`action-button ${post.likes && user && post.likes.includes(user._id) ? "liked" : ""}`}
-                  onClick={() => handleLikePost(post._id)}
-                  aria-label="Thích bài đăng"
-                >
-                  <i className="fas fa-heart"></i>
-                </button>
-
-                <button
-                  className={`action-button ${
-                    post.bookmarks && user && post.bookmarks.includes(user._id) ? "bookmarked" : ""
-                  }`}
-                  onClick={() => handleBookmarkPost(post._id)}
-                  aria-label="Đánh dấu bài đăng"
-                >
-                  <i className="fas fa-bookmark"></i>
-                </button>
-
-                {user && (post.userId?._id === user._id || user.role === "admin") && (
-                  <button
-                    className="action-button delete"
-                    onClick={() => handleDeletePost(post._id)}
-                    aria-label="Xóa bài đăng"
-                  >
-                    <i className="fas fa-trash"></i>
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
+      <div className="post-list" style={{ height: "600px" }}>
+        <AutoSizer>
+          {({ height, width }) => (
+            <List
+              height={height}
+              width={width}
+              itemCount={posts.length}
+              itemSize={300}
+            >
+              {PostRow}
+            </List>
+          )}
+        </AutoSizer>
       </div>
-    )
-  }
+    );
+  }, [loading, posts, user, PostRow]);
 
-  // Render post detail
-  const renderPostDetail = () => {
-    if (!currentPost) return null
+  const renderPostDetail = useCallback(() => {
+    if (!currentPost) return null;
 
-    const isAuthor = user && currentPost.userId?._id === user._id
-    const isLiked = user && currentPost.likes && currentPost.likes.includes(user._id)
-    const isBookmarked = user && currentPost.bookmarks && currentPost.bookmarks.includes(user._id)
+    const isAuthor = user && currentPost.userId?._id === user._id;
+    const isLiked =
+      user && currentPost.likes && currentPost.likes.includes(user._id);
+    const isBookmarked = bookmarkedPostIds.includes(currentPost._id);
 
     return (
       <div className="post-detail">
@@ -598,33 +791,45 @@ const StudyCorner = () => {
             />
             <div>
               <h4>{currentPost.userId?.username || "Người dùng"}</h4>
-              <span className="post-date">{new Date(currentPost.createdAt).toLocaleDateString()}</span>
+              <span className="post-date">
+                {formatDate(currentPost.createdAt)}
+              </span>
             </div>
           </div>
 
           <div className="post-actions">
             {currentPost.category === "exercise" && (
               <div className={`post-status ${currentPost.status}`}>
-                {currentPost.status === "open" ? "Đang mở" : currentPost.status === "pending" ? "Đang chờ" : "Đã giải"}
+                {currentPost.status === "open"
+                  ? "Đang mở"
+                  : currentPost.status === "pending"
+                  ? "Đang chờ"
+                  : "Đã giải"}
               </div>
             )}
 
             {isAuthor && currentPost.category === "exercise" && (
               <div className="status-actions">
                 <button
-                  className={`status-button ${currentPost.status === "open" ? "active" : ""}`}
+                  className={`status-button ${
+                    currentPost.status === "open" ? "active" : ""
+                  }`}
                   onClick={() => handleUpdateStatus(currentPost._id, "open")}
                 >
                   Đang mở
                 </button>
                 <button
-                  className={`status-button ${currentPost.status === "pending" ? "active" : ""}`}
+                  className={`status-button ${
+                    currentPost.status === "pending" ? "active" : ""
+                  }`}
                   onClick={() => handleUpdateStatus(currentPost._id, "pending")}
                 >
                   Đang chờ
                 </button>
                 <button
-                  className={`status-button ${currentPost.status === "solved" ? "active" : ""}`}
+                  className={`status-button ${
+                    currentPost.status === "solved" ? "active" : ""
+                  }`}
                   onClick={() => handleUpdateStatus(currentPost._id, "solved")}
                 >
                   Đã giải
@@ -641,7 +846,11 @@ const StudyCorner = () => {
         {currentPost.images && currentPost.images.length > 0 && (
           <div className="post-detail-images">
             {currentPost.images.map((image, index) => (
-              <img key={index} src={image || "/placeholder.svg"} alt={`Hình ảnh ${index + 1}`} />
+              <img
+                key={index}
+                src={image || "/placeholder.svg"}
+                alt={`Hình ảnh ${index + 1}`}
+              />
             ))}
           </div>
         )}
@@ -679,7 +888,8 @@ const StudyCorner = () => {
               <i className="fas fa-comment"></i> {comments.length} bình luận
             </span>
             <span>
-              <i className="fas fa-heart"></i> {currentPost.likes ? currentPost.likes.length : 0} lượt thích
+              <i className="fas fa-heart"></i>{" "}
+              {currentPost.likes ? currentPost.likes.length : 0} lượt thích
             </span>
           </div>
 
@@ -687,32 +897,49 @@ const StudyCorner = () => {
             <button
               className={`action-button ${isLiked ? "liked" : ""}`}
               onClick={() => handleLikePost(currentPost._id)}
-              aria-label="Thích bài đăng"
+              data-tooltip-id="tooltip-like-detail"
+              data-tooltip-content="Thích bài đăng"
             >
               <i className="fas fa-heart"></i> Thích
             </button>
+            <Tooltip id="tooltip-like-detail" />
 
             <button
               className={`action-button ${isBookmarked ? "bookmarked" : ""}`}
               onClick={() => handleBookmarkPost(currentPost._id)}
-              aria-label="Đánh dấu bài đăng"
+              disabled={bookmarkLoading[currentPost._id]}
+              data-tooltip-id="tooltip-bookmark-detail"
+              data-tooltip-content={isBookmarked ? "Bỏ lưu" : "Lưu bài đăng"}
             >
-              <i className="fas fa-bookmark"></i> Lưu
+              {bookmarkLoading[currentPost._id] ? (
+                <div
+                  className="spinner"
+                  style={{ width: "16px", height: "16px" }}
+                ></div>
+              ) : (
+                <>
+                  <i className="fas fa-bookmark"></i> Lưu
+                </>
+              )}
             </button>
+            <Tooltip id="tooltip-bookmark-detail" />
 
             {(isAuthor || (user && user.role === "admin")) && (
-              <button
-                className="action-button delete"
-                onClick={() => handleDeletePost(currentPost._id)}
-                aria-label="Xóa bài đăng"
-              >
-                <i className="fas fa-trash"></i> Xóa
-              </button>
+              <>
+                <button
+                  className="action-button delete"
+                  onClick={() => handleDeletePost(currentPost._id)}
+                  data-tooltip-id="tooltip-delete-detail"
+                  data-tooltip-content="Xóa bài đăng"
+                >
+                  <i className="fas fa-trash"></i> Xóa
+                </button>
+                <Tooltip id="tooltip-delete-detail" />
+              </>
             )}
           </div>
         </div>
 
-        {/* AI Response Section */}
         {currentPost.category === "exercise" && (
           <div className="ai-response-section">
             <div className="ai-response-header">
@@ -720,7 +947,11 @@ const StudyCorner = () => {
                 <i className="fas fa-robot"></i> Trợ giúp từ AI
               </h3>
               {!currentPost.isAiAnswered && !isProcessingAi && (
-                <button className="btn-primary" onClick={handleAiResponse} disabled={isProcessingAi}>
+                <button
+                  className="btn-primary"
+                  onClick={handleAiResponse}
+                  disabled={isProcessingAi}
+                >
                   <i className="fas fa-magic"></i> Giải bài tập bằng AI
                 </button>
               )}
@@ -739,13 +970,15 @@ const StudyCorner = () => {
               </div>
             ) : (
               <div className="ai-response-placeholder">
-                <p>AI có thể giúp bạn giải bài tập này. Nhấn nút "Giải bài tập bằng AI" để nhận trợ giúp.</p>
+                <p>
+                  AI có thể giúp bạn giải bài tập này. Nhấn nút "Giải bài tập
+                  bằng AI" để nhận trợ giúp.
+                </p>
               </div>
             )}
           </div>
         )}
 
-        {/* Comments Section */}
         <div className="comments-section">
           <h3>Bình luận ({comments.length})</h3>
 
@@ -787,19 +1020,29 @@ const StudyCorner = () => {
                       />
                       <div>
                         <h4>{comment.userId?.username || "Người dùng"}</h4>
-                        <span className="comment-date">{new Date(comment.createdAt).toLocaleString()}</span>
+                        <span className="comment-date">
+                          {formatDateTime(comment.createdAt)}
+                        </span>
                       </div>
                     </div>
 
-                    {user && (comment.userId?._id === user._id || user.role === "admin") && (
-                      <button
-                        className="delete-comment"
-                        onClick={() => handleDeleteComment(comment._id)}
-                        aria-label="Xóa bình luận"
-                      >
-                        <i className="fas fa-trash"></i>
-                      </button>
-                    )}
+                    {user &&
+                      (comment.userId?._id === user._id ||
+                        user.role === "admin") && (
+                        <>
+                          <button
+                            className="delete-comment"
+                            onClick={() => handleDeleteComment(comment._id)}
+                            data-tooltip-id={`tooltip-delete-comment-${comment._id}`}
+                            data-tooltip-content="Xóa bình luận"
+                          >
+                            <i className="fas fa-trash"></i>
+                          </button>
+                          <Tooltip
+                            id={`tooltip-delete-comment-${comment._id}`}
+                          />
+                        </>
+                      )}
                   </div>
 
                   <div className="comment-content">{comment.content}</div>
@@ -807,12 +1050,20 @@ const StudyCorner = () => {
                   <div className="comment-footer">
                     <button
                       className={`like-comment ${
-                        user && comment.likes && comment.likes.includes(user._id) ? "liked" : ""
+                        user &&
+                        comment.likes &&
+                        comment.likes.includes(user._id)
+                          ? "liked"
+                          : ""
                       }`}
                       onClick={() => handleLikeComment(comment._id)}
+                      data-tooltip-id={`tooltip-like-comment-${comment._id}`}
+                      data-tooltip-content="Thích bình luận"
                     >
-                      <i className="fas fa-heart"></i> {comment.likes ? comment.likes.length : 0}
+                      <i className="fas fa-heart"></i>{" "}
+                      {comment.likes ? comment.likes.length : 0}
                     </button>
+                    <Tooltip id={`tooltip-like-comment-${comment._id}`} />
                   </div>
                 </div>
               ))}
@@ -824,10 +1075,16 @@ const StudyCorner = () => {
           )}
         </div>
       </div>
-    )
-  }
+    );
+  }, [
+    currentPost,
+    user,
+    comments,
+    commentsLoading,
+    bookmarkedPostIds,
+    bookmarkLoading,
+  ]);
 
-  // Render create post form
   const renderCreateForm = () => {
     return (
       <div className="create-post-form">
@@ -835,8 +1092,8 @@ const StudyCorner = () => {
           {activeTab === "exercises"
             ? "Đăng bài tập cần giải"
             : activeTab === "learning"
-              ? "Đặt câu hỏi học tập"
-              : "Chia sẻ kiến thức"}
+            ? "Đặt câu hỏi học tập"
+            : "Chia sẻ kiến thức"}
         </h2>
 
         <form onSubmit={handleCreatePost}>
@@ -851,6 +1108,7 @@ const StudyCorner = () => {
               required
               maxLength={200}
               placeholder="Nhập tiêu đề bài đăng..."
+              disabled={createPostLoading}
             />
           </div>
 
@@ -864,13 +1122,21 @@ const StudyCorner = () => {
               required
               rows={5}
               placeholder="Mô tả chi tiết bài toán hoặc câu hỏi của bạn..."
+              disabled={createPostLoading}
             />
           </div>
 
           {activeTab !== "sharing" && (
             <div className="form-group">
               <label htmlFor="subject">Cấp học *</label>
-              <select id="subject" name="subject" value={formData.subject} onChange={handleInputChange} required>
+              <select
+                id="subject"
+                name="subject"
+                value={formData.subject}
+                onChange={handleInputChange}
+                required
+                disabled={createPostLoading}
+              >
                 <option value="primary">Tiểu học</option>
                 <option value="secondary">THCS</option>
                 <option value="highschool">THPT</option>
@@ -889,6 +1155,7 @@ const StudyCorner = () => {
               value={formData.tags}
               onChange={handleInputChange}
               placeholder="Nhập các thẻ, phân cách bằng dấu phẩy (ví dụ: đại số, hình học, giải tích)"
+              disabled={createPostLoading}
             />
           </div>
 
@@ -897,7 +1164,10 @@ const StudyCorner = () => {
             <div className="upload-preview">
               {formData.images.map((url, index) => (
                 <div key={index} className="image-preview">
-                  <img src={url || "/placeholder.svg"} alt={`Preview ${index}`} />
+                  <img
+                    src={url || "/placeholder.svg"}
+                    alt={`Preview ${index}`}
+                  />
                   <button
                     type="button"
                     className="remove-image"
@@ -907,13 +1177,19 @@ const StudyCorner = () => {
                         images: formData.images.filter((_, i) => i !== index),
                       })
                     }
+                    disabled={createPostLoading}
                   >
                     <i className="fas fa-times"></i>
                   </button>
                 </div>
               ))}
 
-              <button type="button" className="upload-button" onClick={() => imageInputRef.current.click()}>
+              <button
+                type="button"
+                className="upload-button"
+                onClick={() => imageInputRef.current.click()}
+                disabled={createPostLoading}
+              >
                 <i className="fas fa-image"></i> Thêm hình ảnh
               </button>
               <input
@@ -923,6 +1199,7 @@ const StudyCorner = () => {
                 accept="image/*"
                 multiple
                 style={{ display: "none" }}
+                disabled={createPostLoading}
               />
             </div>
           </div>
@@ -942,36 +1219,71 @@ const StudyCorner = () => {
                         files: formData.files.filter((_, i) => i !== index),
                       })
                     }
+                    disabled={createPostLoading}
                   >
                     <i className="fas fa-times"></i>
                   </button>
                 </div>
               ))}
 
-              <button type="button" className="upload-button" onClick={() => fileInputRef.current.click()}>
+              <button
+                type="button"
+                className="upload-button"
+                onClick={() => fileInputRef.current.click()}
+                disabled={createPostLoading}
+              >
                 <i className="fas fa-paperclip"></i> Thêm tệp đính kèm
               </button>
-              <input type="file" ref={fileInputRef} onChange={handleFileUpload} multiple style={{ display: "none" }} />
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                multiple
+                style={{ display: "none" }}
+                disabled={createPostLoading}
+              />
             </div>
           </div>
 
           <div className="form-actions">
-            <button type="button" className="btn-secondary" onClick={() => setShowCreateForm(false)}>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setShowCreateForm(false)}
+              disabled={createPostLoading}
+            >
               Hủy
             </button>
-            <button type="submit" className="btn-primary">
-              Đăng bài
+            <button
+              type="submit"
+              className="btn-primary"
+              disabled={createPostLoading}
+            >
+              {createPostLoading ? (
+                <>
+                  <div
+                    className="spinner"
+                    style={{
+                      display: "inline-block",
+                      width: "20px",
+                      height: "20px",
+                      marginRight: "8px",
+                    }}
+                  ></div>
+                  Đang đăng...
+                </>
+              ) : (
+                "Đăng bài"
+              )}
             </button>
           </div>
         </form>
       </div>
-    )
-  }
+    );
+  };
 
-  // Render main content
   return (
     <div className="study-corner-container">
-      {/* Sidebar/Navigation */}
       <div className="study-corner-sidebar">
         <h2>Góc học tập</h2>
         <nav>
@@ -999,7 +1311,6 @@ const StudyCorner = () => {
           </ul>
         </nav>
 
-        {/* Filters */}
         {!id && (
           <div className="sidebar-filters">
             <h3>Bộ lọc</h3>
@@ -1008,7 +1319,11 @@ const StudyCorner = () => {
               <>
                 <div className="filter-group">
                   <label htmlFor="subject-filter">Cấp học</label>
-                  <select id="subject-filter" value={subject} onChange={(e) => setSubject(e.target.value)}>
+                  <select
+                    id="subject-filter"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                  >
                     <option value="">Tất cả</option>
                     <option value="primary">Tiểu học</option>
                     <option value="secondary">THCS</option>
@@ -1021,7 +1336,11 @@ const StudyCorner = () => {
                 {activeTab === "exercises" && (
                   <div className="filter-group">
                     <label htmlFor="status-filter">Trạng thái</label>
-                    <select id="status-filter" value={status} onChange={(e) => setStatus(e.target.value)}>
+                    <select
+                      id="status-filter"
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value)}
+                    >
                       <option value="">Tất cả</option>
                       <option value="open">Đang mở</option>
                       <option value="pending">Đang chờ</option>
@@ -1038,14 +1357,15 @@ const StudyCorner = () => {
                 <input
                   type="text"
                   id="search-filter"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  value={searchInput}
+                  onChange={handleSearchChange}
                   placeholder="Tìm kiếm..."
                 />
                 <button
                   className="search-button"
                   onClick={() => {
-                    // Implement search functionality
+                    setSearch(searchInput);
+                    setPage(1);
                   }}
                 >
                   <i className="fas fa-search"></i>
@@ -1055,7 +1375,10 @@ const StudyCorner = () => {
 
             <div className="filter-group">
               <label>Tìm kiếm bằng hình ảnh</label>
-              <button className="image-search-button" onClick={() => imageInputRef.current.click()}>
+              <button
+                className="image-search-button"
+                onClick={() => imageInputRef.current.click()}
+              >
                 <i className="fas fa-camera"></i> Tải lên hình ảnh
               </button>
               <input
@@ -1073,7 +1396,10 @@ const StudyCorner = () => {
                     alt="Search"
                     className="search-image-preview"
                   />
-                  <button className="remove-image" onClick={() => setSearchImage(null)}>
+                  <button
+                    className="remove-image"
+                    onClick={() => setSearchImage(null)}
+                  >
                     <i className="fas fa-times"></i>
                   </button>
                 </div>
@@ -1083,34 +1409,50 @@ const StudyCorner = () => {
         )}
       </div>
 
-      {/* Main Content */}
       <div className="study-corner-content">
-        {/* Header */}
         <div className="content-header">
           <h1>
             {id
               ? currentPost?.title || "Chi tiết bài đăng"
               : activeTab === "exercises"
-                ? "Bài tập toán học"
-                : activeTab === "learning"
-                  ? "Hỏi đáp học tập"
-                  : activeTab === "sharing"
-                    ? "Chia sẻ kiến thức"
-                    : "Bài đăng đã lưu"}
+              ? "Bài tập toán học"
+              : activeTab === "learning"
+              ? "Hỏi đáp học tập"
+              : activeTab === "sharing"
+              ? "Chia sẻ kiến thức"
+              : "Bài đăng đã lưu"}
           </h1>
 
-          {!id && !showCreateForm && (
-            <button className="btn-primary create-post-button" onClick={() => setShowCreateForm(true)}>
+          {!id && !showCreateForm && user && (
+            <button
+              className="create-post-button"
+              onClick={() => setShowCreateForm(true)}
+            >
               <i className="fas fa-plus"></i>{" "}
-              {activeTab === "exercises" ? "Đăng bài tập" : activeTab === "learning" ? "Đặt câu hỏi" : "Chia sẻ"}
+              {activeTab === "exercises"
+                ? "Đăng bài tập"
+                : activeTab === "learning"
+                ? "Đặt câu hỏi"
+                : "Chia sẻ"}
             </button>
+          )}
+
+          {!id && !showCreateForm && !user && (
+            <div className="login-prompt">
+              <p>
+                Vui lòng <Link to="/auth/login">đăng nhập</Link> để tạo bài
+                đăng.
+              </p>
+            </div>
           )}
         </div>
 
-        {/* Main Content */}
-        {showCreateForm ? renderCreateForm() : id ? renderPostDetail() : renderPostList()}
+        {showCreateForm
+          ? renderCreateForm()
+          : id
+          ? renderPostDetail()
+          : renderPostList()}
 
-        {/* Pagination */}
         {!id && !showCreateForm && totalPages > 1 && (
           <div className="pagination">
             <button
@@ -1136,7 +1478,7 @@ const StudyCorner = () => {
         )}
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default StudyCorner
+export default StudyCorner;

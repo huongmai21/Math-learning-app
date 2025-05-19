@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+"use client";
+
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
@@ -6,13 +8,13 @@ import { Helmet } from "react-helmet";
 import {
   getCourseById,
   enrollCourse,
-  addCourseContent,
-  updateCourseContent,
-  deleteCourseContent,
   updateProgress,
-  getProgress,
+  getCourseLessons,
+  createLesson,
+  updateLesson,
+  deleteLesson,
   createReview,
-  getReviews,
+  getCourseReviews,
 } from "../../services/courseService";
 import {
   addBookmark,
@@ -26,16 +28,17 @@ const CourseDetail = () => {
   const navigate = useNavigate();
   const { user, token } = useSelector((state) => state.auth);
   const [course, setCourse] = useState(null);
+  const [lessons, setLessons] = useState([]);
   const [progress, setProgress] = useState({ completedContents: [] });
   const [reviews, setReviews] = useState([]);
   const [bookmarks, setBookmarks] = useState([]);
-  const [newContent, setNewContent] = useState({
+  const [newLesson, setNewLesson] = useState({
     title: "",
     type: "video",
     url: "",
     isPreview: false,
   });
-  const [editingContent, setEditingContent] = useState(null);
+  const [editingLesson, setEditingLesson] = useState(null);
   const [newReview, setNewReview] = useState({ rating: 5, comment: "" });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -47,16 +50,20 @@ const CourseDetail = () => {
       try {
         const response = await getCourseById(id);
         setCourse(response.data);
+        const lessonsRes = await getCourseLessons(id);
+        setLessons(lessonsRes.data || []);
         if (user && token) {
-          const progressRes = await getProgress(id);
-          setProgress(progressRes.data);
-          const reviewsRes = await getReviews(id);
-          setReviews(reviewsRes.data);
+          const reviewsRes = await getCourseReviews(id);
+          setReviews(reviewsRes.data || []);
           const bookmarkRes = await getBookmarks();
           setBookmarks(bookmarkRes.data.map((b) => b.courseId._id));
+
+          // Lấy tiến độ học tập ban đầu
+          const userProgress = user.progress?.find((p) => p.courseId === id);
+          setProgress(userProgress || { completedContents: [] });
         }
       } catch (err) {
-        setError(err || "Không thể tải chi tiết khóa học!");
+        setError(err?.message || "Không thể tải chi tiết khóa học!");
       } finally {
         setLoading(false);
       }
@@ -75,7 +82,7 @@ const CourseDetail = () => {
       toast.success("Đăng ký khóa học thành công!");
       navigate(0);
     } catch (err) {
-      toast.error(err || "Đăng ký thất bại!");
+      toast.error(err?.message || "Đăng ký thất bại!");
     }
   };
 
@@ -96,72 +103,80 @@ const CourseDetail = () => {
         toast.success("Đã bookmark khóa học!");
       }
     } catch (err) {
-      toast.error(err || "Lỗi khi bookmark khóa học!");
+      toast.error(err?.message || "Lỗi khi bookmark khóa học!");
     }
   };
 
-  const handleAddContent = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await addCourseContent(id, newContent);
-      setCourse(response.data);
-      setNewContent({ title: "", type: "video", url: "", isPreview: false });
-      toast.success("Thêm nội dung thành công!");
-    } catch (err) {
-      toast.error(err || "Thêm nội dung thất bại!");
+  // Đánh dấu hoàn thành bài học
+  const handleCompleteLesson = async (lessonId) => {
+    if (!user || !token) {
+      toast.error("Vui lòng đăng nhập để cập nhật tiến độ!");
+      return;
     }
-  };
-
-  const handleUpdateContent = async (e) => {
-    e.preventDefault();
     try {
-      const response = await updateCourseContent(
-        id,
-        editingContent._id,
-        newContent
-      );
-      setCourse(response.data);
-      setEditingContent(null);
-      setNewContent({ title: "", type: "video", url: "", isPreview: false });
-      toast.success("Cập nhật nội dung thành công!");
-    } catch (err) {
-      toast.error(err || "Cập nhật nội dung thất bại!");
-    }
-  };
-
-  const handleDeleteContent = async (contentId) => {
-    try {
-      const response = await deleteCourseContent(id, contentId);
-      setCourse(response.data);
-      toast.success("Xóa nội dung thành công!");
-    } catch (err) {
-      toast.error(err || "Xóa nội dung thất bại!");
-    }
-  };
-
-  const handleEditContent = (content) => {
-    setEditingContent(content);
-    setNewContent({
-      title: content.title,
-      type: content.type,
-      url: content.url,
-      isPreview: content.isPreview,
-    });
-  };
-
-  const handleMarkComplete = async (contentId, completed) => {
-    try {
-      const response = await updateProgress(id, contentId, completed);
+      const isCompleted = progress.completedContents.includes(lessonId);
+      const response = await updateProgress(id, lessonId, !isCompleted);
       setProgress(response.data);
       toast.success(
-        completed ? "Đánh dấu hoàn thành!" : "Bỏ đánh dấu hoàn thành!"
+        isCompleted
+          ? "Đã bỏ đánh dấu hoàn thành!"
+          : "Đã đánh dấu hoàn thành bài học!"
       );
-      if (response.data.completedContents.length === course.contents.length) {
-        toast.success("Chúc mừng! Bạn đã hoàn thành khóa học!");
-      }
     } catch (err) {
-      toast.error(err || "Cập nhật tiến độ thất bại!");
+      toast.error(err?.message || "Cập nhật tiến độ thất bại!");
     }
+  };
+
+  // THÊM BÀI HỌC
+  const handleAddLesson = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await createLesson(id, newLesson);
+      setLessons([...lessons, response.data]);
+      setNewLesson({ title: "", type: "video", url: "", isPreview: false });
+      toast.success("Thêm bài học thành công!");
+    } catch (err) {
+      toast.error(err?.message || "Thêm bài học thất bại!");
+    }
+  };
+
+  // SỬA BÀI HỌC
+  const handleUpdateLesson = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await updateLesson(id, editingLesson._id, newLesson);
+      setLessons(
+        lessons.map((item) =>
+          item._id === editingLesson._id ? response.data : item
+        )
+      );
+      setEditingLesson(null);
+      setNewLesson({ title: "", type: "video", url: "", isPreview: false });
+      toast.success("Cập nhật bài học thành công!");
+    } catch (err) {
+      toast.error(err?.message || "Cập nhật bài học thất bại!");
+    }
+  };
+
+  // XOÁ BÀI HỌC
+  const handleDeleteLesson = async (lessonId) => {
+    try {
+      await deleteLesson(id, lessonId);
+      setLessons(lessons.filter((item) => item._id !== lessonId));
+      toast.success("Xóa bài học thành công!");
+    } catch (err) {
+      toast.error(err?.message || "Xóa bài học thất bại!");
+    }
+  };
+
+  const handleEditLesson = (lesson) => {
+    setEditingLesson(lesson);
+    setNewLesson({
+      title: lesson.title,
+      type: lesson.type,
+      url: lesson.url,
+      isPreview: lesson.isPreview,
+    });
   };
 
   const handleSubmitReview = async (e) => {
@@ -172,12 +187,13 @@ const CourseDetail = () => {
       setNewReview({ rating: 5, comment: "" });
       toast.success("Gửi đánh giá thành công!");
     } catch (err) {
-      toast.error(err || "Gửi đánh giá thất bại!");
+      toast.error(err?.message || "Gửi đánh giá thất bại!");
     }
   };
 
   const handleImageError = (e) => {
-    e.target.src = "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png";
+    e.target.src =
+      "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png";
   };
 
   if (loading) {
@@ -191,6 +207,12 @@ const CourseDetail = () => {
   if (!course) {
     return <div className="no-results">Khóa học không tồn tại.</div>;
   }
+
+  // Tính phần trăm hoàn thành
+  const totalLessons = lessons.length;
+  const completedLessons = progress.completedContents.length;
+  const completionPercentage =
+    totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
   return (
     <div className="course-detail">
@@ -255,18 +277,18 @@ const CourseDetail = () => {
         )}
         {(user?.role === "teacher" || user?.role === "admin") && (
           <div className="content-form-section">
-            <h3>{editingContent ? "Chỉnh sửa nội dung" : "Thêm nội dung"}</h3>
+            <h3>{editingLesson ? "Chỉnh sửa bài học" : "Thêm bài học"}</h3>
             <form
-              onSubmit={editingContent ? handleUpdateContent : handleAddContent}
+              onSubmit={editingLesson ? handleUpdateLesson : handleAddLesson}
               className="content-form"
             >
               <div className="form-group">
                 <label>Tiêu đề</label>
                 <input
                   type="text"
-                  value={newContent.title}
+                  value={newLesson.title}
                   onChange={(e) =>
-                    setNewContent({ ...newContent, title: e.target.value })
+                    setNewLesson({ ...newLesson, title: e.target.value })
                   }
                   required
                   className="form-input"
@@ -275,9 +297,9 @@ const CourseDetail = () => {
               <div className="form-group">
                 <label>Loại</label>
                 <select
-                  value={newContent.type}
+                  value={newLesson.type}
                   onChange={(e) =>
-                    setNewContent({ ...newContent, type: e.target.value })
+                    setNewLesson({ ...newLesson, type: e.target.value })
                   }
                   className="form-select"
                 >
@@ -290,9 +312,9 @@ const CourseDetail = () => {
                 <label>URL</label>
                 <input
                   type="url"
-                  value={newContent.url}
+                  value={newLesson.url}
                   onChange={(e) =>
-                    setNewContent({ ...newContent, url: e.target.value })
+                    setNewLesson({ ...newLesson, url: e.target.value })
                   }
                   required
                   className="form-input"
@@ -302,10 +324,10 @@ const CourseDetail = () => {
                 <label className="checkbox-label">
                   <input
                     type="checkbox"
-                    checked={newContent.isPreview}
+                    checked={newLesson.isPreview}
                     onChange={(e) =>
-                      setNewContent({
-                        ...newContent,
+                      setNewLesson({
+                        ...newLesson,
                         isPreview: e.target.checked,
                       })
                     }
@@ -314,14 +336,14 @@ const CourseDetail = () => {
                 </label>
               </div>
               <button type="submit" className="form-button">
-                {editingContent ? "Cập nhật nội dung" : "Thêm nội dung"}
+                {editingLesson ? "Cập nhật bài học" : "Thêm bài học"}
               </button>
-              {editingContent && (
+              {editingLesson && (
                 <button
                   type="button"
                   onClick={() => {
-                    setEditingContent(null);
-                    setNewContent({
+                    setEditingLesson(null);
+                    setNewLesson({
                       title: "",
                       type: "video",
                       url: "",
@@ -336,37 +358,51 @@ const CourseDetail = () => {
             </form>
           </div>
         )}
+        {user?.enrolledCourses.includes(id) && (
+          <div className="progress-section">
+            <h3>Tiến độ học tập</h3>
+            <p>
+              Bạn đã hoàn thành {completedLessons}/{totalLessons} bài học (
+              {completionPercentage}%)
+            </p>
+            {completionPercentage === 100 && (
+              <p className="completed-message">
+                Chúc mừng! Bạn đã hoàn thành khóa học!
+              </p>
+            )}
+          </div>
+        )}
         <div className="contents-section">
           <h3>Nội dung khóa học</h3>
-          {course.contents?.length > 0 ? (
+          {lessons?.length > 0 ? (
             <ul className="contents-list">
-              {course.contents.map((content) => (
-                <li key={content._id} className="content-item">
+              {lessons.map((lesson) => (
+                <li key={lesson._id} className="content-item">
                   <div className="content-info">
-                    {user?.enrolledCourses.includes(id) || content.isPreview ? (
+                    {user?.enrolledCourses.includes(id) || lesson.isPreview ? (
                       <a
-                        href={content.url}
+                        href={lesson.url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="content-link"
                       >
-                        {content.title} (
-                        {content.type === "video"
+                        {lesson.title} (
+                        {lesson.type === "video"
                           ? "Video"
-                          : content.type === "document"
+                          : lesson.type === "document"
                           ? "Tài liệu"
                           : "Bài kiểm tra"}
                         )
-                        {content.isPreview && (
+                        {lesson.isPreview && (
                           <span className="preview-tag">(Xem trước)</span>
                         )}
                       </a>
                     ) : (
                       <span className="content-locked">
-                        {content.title} (
-                        {content.type === "video"
+                        {lesson.title} (
+                        {lesson.type === "video"
                           ? "Video"
-                          : content.type === "document"
+                          : lesson.type === "document"
                           ? "Tài liệu"
                           : "Bài kiểm tra"}
                         ) - Đăng ký để xem
@@ -374,19 +410,14 @@ const CourseDetail = () => {
                     )}
                     {user?.enrolledCourses.includes(id) && (
                       <button
-                        onClick={() =>
-                          handleMarkComplete(
-                            content._id,
-                            !progress.completedContents.includes(content._id)
-                          )
-                        }
+                        onClick={() => handleCompleteLesson(lesson._id)}
                         className={`complete-button ${
-                          progress.completedContents.includes(content._id)
+                          progress.completedContents.includes(lesson._id)
                             ? "completed"
                             : ""
                         }`}
                       >
-                        {progress.completedContents.includes(content._id)
+                        {progress.completedContents.includes(lesson._id)
                           ? "Đã hoàn thành"
                           : "Đánh dấu hoàn thành"}
                       </button>
@@ -395,13 +426,13 @@ const CourseDetail = () => {
                   {(user?.role === "teacher" || user?.role === "admin") && (
                     <div className="content-actions">
                       <button
-                        onClick={() => handleEditContent(content)}
+                        onClick={() => handleEditLesson(lesson)}
                         className="edit-button"
                       >
                         Sửa
                       </button>
                       <button
-                        onClick={() => handleDeleteContent(content._id)}
+                        onClick={() => handleDeleteLesson(lesson._id)}
                         className="delete-button"
                       >
                         Xóa
@@ -415,25 +446,6 @@ const CourseDetail = () => {
             <p className="no-results">Chưa có nội dung nào.</p>
           )}
         </div>
-        {user?.enrolledCourses.includes(id) && (
-          <div className="progress-section">
-            <h3>Tiến độ học</h3>
-            <p>
-              Hoàn thành: {progress.completedContents.length} /{" "}
-              {course.contents.length} nội dung (
-              {(
-                (progress.completedContents.length / course.contents.length) *
-                100
-              ).toFixed(2)}
-              %)
-            </p>
-            {user.completedCourses.includes(id) && (
-              <p className="completed-message">
-                Bạn đã hoàn thành khóa học này!
-              </p>
-            )}
-          </div>
-        )}
         <div className="reviews-section">
           <h3>Đánh giá khóa học</h3>
           {user?.enrolledCourses.includes(id) && (

@@ -7,6 +7,7 @@ const {
   createNews,
   updateNews,
   deleteNews,
+  getNewsSuggestions
 } = require("../controllers/newsController");
 const {
   authenticateToken,
@@ -14,6 +15,7 @@ const {
 } = require("../middleware/authMiddleware");
 
 router.get("/", getAllNews);
+router.get("/suggestions", getNewsSuggestions); // Thêm route cho gợi ý
 router.get("/:id", getNewsById);
 router.post("/create", authenticateToken, checkRole(["admin"]), createNews);
 router.put("/update/:id", authenticateToken, checkRole(["admin"]), updateNews);

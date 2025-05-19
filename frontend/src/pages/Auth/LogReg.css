@@ -58,7 +58,7 @@
 
 .container .content {
   position: absolute;
-  width: 1160px;
+  width: 100%;
   height: 100%; /* Khớp với container và .logreg-box */
   padding: 50px;
   color: #e4e4e4;

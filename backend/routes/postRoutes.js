@@ -7,8 +7,6 @@ const {
   updatePost,
   deletePost,
   likePost,
-  bookmarkPost,
-  getBookmarkedPosts,
   getPopularPosts,
   searchPosts,
   updatePostStatus,
@@ -31,8 +29,6 @@ router.post("/", createPost);
 router.put("/:id", updatePost);
 router.delete("/:id", deletePost);
 router.post("/:id/like", likePost);
-router.post("/:id/bookmark", bookmarkPost);
-router.get("/user/bookmarks", getBookmarkedPosts);
 router.put("/:id/status", updatePostStatus);
 router.put("/:id/ai-response", updateAiResponse);
 router.post("/upload/image", uploadPostImage);

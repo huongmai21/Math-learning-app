@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { fetchRelatedDocuments } from "../../services/documentService";
+import { getRelatedDocuments } from "../../services/documentService";
 import "./Document.css";
 
 const RelatedDocuments = ({ currentDoc }) => {
@@ -11,7 +11,7 @@ const RelatedDocuments = ({ currentDoc }) => {
     const fetchRelated = async () => {
       setIsLoading(true);
       try {
-        const docs = await fetchRelatedDocuments({
+        const docs = await getRelatedDocuments({
           educationLevel: currentDoc.educationLevel,
           subject: currentDoc.subject,
           excludeId: currentDoc._id,

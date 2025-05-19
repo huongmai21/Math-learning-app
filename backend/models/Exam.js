@@ -15,14 +15,10 @@ const examSchema = new mongoose.Schema({
     enum: ["easy", "medium", "hard"],
     required: true,
   },
-  difficulty: {
-    type: String,
-    enum: ["easy", "medium", "hard"],
-    required: true,
-  },
   author: { type: Schema.Types.ObjectId, ref: "User", required: true },
   createdAt: { type: Date, default: Date.now },
   maxAttempts: { type: Number, default: 1 }, // Giới hạn số lần làm bài
+  attempts: { type: Number, default: 0 } // Thêm trường attempts để theo dõi số lượt tham gia
 })
 
 // Validation để đảm bảo endTime > startTime

@@ -7,11 +7,13 @@ import { toast } from "react-toastify";
 import {
   getDocumentById,
   downloadDocument,
-  addBookmark,
-  removeBookmark,
-  checkBookmark,
   convertDocumentFormat,
 } from "../../services/documentService";
+import{
+  addBookmark,
+  removeBookmark,
+  checkBookmarks,
+} from "../../services/bookmarkService";
 import {
   getComments,
   createComment,
@@ -49,7 +51,7 @@ const DocumentDetail = () => {
         const docResponse = await getDocumentById(id);
         setDocument(docResponse);
         if (user) {
-          const bookmarkResponse = await checkBookmark(id);
+          const bookmarkResponse = await checkBookmarks(id);
           setIsBookmarked(bookmarkResponse.isBookmarked || false);
         }
         const commentsResponse = await getComments(id, {

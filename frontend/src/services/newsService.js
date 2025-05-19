@@ -1,57 +1,77 @@
 import api from "./api"
 
-export const getNews = async (category, page = 1, limit = 10) => {
+// Lấy danh sách tin tức
+export const getNews = async (page = 1, search = "", category = "") => {
   try {
     const response = await api.get("/news", {
-      params: { category, page, limit },
+      params: { page, search, category },
     })
     return response.data
   } catch (error) {
+    console.error("Error fetching news:", error)
     throw new Error(error.response?.data?.message || "Không thể tải tin tức")
   }
 }
 
+// Lấy chi tiết tin tức theo ID
 export const getNewsById = async (id) => {
   try {
     const response = await api.get(`/news/${id}`)
     return response.data
   } catch (error) {
+    console.error("Error fetching news details:", error)
     throw new Error(error.response?.data?.message || "Không thể tải chi tiết tin tức")
   }
 }
 
-export const createNews = async (newsData) => {
+// Lấy gợi ý tin tức
+export const getNewsSuggestions = async (query) => {
   try {
-    const response = await api.post("/news", newsData)
+    const response = await api.get("/news/suggestions", {
+      params: { query },
+    })
     return response.data
   } catch (error) {
-    throw new Error(error.response?.data?.message || "Không thể tạo tin tức")
+    console.error("Error fetching news suggestions:", error)
+    throw new Error(error.response?.data?.message || "Không thể tải gợi ý tin tức")
   }
 }
 
-export const updateNews = async (id, newsData) => {
+// Lấy tin tức nổi bật cho trang chủ
+export const getNewsPress = async ({ limit = 3 } = {}) => {
   try {
-    const response = await api.put(`/news/${id}`, newsData)
+    const response = await api.get("/news", {
+      params: { limit, featured: true },
+    })
     return response.data
   } catch (error) {
-    throw new Error(error.response?.data?.message || "Không thể cập nhật tin tức")
+    console.error("Error fetching featured news:", error)
+    // Trả về dữ liệu mẫu khi API lỗi để tránh crash UI
+    return {
+      success: true,
+      news: [
+        {
+          _id: "sample1",
+          title: "Tin tức Toán học mới nhất",
+          summary: "Những phát triển mới nhất trong lĩnh vực Toán học và ứng dụng",
+          image: "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934626/3_q1etwh.png",
+          createdAt: new Date().toISOString(),
+        },
+        {
+          _id: "sample2",
+          title: "Kỳ thi Toán học quốc tế sắp diễn ra",
+          summary: "Thông tin về kỳ thi Toán học quốc tế và cách chuẩn bị",
+          image: "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png",
+          createdAt: new Date().toISOString(),
+        },
+        {
+          _id: "sample3",
+          title: "Phương pháp học Toán hiệu quả",
+          summary: "Các phương pháp giúp học Toán hiệu quả và nâng cao kết quả",
+          image: "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934624/1_bsngjz.png",
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    }
   }
 }
-
-export const deleteNews = async (id) => {
-  try {
-    const response = await api.delete(`/news/${id}`)
-    return response.data
-  } catch (error) {
-    throw new Error(error.response?.data?.message || "Không thể xóa tin tức")
-  }
-}
-
-export const getNewsPress = async (limit) => {
-  const response = await api.get(`/news?limit=${limit}`);
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message);
-  }
-  return response.json();
-};

@@ -52,11 +52,11 @@
 }
 
 .admin-menu li:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 111, 97, 0.8);
 }
 
 .admin-menu li.active {
-  background-color: #3498db;
+  background-color: #ff6f61;
   font-weight: 600;
 }
 
@@ -78,8 +78,8 @@
 }
 
 .admin-avatar {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   margin-right: 10px;
   object-fit: cover;
@@ -146,7 +146,7 @@
 
 .refresh-btn {
   padding: 8px 15px;
-  background-color: #f8f9fa;
+  background-color: #ff6f61;
   border: 1px solid #ddd;
   border-radius: 4px;
   cursor: pointer;
@@ -157,7 +157,7 @@
 }
 
 .refresh-btn:hover {
-  background-color: #e9ecef;
+  background-color: #e05a4f;
 }
 
 .period-selector {
@@ -183,6 +183,7 @@
   display: flex;
   align-items: center;
   transition: transform 0.3s, box-shadow 0.3s;
+  border-left: 4px solid #ff6f61;
 }
 
 .stat-card:hover {
@@ -312,18 +313,18 @@ tr:hover {
 }
 
 .status-pending {
-  background-color: #fef3c7;
+  background-color: #ff9800;
   color: #d97706;
 }
 
 .status-approved,
 .status-published {
-  background-color: #d1fae5;
+  background-color: #4caf50;
   color: #059669;
 }
 
 .status-rejected {
-  background-color: #fee2e2;
+  background-color: #f44336;
   color: #dc2626;
 }
 
@@ -346,30 +347,30 @@ tr:hover {
 }
 
 .approve-btn {
-  background-color: #d1fae5;
+  background-color: #ff6f61;
   color: #059669;
 }
 
 .approve-btn:hover {
-  background-color: #a7f3d0;
+  background-color: #e05a4f;
 }
 
 .reject-btn {
-  background-color: #fee2e2;
+  background-color: #ff6f61;
   color: #dc2626;
 }
 
 .reject-btn:hover {
-  background-color: #fecaca;
+  background-color: #e05a4f;
 }
 
 .delete-btn {
-  background-color: #f3f4f6;
+  background-color: #ff6f61;
   color: #6b7280;
 }
 
 .delete-btn:hover {
-  background-color: #e5e7eb;
+  background-color: #e05a4f;
   color: #4b5563;
 }
 
@@ -385,14 +386,14 @@ tr:hover {
 .pagination-btn {
   padding: 8px 12px;
   border: 1px solid #ddd;
-  background-color: white;
+  background-color: #ff6f61;
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.3s;
 }
 
 .pagination-btn:hover:not(:disabled) {
-  background-color: #f8f9fa;
+  background-color: #e05a4f;
 }
 
 .pagination-btn:disabled {
@@ -457,7 +458,7 @@ tr:hover {
 .retry-btn {
   margin-top: 20px;
   padding: 10px 20px;
-  background-color: #3498db;
+  background-color: #ff6f61;
   color: white;
   border: none;
   border-radius: 4px;
@@ -466,7 +467,7 @@ tr:hover {
 }
 
 .retry-btn:hover {
-  background-color: #2980b9;
+  background-color: #e05a4f;
 }
 
 /* Access Denied */
@@ -497,7 +498,7 @@ tr:hover {
   display: inline-block;
   margin-top: 20px;
   padding: 10px 20px;
-  background-color: #3498db;
+  background-color: #ff6f61;
   color: white;
   text-decoration: none;
   border-radius: 4px;
@@ -505,7 +506,7 @@ tr:hover {
 }
 
 .back-home-btn:hover {
-  background-color: #2980b9;
+  background-color: #e05a4f;
 }
 
 /* Responsive */

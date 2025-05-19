@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
-// Sử dụng FontAwesome thay vì react-icons
 import searchService from "../../../services/searchService"
 import "./SearchBar.css"
 
@@ -11,6 +10,7 @@ const SearchBar = ({ placeholder = "Tìm kiếm...", onSearch, className = "" })
   const [searchResults, setSearchResults] = useState([])
   const [showResults, setShowResults] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [focused, setFocused] = useState(false)
   const searchRef = useRef(null)
   const navigate = useNavigate()
 
@@ -18,6 +18,7 @@ const SearchBar = ({ placeholder = "Tìm kiếm...", onSearch, className = "" })
     const handleClickOutside = (event) => {
       if (searchRef.current && !searchRef.current.contains(event.target)) {
         setShowResults(false)
+        setFocused(false)
       }
     }
 
@@ -92,18 +93,56 @@ const SearchBar = ({ placeholder = "Tìm kiếm...", onSearch, className = "" })
     setSearchTerm("")
   }
 
+  const getResultIcon = (type) => {
+    switch (type) {
+      case "course":
+        return "fa-graduation-cap"
+      case "document":
+        return "fa-file-alt"
+      case "news":
+        return "fa-newspaper"
+      case "exam":
+        return "fa-clipboard-list"
+      case "user":
+        return "fa-user"
+      default:
+        return "fa-search"
+    }
+  }
+
+  const getResultLabel = (type) => {
+    switch (type) {
+      case "course":
+        return "Khóa học"
+      case "document":
+        return "Tài liệu"
+      case "news":
+        return "Tin tức"
+      case "exam":
+        return "Đề thi"
+      case "user":
+        return "Người dùng"
+      default:
+        return type
+    }
+  }
+
   return (
-    <div className={`search-container ${className}`} ref={searchRef}>
-      <form onSubmit={handleSearch}>
+    <div className={`search-container ${className} ${focused ? "focused" : ""}`} ref={searchRef}>
+      <form onSubmit={handleSearch} className="search-form">
         <input
           type="text"
           className="search-input"
           placeholder={placeholder}
           value={searchTerm}
           onChange={handleInputChange}
-          onFocus={() => searchTerm.trim().length > 2 && setShowResults(true)}
+          onFocus={() => {
+            setFocused(true)
+            if (searchTerm.trim().length > 2) setShowResults(true)
+          }}
+          aria-label="Tìm kiếm"
         />
-        <button type="submit" className="search-icon" aria-label="Tìm kiếm">
+        <button type="submit" className="search-button" aria-label="Tìm kiếm">
           <i className="fas fa-search"></i>
         </button>
       </form>
@@ -111,39 +150,45 @@ const SearchBar = ({ placeholder = "Tìm kiếm...", onSearch, className = "" })
       {showResults && (
         <div className="search-results">
           {loading ? (
-            <div className="search-loading">Đang tìm kiếm...</div>
+            <div className="search-loading">
+              <div className="spinner"></div>
+              <span>Đang tìm kiếm...</span>
+            </div>
           ) : searchResults.length > 0 ? (
-            searchResults.map((result) => (
-              <div
-                key={`${result.type}-${result._id}`}
-                className="search-result-item"
-                onClick={() => handleResultClick(result)}
-              >
-                <div className="search-result-title">{result.title}</div>
-                {result.description && (
-                  <div className="search-result-description">
-                    {result.description.length > 100
-                      ? `${result.description.substring(0, 100)}...`
-                      : result.description}
+            <>
+              {searchResults.map((result) => (
+                <div
+                  key={`${result.type}-${result._id}`}
+                  className="search-result-item"
+                  onClick={() => handleResultClick(result)}
+                >
+                  <div className="result-icon">
+                    <i className={`fas ${getResultIcon(result.type)}`}></i>
                   </div>
-                )}
-                <div className="search-result-type">
-                  {result.type === "course"
-                    ? "Khóa học"
-                    : result.type === "document"
-                      ? "Tài liệu"
-                      : result.type === "news"
-                        ? "Tin tức"
-                        : result.type === "exam"
-                          ? "Đề thi"
-                          : result.type === "user"
-                            ? "Người dùng"
-                            : result.type}
+                  <div className="result-content">
+                    <div className="result-title">{result.title}</div>
+                    {result.description && (
+                      <div className="result-description">
+                        {result.description.length > 100
+                          ? `${result.description.substring(0, 100)}...`
+                          : result.description}
+                      </div>
+                    )}
+                    <div className="result-type">{getResultLabel(result.type)}</div>
+                  </div>
                 </div>
+              ))}
+              <div className="search-all">
+                <button onClick={() => navigate(`/search?q=${encodeURIComponent(searchTerm)}`)}>
+                  Xem tất cả kết quả
+                </button>
               </div>
-            ))
+            </>
           ) : (
-            <div className="no-results">Không tìm thấy kết quả</div>
+            <div className="no-results">
+              <i className="fas fa-search"></i>
+              <span>Không tìm thấy kết quả</span>
+            </div>
           )}
         </div>
       )}

@@ -1,6 +1,5 @@
 "use client"
 
-// frontend/src/App.jsx
 import { useEffect, useState } from "react"
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom"
 import { Provider, useDispatch, useSelector } from "react-redux"
@@ -39,6 +38,7 @@ import Spinner from "./components/ui/Spinner"
 import NewsPage from "./pages/News/NewsPage"
 import NewsEducation from "./pages/News/NewsEducation"
 import NewsMagazine from "./pages/News/NewsMagazine"
+import SearchResults from "./pages/Search/SearchResults"
 
 const AppContent = () => {
   const dispatch = useDispatch()
@@ -81,7 +81,12 @@ const AppContent = () => {
               </ProtectedRoute>
             }
           />
+          <Route path="/users/:id" element={<Profile />} />
           <Route path="/documents" element={<DocumentList />} />
+          <Route path="/documents/grade1" element={<DocumentList educationLevel="primary" />} />
+          <Route path="/documents/grade2" element={<DocumentList educationLevel="secondary" />} />
+          <Route path="/documents/grade3" element={<DocumentList educationLevel="highschool" />} />
+          <Route path="/documents/university" element={<DocumentList educationLevel="university" />} />
           <Route path="/documents/:id" element={<DocumentDetail />} />
           <Route
             path="/documents/create"
@@ -157,6 +162,7 @@ const AppContent = () => {
           <Route path="/news" element={<NewsPage />} />
           <Route path="/news/education" element={<NewsEducation />} />
           <Route path="/news/magazine" element={<NewsMagazine />} />
+          <Route path="/search" element={<SearchResults />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

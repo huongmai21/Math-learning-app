@@ -18,6 +18,9 @@ const newsSchema = new mongoose.Schema({
   views: { type: Number, default: 0 },
 })
 
+// Tạo chỉ mục để tối ưu tìm kiếm
+newsSchema.index({ title: "text", content: "text", summary: "text", tags: "text" });
+
 newsSchema.pre("save", function (next) {
   this.slug = slugify(this.title, { lower: true, strict: true })
   next()

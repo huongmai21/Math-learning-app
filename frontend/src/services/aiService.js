@@ -4,10 +4,10 @@ import api from "./api";
 export const askMathQuestion = async (question) => {
   try {
     const response = await api.post("/ai/math-question", { question });
-    return response;
+    return response.data; // Trả về dữ liệu từ response
   } catch (error) {
     console.error("Error asking math question:", error);
-    throw error;
+    throw new Error(error.response?.data?.message || "Không thể giải bài toán");
   }
 };
 
@@ -15,10 +15,10 @@ export const askMathQuestion = async (question) => {
 export const getMathHistory = async () => {
   try {
     const response = await api.get("/ai/history");
-    return response;
+    return response.data;
   } catch (error) {
     console.error("Error getting math history:", error);
-    throw error;
+    throw new Error(error.response?.data?.message || "Không thể lấy lịch sử hỏi đáp");
   }
 };
 
@@ -26,10 +26,10 @@ export const getMathHistory = async () => {
 export const generateExam = async (params) => {
   try {
     const response = await api.post("/ai/generate-exam", params);
-    return response;
+    return response.data;
   } catch (error) {
     console.error("Error generating exam:", error);
-    throw error;
+    throw new Error(error.response?.data?.message || "Không thể tạo đề thi");
   }
 };
 
@@ -37,10 +37,10 @@ export const generateExam = async (params) => {
 export const analyzeExamResult = async (examResultId) => {
   try {
     const response = await api.get(`/ai/analyze-exam/${examResultId}`);
-    return response;
+    return response.data;
   } catch (error) {
     console.error("Error analyzing exam result:", error);
-    throw error;
+    throw new Error(error.response?.data?.message || "Không thể phân tích kết quả thi");
   }
 };
 
@@ -48,10 +48,10 @@ export const analyzeExamResult = async (examResultId) => {
 export const suggestLearningMaterials = async (topic) => {
   try {
     const response = await api.post("/ai/suggest-materials", { topic });
-    return response;
+    return response.data;
   } catch (error) {
     console.error("Error suggesting learning materials:", error);
-    throw error;
+    throw new Error(error.response?.data?.message || "Không thể gợi ý tài liệu học tập");
   }
 };
 
@@ -59,10 +59,10 @@ export const suggestLearningMaterials = async (topic) => {
 export const createMathSimulation = async (params) => {
   try {
     const response = await api.post("/ai/create-simulation", params);
-    return response;
+    return response.data;
   } catch (error) {
     console.error("Error creating math simulation:", error);
-    throw error;
+    throw new Error(error.response?.data?.message || "Không thể tạo mô phỏng toán học");
   }
 };
 
