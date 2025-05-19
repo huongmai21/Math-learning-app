@@ -423,9 +423,14 @@ const StudyRoom = () => {
     }
 
     return (
-      <div className="room-list">
+      <motion.div
+        className="room-list"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+      >
         {roomsToRender.map((room) => (
-          <div key={room._id} className="room-card">
+          <motion.div key={room._id} className="room-card" whileHover={{ y: -5 }} transition={{ duration: 0.2 }}>
             <h3>{room.title}</h3>
             <p>{room.description}</p>
             <div className="room-info">
@@ -452,9 +457,9 @@ const StudyRoom = () => {
                 </button>
               )}
             </div>
-          </div>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
     )
   }
 
@@ -815,10 +820,10 @@ const StudyRoom = () => {
           <div className="filter-bar">
             <div className="tabs">
               <button className={`tab ${activeTab === "all" ? "active" : ""}`} onClick={() => setActiveTab("all")}>
-                Tất cả phòng
+                <i className="fas fa-globe"></i> Tất cả phòng
               </button>
               <button className={`tab ${activeTab === "my" ? "active" : ""}`} onClick={() => setActiveTab("my")}>
-                Phòng của tôi
+                <i className="fas fa-user"></i> Phòng của tôi
               </button>
             </div>
 
@@ -833,13 +838,21 @@ const StudyRoom = () => {
                   <option value="other">Khác</option>
                 </select>
 
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Tìm kiếm phòng học..."
-                  className="search-input"
-                />
+                <div className="search-container">
+                  <i className="fas fa-search search-icon"></i>
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Tìm kiếm phòng học..."
+                    className="search-input"
+                  />
+                  {search && (
+                    <button className="clear-search" onClick={() => setSearch("")}>
+                      <i className="fas fa-times"></i>
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>

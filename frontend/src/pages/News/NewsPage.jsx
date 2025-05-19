@@ -1,128 +1,136 @@
-// frontend/src/pages/NewsPage.jsx
-import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
-import { Helmet } from "react-helmet";
-import { getNews } from "../../services/newsService";
-import "./NewsPage.css";
+// "use client"
 
-const NewsPage = () => {
-  const [news, setNews] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [category, setCategory] = useState("education");
-  const [search, setSearch] = useState("");
+// import { useState, useEffect } from "react"
+// import { Link } from "react-router-dom"
+// import { FaCalendarAlt, FaUser, FaTag, FaSearch, FaFilter } from "react-icons/fa"
+// import { getNews, getCategories } from "../../services/newsService"
+// import Spinner from "../../components/ui/Spinner"
+// import "./News.css"
 
-  useEffect(() => {
-    const loadNews = async () => {
-      setLoading(true);
-      try {
-        const response = await getNews({ page, limit: 5, category, search });
-        setNews(response.data);
-        setTotalPages(response.totalPages);
-      } catch (err) {
-        setError("Failed to load news");
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadNews();
-  }, [page, category, search]);
+// const NewsPage = () => {
+//   const [news, setNews] = useState([])
+//   const [categories, setCategories] = useState([])
+//   const [loading, setLoading] = useState(true)
+//   const [searchTerm, setSearchTerm] = useState("")
+//   const [selectedCategory, setSelectedCategory] = useState("all")
+//   const [showFilters, setShowFilters] = useState(false)
 
-  const sectionVariants = {
-    hidden: { opacity: 0, y: 50 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
-  };
+//   useEffect(() => {
+//     const fetchData = async () => {
+//       try {
+//         setLoading(true)
+//         const [newsData, categoriesData] = await Promise.all([getNews(), getCategories()])
+//         setNews(newsData.data)
+//         setCategories(categoriesData.data)
+//       } catch (error) {
+//         console.error("Error fetching news data:", error)
+//       } finally {
+//         setLoading(false)
+//       }
+//     }
 
-  const handleImageError = (e) => {
-    e.target.src = "/assets/images/default-news.jpg";
-  };
+//     fetchData()
+//   }, [])
 
-  return (
-    <div className="news-page">
-      <Helmet>
-        <title>FunMath - News</title>
-        <meta
-          name="description"
-          content="Stay updated with the latest educational news and math-related articles."
-        />
-      </Helmet>
+//   const filteredNews = news.filter((item) => {
+//     const matchesSearch =
+//       item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+//       item.summary.toLowerCase().includes(searchTerm.toLowerCase())
+//     const matchesCategory = selectedCategory === "all" || item.category === selectedCategory
+//     return matchesSearch && matchesCategory
+//   })
 
-      <motion.section
-        className="news-section"
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true }}
-        variants={sectionVariants}
-      >
-        <h2>Latest News</h2>
-        <div className="filter-bar">
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-          >
-            <option value="education">Education</option>
-            <option value="math">Math</option>
-            <option value="science">Science</option>
-          </select>
-          <input
-            type="text"
-            placeholder="Search news..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        {loading ? (
-          <p>Loading...</p>
-        ) : error ? (
-          <p className="error">{error}</p>
-        ) : news.length > 0 ? (
-          <div className="news-list">
-            {news.map((item) => (
-              <motion.div
-                key={item._id}
-                className="news-item"
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.3 }}
-              >
-                <img
-                  src={item.image || "/assets/images/default-news.jpg"}
-                  alt={item.title}
-                  className="news-image"
-                  onError={handleImageError}
-                />
-                <div className="news-content">
-                  <h3>{item.title}</h3>
-                  <p>{item.summary}</p>
-                  <Link to={`/news/${item._id}`}>Read More</Link>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        ) : (
-          <p>No news found.</p>
-        )}
-        <div className="pagination">
-          <button disabled={page === 1} onClick={() => setPage(page - 1)}>
-            Previous
-          </button>
-          <span>
-            Page {page} of {totalPages}
-          </span>
-          <button
-            disabled={page === totalPages}
-            onClick={() => setPage(page + 1)}
-          >
-            Next
-          </button>
-        </div>
-      </motion.section>
-    </div>
-  );
-};
+//   const toggleFilters = () => {
+//     setShowFilters(!showFilters)
+//   }
 
-export default NewsPage;
+//   if (loading) {
+//     return (
+//       <div className="news-loading">
+//         <Spinner />
+//       </div>
+//     )
+//   }
+
+//   return (
+//     <div className="news-page">
+//       <div className="news-header">
+//         <h1>Tin tức giáo dục</h1>
+//         <p>Cập nhật những tin tức mới nhất về giáo dục và học tập</p>
+//       </div>
+
+//       <div className="news-search-container">
+//         <div className="news-search">
+//           <FaSearch className="search-icon" />
+//           <input
+//             type="text"
+//             placeholder="Tìm kiếm tin tức..."
+//             value={searchTerm}
+//             onChange={(e) => setSearchTerm(e.target.value)}
+//           />
+//         </div>
+//         <button className="filter-toggle" onClick={toggleFilters}>
+//           <FaFilter /> Bộ lọc
+//         </button>
+//       </div>
+
+//       {showFilters && (
+//         <div className="news-filters">
+//           <div className="category-filters">
+//             <button className={selectedCategory === "all" ? "active" : ""} onClick={() => setSelectedCategory("all")}>
+//               Tất cả
+//             </button>
+//             {categories.map((category) => (
+//               <button
+//                 key={category._id}
+//                 className={selectedCategory === category.name ? "active" : ""}
+//                 onClick={() => setSelectedCategory(category.name)}
+//               >
+//                 {category.name}
+//               </button>
+//             ))}
+//           </div>
+//         </div>
+//       )}
+
+//       {filteredNews.length === 0 ? (
+//         <div className="no-news">
+//           <p>Không tìm thấy tin tức phù hợp với tìm kiếm của bạn.</p>
+//         </div>
+//       ) : (
+//         <div className="news-grid">
+//           {filteredNews.map((item) => (
+//             <div className="news-card" key={item._id}>
+//               <div className="news-image">
+//                 <img src={item.image || "/placeholder.svg?height=200&width=300"} alt={item.title} />
+//                 <div className="news-category">{item.category}</div>
+//               </div>
+//               <div className="news-content">
+//                 <h3>
+//                   <Link to={`/news/${item._id}`}>{item.title}</Link>
+//                 </h3>
+//                 <p className="news-summary">{item.summary}</p>
+//                 <div className="news-meta">
+//                   <span>
+//                     <FaCalendarAlt /> {new Date(item.createdAt).toLocaleDateString("vi-VN")}
+//                   </span>
+//                   <span>
+//                     <FaUser /> {item.author}
+//                   </span>
+//                   <span>
+//                     <FaTag /> {item.category}
+//                   </span>
+//                 </div>
+//                 <Link to={`/news/${item._id}`} className="read-more">
+//                   Đọc tiếp
+//                 </Link>
+//               </div>
+//             </div>
+//           ))}
+//         </div>
+//       )}
+//     </div>
+//   )
+// }
+
+// export default NewsPage

@@ -6,4 +6,7 @@ export default defineConfig({
   server: {
     port: 5173,
   },
+  resolve: {
+    extensions: ['.js', '.jsx'], // Đảm bảo Vite xử lý cả .js và .jsx
+  },
 });

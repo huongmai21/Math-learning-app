@@ -3,12 +3,7 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  login,
-  register,
-  refreshUser,
-  clearError,
-} from "../../redux/slices/authSlice";
+import { login, register, clearError } from "../../redux/slices/authSlice";
 import { toast } from "react-toastify";
 import "./LogReg.css";
 
@@ -22,7 +17,7 @@ const AuthForm = () => {
     email: "",
     password: "",
     confirmPassword: "",
-    role: "student", // Mặc định là học sinh
+    role: "student",
   });
   const [errors, setErrors] = useState({});
   const [isLogin, setIsLogin] = useState(true);
@@ -30,7 +25,6 @@ const AuthForm = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
-  // Kiểm tra nếu đã đăng nhập thì chuyển hướng đến trang hồ sơ
   useEffect(() => {
     if (isAuthenticated && user) {
       navigate("/users/profile");
@@ -65,8 +59,8 @@ const AuthForm = () => {
       newErrors.email = "Email không hợp lệ";
     }
 
-    if (!formData.password || formData.password.length < 6) {
-      newErrors.password = "Mật khẩu phải có ít nhất 6 ký tự";
+    if (!formData.password || formData.password.length < 8) {
+      newErrors.password = "Mật khẩu phải có ít nhất 8 ký tự";
     }
 
     setErrors(newErrors);
@@ -76,7 +70,6 @@ const AuthForm = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prevData) => ({ ...prevData, [name]: value }));
-    // Xóa lỗi khi người dùng nhập lại
     if (errors[name]) {
       setErrors((prevErrors) => ({ ...prevErrors, [name]: "" }));
     }
@@ -99,14 +92,7 @@ const AuthForm = () => {
             password: formData.password,
           })
         ).unwrap();
-
-        // Sau khi đăng nhập thành công, lấy thông tin người dùng
-        await dispatch(refreshUser()).unwrap();
-
-        // Chuyển hướng đến trang hồ sơ
-        navigate("/users/profile");
       } else {
-        // Đăng ký
         await dispatch(
           register({
             username: formData.username,
@@ -115,16 +101,10 @@ const AuthForm = () => {
             role: formData.role,
           })
         ).unwrap();
-
-        // Sau khi đăng ký thành công, lấy thông tin người dùng
-        await dispatch(refreshUser()).unwrap();
-
-        // Chuyển hướng đến trang hồ sơ
-        navigate("/users/profile");
       }
+      navigate("/users/profile");
     } catch (error) {
       console.error("Lỗi xử lý form:", error);
-
       if (error.errors) {
         setErrors(error.errors);
       } else {

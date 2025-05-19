@@ -1,398 +1,423 @@
 "use client"
 
-import { useEffect, useState, useCallback, useMemo } from "react"
-import { useLocation, Link } from "react-router-dom"
-import { Helmet } from "react-helmet"
-import { motion } from "framer-motion"
+import { useState, useEffect } from "react"
+import { Link, useLocation, useNavigate } from "react-router-dom"
+import { toast } from "react-toastify"
+import { getDocuments, getPopularDocuments } from "../../services/documentService"
 import SearchBar from "../../components/common/SearchBar/SearchBar"
-import { getDocuments, getPopularDocuments, searchDocuments } from "../../services/documentService"
-import { debounce } from "lodash"
-import ReactPaginate from "react-paginate"
+import Spinner from "../../components/ui/Spinner"
 import "./Document.css"
 
-const educationLevelMap = {
-  grade1: { value: "primary", label: "Tiểu học" },
-  grade2: { value: "secondary", label: "Trung học cơ sở" },
-  grade3: { value: "highschool", label: "Trung học phổ thông" },
-  university: { value: "university", label: "Đại học" },
-}
-
-const gradeMap = {
-  primary: ["1", "2", "3", "4", "5"],
-  secondary: ["6", "7", "8", "9"],
-  highschool: ["10", "11", "12"],
-}
-
-const universitySubjects = [
-  { value: "advanced_math", label: "Toán cao cấp" },
-  { value: "calculus", label: "Giải tích" },
-  { value: "algebra", label: "Đại số" },
-  { value: "probability_statistics", label: "Xác suất thống kê" },
-  { value: "differential_equations", label: "Phương trình vi phân" },
-]
-
-const documentTypes = {
-  primary: [
-    { value: "textbook", label: "SGK" },
-    { value: "exercise_book", label: "SBT" },
-    { value: "special_topic", label: "Chuyên đề/Đề thi" },
-  ],
-  secondary: [
-    { value: "textbook", label: "SGK" },
-    { value: "exercise_book", label: "SBT" },
-    { value: "special_topic", label: "Chuyên đề/Đề thi" },
-  ],
-  highschool: [
-    { value: "textbook", label: "SGK" },
-    { value: "exercise_book", label: "SBT" },
-    { value: "special_topic", label: "Chuyên đề/Đề thi" },
-  ],
-  university: [
-    { value: "textbook", label: "Giáo trình" },
-    { value: "exercise", label: "Bài tập" },
-    { value: "reference", label: "Tài liệu tham khảo" },
-  ],
-}
-
-const DocumentList = () => {
-  const location = useLocation()
-  const path = location.pathname.split("/")[2] || "grade1"
+const DocumentList = ({ educationLevel }) => {
   const [documents, setDocuments] = useState([])
   const [popularDocuments, setPopularDocuments] = useState([])
-  const [filters, setFilters] = useState({
-    grade: "",
-    subject: "",
-    documentType: "",
-    tag: "",
-    search: "",
-  })
-  const [isLoading, setIsLoading] = useState(true)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-  const itemsPerPage = 10
-  const [viewedDocs, setViewedDocs] = useState(JSON.parse(localStorage.getItem("viewedDocs")) || [])
+  const [filters, setFilters] = useState({
+    educationLevel: educationLevel || "all",
+    subject: "all",
+    sort: "newest",
+  })
 
-  const fetchDocs = useCallback(async () => {
-    setIsLoading(true)
-    const level = educationLevelMap[path]?.value
-    const queryFilters = {
-      educationLevel: level,
-      documentType: filters.documentType,
-      tag: filters.tag,
-      search: filters.search,
-      page: currentPage,
-      limit: itemsPerPage,
-    }
+  const location = useLocation()
+  const navigate = useNavigate()
 
-    if (path === "university") {
-      queryFilters.subject = filters.subject
-    } else {
-      queryFilters.grade = filters.grade
-    }
-
-    try {
-      const { data: documents, totalPages } = filters.search
-        ? await searchDocuments(queryFilters)
-        : await getDocuments(queryFilters)
-      setDocuments(documents || [])
-      setTotalPages(totalPages || 1)
-      setError(null)
-    } catch (error) {
-      console.error("Error fetching documents:", error)
-      setDocuments([])
-      setError("Không thể tải dữ liệu tài liệu. Vui lòng thử lại sau.")
-    } finally {
-      setIsLoading(false)
-    }
-  }, [path, filters, currentPage])
-
-  const fetchPopularDocs = useCallback(async () => {
-    try {
-      const docs = await getPopularDocuments({
-        limit: 4,
-        educationLevel: educationLevelMap[path]?.value,
-      })
-      setPopularDocuments(docs || [])
-    } catch (error) {
-      console.error("Error fetching popular documents:", error)
-      setPopularDocuments([])
-    }
-  }, [path])
-
+  // Lấy query params từ URL
   useEffect(() => {
-    fetchDocs()
-    fetchPopularDocs()
-  }, [fetchDocs, fetchPopularDocs])
+    const searchParams = new URLSearchParams(location.search)
+    const page = Number.parseInt(searchParams.get("page")) || 1
+    const educationLevelParam = searchParams.get("educationLevel") || educationLevel || "all"
+    const subjectParam = searchParams.get("subject") || "all"
+    const sortParam = searchParams.get("sort") || "newest"
 
+    setCurrentPage(page)
+    setFilters({
+      educationLevel: educationLevelParam,
+      subject: subjectParam,
+      sort: sortParam,
+    })
+  }, [location.search, educationLevel])
+
+  // Fetch documents dựa trên filters và pagination
   useEffect(() => {
-    setFilters({
-      grade: "",
-      subject: "",
-      documentType: "",
-      tag: "",
-      search: "",
-    })
-    setCurrentPage(1)
-  }, [path])
+    const fetchDocuments = async () => {
+      setLoading(true)
+      try {
+        // Tạo query params
+        const params = {
+          page: currentPage,
+          limit: 12,
+          ...filters,
+        }
 
-  const debouncedSearch = useMemo(
-    () =>
-      debounce((query) => {
-        setFilters((prev) => ({ ...prev, search: query }))
-        setCurrentPage(1)
-      }, 300),
-    [],
-  )
+        // Fetch documents
+        const data = await getDocuments(params)
+        setDocuments(data.documents || [])
+        setTotalPages(data.totalPages || 1)
 
-  const resetFilters = () => {
-    setFilters({
-      grade: "",
-      subject: "",
-      documentType: "",
-      tag: "",
-      search: "",
-    })
-    setCurrentPage(1)
+        // Fetch popular documents nếu đang ở trang đầu tiên
+        if (currentPage === 1) {
+          const popularData = await getPopularDocuments({ limit: 5 })
+          setPopularDocuments(popularData.documents || [])
+        }
+
+        setError(null)
+      } catch (err) {
+        console.error("Error fetching documents:", err)
+        setError("Không thể tải danh sách tài liệu. Vui lòng thử lại sau.")
+        toast.error("Không thể tải danh sách tài liệu")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDocuments()
+  }, [currentPage, filters])
+
+  // Cập nhật URL khi filters hoặc pagination thay đổi
+  useEffect(() => {
+    const searchParams = new URLSearchParams()
+    if (currentPage > 1) searchParams.set("page", currentPage.toString())
+    if (filters.educationLevel !== "all") searchParams.set("educationLevel", filters.educationLevel)
+    if (filters.subject !== "all") searchParams.set("subject", filters.subject)
+    if (filters.sort !== "newest") searchParams.set("sort", filters.sort)
+
+    const newSearch = searchParams.toString() ? `?${searchParams.toString()}` : ""
+    navigate(`${location.pathname}${newSearch}`, { replace: true })
+  }, [currentPage, filters, navigate, location.pathname])
+
+  const handleFilterChange = (filterType, value) => {
+    setFilters((prevFilters) => ({
+      ...prevFilters,
+      [filterType]: value,
+    }))
+    setCurrentPage(1) // Reset về trang đầu tiên khi thay đổi filter
+  }
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page)
+    window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
   const handleSearch = (query) => {
-    debouncedSearch(query)
+    navigate(`/search?q=${encodeURIComponent(query)}&type=document`)
   }
 
-  const handleViewDoc = (docId) => {
-    const updatedViewed = [docId, ...viewedDocs.filter((id) => id !== docId)].slice(0, 5)
-    setViewedDocs(updatedViewed)
-    localStorage.setItem("viewedDocs", JSON.stringify(updatedViewed))
+  // Render loading state
+  if (loading && currentPage === 1) {
+    return (
+      <div className="document-list-container">
+        <div className="document-header">
+          <h1>Tài liệu học tập</h1>
+          <SearchBar placeholder="Tìm kiếm tài liệu..." onSearch={handleSearch} />
+        </div>
+        <div className="document-filters">
+          <div className="filter-group">
+            <label>Cấp học:</label>
+            <select
+              value={filters.educationLevel}
+              onChange={(e) => handleFilterChange("educationLevel", e.target.value)}
+              disabled={loading}
+            >
+              <option value="all">Tất cả</option>
+              <option value="primary">Tiểu học</option>
+              <option value="secondary">THCS</option>
+              <option value="highschool">THPT</option>
+              <option value="university">Đại học</option>
+            </select>
+          </div>
+          <div className="filter-group">
+            <label>Môn học:</label>
+            <select
+              value={filters.subject}
+              onChange={(e) => handleFilterChange("subject", e.target.value)}
+              disabled={loading}
+            >
+              <option value="all">Tất cả</option>
+              <option value="math">Toán học</option>
+              <option value="physics">Vật lý</option>
+              <option value="chemistry">Hóa học</option>
+              <option value="biology">Sinh học</option>
+              <option value="literature">Ngữ văn</option>
+              <option value="english">Tiếng Anh</option>
+              <option value="history">Lịch sử</option>
+              <option value="geography">Địa lý</option>
+            </select>
+          </div>
+          <div className="filter-group">
+            <label>Sắp xếp:</label>
+            <select
+              value={filters.sort}
+              onChange={(e) => handleFilterChange("sort", e.target.value)}
+              disabled={loading}
+            >
+              <option value="newest">Mới nhất</option>
+              <option value="popular">Phổ biến nhất</option>
+              <option value="rating">Đánh giá cao</option>
+            </select>
+          </div>
+        </div>
+        <div className="loading-container">
+          <Spinner />
+          <p>Đang tải tài liệu...</p>
+        </div>
+      </div>
+    )
   }
 
-  const sectionVariants = {
-    hidden: { opacity: 0, y: 50 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+  // Render error state
+  if (error) {
+    return (
+      <div className="document-list-container">
+        <div className="document-header">
+          <h1>Tài liệu học tập</h1>
+          <SearchBar placeholder="Tìm kiếm tài liệu..." onSearch={handleSearch} />
+        </div>
+        <div className="error-container">
+          <i className="fas fa-exclamation-circle"></i>
+          <p>{error}</p>
+          <button onClick={() => window.location.reload()} className="retry-button">
+            Thử lại
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="container document-container">
-      <Helmet>
-        <title>FunMath - Tài liệu {educationLevelMap[path]?.label || "Toán học"}</title>
-        <meta
-          name="description"
-          content={`Khám phá tài liệu Toán học ${
-            educationLevelMap[path]?.label || ""
-          }, bao gồm sách giáo khoa, bài tập, và chuyên đề.`}
-        />
-      </Helmet>
-      <motion.section
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true }}
-        variants={sectionVariants}
-        className="documents-section"
-      >
-        <h2 className="section-title">Tài liệu {educationLevelMap[path]?.label || "Toán học"}</h2>
+    <div className="document-list-container">
+      <div className="document-header">
+        <h1>Tài liệu học tập</h1>
+        <SearchBar placeholder="Tìm kiếm tài liệu..." onSearch={handleSearch} />
+      </div>
 
-        <div className="document-tabs">
-          <Link to="/documents/grade1" className={path === "grade1" ? "active" : ""}>
-            Tiểu học
-          </Link>
-          <Link to="/documents/grade2" className={path === "grade2" ? "active" : ""}>
-            THCS
-          </Link>
-          <Link to="/documents/grade3" className={path === "grade3" ? "active" : ""}>
-            THPT
-          </Link>
-          <Link to="/documents/university" className={path === "university" ? "active" : ""}>
-            Đại học
-          </Link>
-        </div>
-
-        <div className="filters">
-          <SearchBar onSearch={handleSearch} placeholder="Tìm kiếm tài liệu..." />
+      <div className="document-filters">
+        <div className="filter-group">
+          <label>Cấp học:</label>
           <select
-            value={filters.documentType}
-            onChange={(e) => setFilters({ ...filters, documentType: e.target.value })}
-            className="filter-select"
+            value={filters.educationLevel}
+            onChange={(e) => handleFilterChange("educationLevel", e.target.value)}
+            disabled={loading}
           >
-            <option value="">Loại tài liệu</option>
-            {documentTypes[educationLevelMap[path]?.value]?.map((type) => (
-              <option key={type.value} value={type.value}>
-                {type.label}
-              </option>
-            ))}
+            <option value="all">Tất cả</option>
+            <option value="primary">Tiểu học</option>
+            <option value="secondary">THCS</option>
+            <option value="highschool">THPT</option>
+            <option value="university">Đại học</option>
           </select>
-          {path === "university" ? (
-            <select
-              value={filters.subject}
-              onChange={(e) => setFilters({ ...filters, subject: e.target.value, grade: "" })}
-              className="filter-select"
-            >
-              <option value="">Môn học</option>
-              {universitySubjects.map((subject) => (
-                <option key={subject.value} value={subject.value}>
-                  {subject.label}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <select
-              value={filters.grade}
-              onChange={(e) => setFilters({ ...filters, grade: e.target.value, subject: "" })}
-              className="filter-select"
-            >
-              <option value="">Lớp</option>
-              {gradeMap[educationLevelMap[path]?.value]?.map((grade) => (
-                <option key={grade} value={grade}>
-                  Lớp {grade}
-                </option>
-              ))}
-            </select>
-          )}
-          <button onClick={resetFilters} className="reset-button">
-            <i className="fas fa-sync-alt"></i> Xóa bộ lọc
-          </button>
         </div>
+        <div className="filter-group">
+          <label>Môn học:</label>
+          <select
+            value={filters.subject}
+            onChange={(e) => handleFilterChange("subject", e.target.value)}
+            disabled={loading}
+          >
+            <option value="all">Tất cả</option>
+            <option value="math">Toán học</option>
+            <option value="physics">Vật lý</option>
+            <option value="chemistry">Hóa học</option>
+            <option value="biology">Sinh học</option>
+            <option value="literature">Ngữ văn</option>
+            <option value="english">Tiếng Anh</option>
+            <option value="history">Lịch sử</option>
+            <option value="geography">Địa lý</option>
+          </select>
+        </div>
+        <div className="filter-group">
+          <label>Sắp xếp:</label>
+          <select value={filters.sort} onChange={(e) => handleFilterChange("sort", e.target.value)} disabled={loading}>
+            <option value="newest">Mới nhất</option>
+            <option value="popular">Phổ biến nhất</option>
+            <option value="rating">Đánh giá cao</option>
+          </select>
+        </div>
+      </div>
 
-        {error && (
-          <div className="error-message">
-            <i className="fas fa-exclamation-circle"></i>
-            <p>{error}</p>
-            <button onClick={fetchDocs} className="retry-button">
-              Thử lại
-            </button>
-          </div>
-        )}
-
-        {popularDocuments.length > 0 && (
-          <div className="popular-documents">
-            <h3 className="popular-title">Tài liệu nổi bật</h3>
-            <div className="document-grid">
-              {popularDocuments.map((doc) => (
-                <Link
-                  key={doc._id}
-                  to={`/documents/${doc._id}`}
-                  onClick={() => handleViewDoc(doc._id)}
-                  className="document-card"
-                >
-                  <div className="document-thumbnail">
-                    <img
-                      src={doc.thumbnail || "/assets/images/default-doc.png"}
-                      alt={doc.title}
-                      loading="lazy"
-                      onError={(e) => (e.target.src = "/assets/images/default-doc.png")}
-                    />
+      {currentPage === 1 && popularDocuments.length > 0 && (
+        <div className="popular-documents">
+          <h2>Tài liệu nổi bật</h2>
+          <div className="popular-documents-grid">
+            {popularDocuments.map((doc) => (
+              <Link to={`/documents/${doc._id}`} key={doc._id} className="popular-document-card">
+                <div className="popular-document-thumbnail">
+                  <img src={doc.thumbnail || "/placeholder.svg?height=150&width=250"} alt={doc.title} loading="lazy" />
+                  <div className="popular-document-badge">
+                    <i className="fas fa-star"></i> Nổi bật
                   </div>
-                  <h4 className="document-title">{doc.title}</h4>
-                  <p className="document-stats">
+                </div>
+                <div className="popular-document-content">
+                  <h3>{doc.title}</h3>
+                  <p className="popular-document-subject">
+                    {doc.subject === "math"
+                      ? "Toán học"
+                      : doc.subject === "physics"
+                        ? "Vật lý"
+                        : doc.subject === "chemistry"
+                          ? "Hóa học"
+                          : doc.subject === "biology"
+                            ? "Sinh học"
+                            : doc.subject === "literature"
+                              ? "Ngữ văn"
+                              : doc.subject === "english"
+                                ? "Tiếng Anh"
+                                : doc.subject === "history"
+                                  ? "Lịch sử"
+                                  : doc.subject === "geography"
+                                    ? "Địa lý"
+                                    : doc.subject}
+                  </p>
+                  <div className="popular-document-meta">
+                    <span>
+                      <i className="fas fa-eye"></i> {doc.views || 0}
+                    </span>
                     <span>
                       <i className="fas fa-download"></i> {doc.downloads || 0}
                     </span>
                     <span>
-                      <i className="fas fa-eye"></i> {doc.views || 0}
+                      <i className="fas fa-star"></i> {doc.rating ? doc.rating.toFixed(1) : "N/A"}
                     </span>
-                  </p>
-                </Link>
-              ))}
-            </div>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="documents-grid">
+        {documents.length > 0 ? (
+          documents.map((doc) => (
+            <Link to={`/documents/${doc._id}`} key={doc._id} className="document-card">
+              <div className="document-thumbnail">
+                <img src={doc.thumbnail || "/placeholder.svg?height=150&width=250"} alt={doc.title} loading="lazy" />
+              </div>
+              <div className="document-content">
+                <h3>{doc.title}</h3>
+                <p className="document-description">
+                  {doc.description
+                    ? doc.description.length > 100
+                      ? doc.description.substring(0, 100) + "..."
+                      : doc.description
+                    : "Không có mô tả"}
+                </p>
+                <div className="document-meta">
+                  <span className="document-subject">
+                    {doc.subject === "math"
+                      ? "Toán học"
+                      : doc.subject === "physics"
+                        ? "Vật lý"
+                        : doc.subject === "chemistry"
+                          ? "Hóa học"
+                          : doc.subject === "biology"
+                            ? "Sinh học"
+                            : doc.subject === "literature"
+                              ? "Ngữ văn"
+                              : doc.subject === "english"
+                                ? "Tiếng Anh"
+                                : doc.subject === "history"
+                                  ? "Lịch sử"
+                                  : doc.subject === "geography"
+                                    ? "Địa lý"
+                                    : doc.subject}
+                  </span>
+                  <span className="document-level">
+                    {doc.educationLevel === "primary"
+                      ? "Tiểu học"
+                      : doc.educationLevel === "secondary"
+                        ? "THCS"
+                        : doc.educationLevel === "highschool"
+                          ? "THPT"
+                          : doc.educationLevel === "university"
+                            ? "Đại học"
+                            : doc.educationLevel}
+                  </span>
+                </div>
+                <div className="document-stats">
+                  <span>
+                    <i className="fas fa-eye"></i> {doc.views || 0}
+                  </span>
+                  <span>
+                    <i className="fas fa-download"></i> {doc.downloads || 0}
+                  </span>
+                  <span>
+                    <i className="fas fa-star"></i> {doc.rating ? doc.rating.toFixed(1) : "N/A"}
+                  </span>
+                </div>
+              </div>
+            </Link>
+          ))
+        ) : (
+          <div className="no-documents">
+            <i className="fas fa-file-alt"></i>
+            <p>Không tìm thấy tài liệu nào phù hợp với bộ lọc.</p>
+            <button onClick={() => setFilters({ educationLevel: "all", subject: "all", sort: "newest" })}>
+              Xóa bộ lọc
+            </button>
           </div>
         )}
+      </div>
 
-        {viewedDocs.length > 0 && (
-          <div className="viewed-documents">
-            <h3 className="viewed-title">Đã xem gần đây</h3>
-            <div className="document-grid">
-              {viewedDocs.map((docId) => {
-                const doc = documents.find((d) => d._id === docId) || { _id: docId, title: "Tài liệu" }
+      {loading && currentPage > 1 && (
+        <div className="loading-more">
+          <Spinner />
+          <p>Đang tải thêm tài liệu...</p>
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1 || loading}
+            className="pagination-button"
+          >
+            <i className="fas fa-chevron-left"></i> Trước
+          </button>
+          <div className="pagination-pages">
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((page) => {
+                // Hiển thị trang ��ầu, trang cuối và các trang xung quanh trang hiện tại
+                return page === 1 || page === totalPages || (page >= currentPage - 2 && page <= currentPage + 2)
+              })
+              .map((page, index, array) => {
+                // Thêm dấu "..." nếu có khoảng cách giữa các trang
+                if (index > 0 && array[index - 1] !== page - 1) {
+                  return (
+                    <span key={`ellipsis-${page}`} className="pagination-ellipsis">
+                      ...
+                    </span>
+                  )
+                }
                 return (
-                  <Link key={docId} to={`/documents/${docId}`} className="document-card">
-                    <div className="document-thumbnail">
-                      <img
-                        src={doc.thumbnail || "/assets/images/default-doc.png"}
-                        alt={doc.title}
-                        loading="lazy"
-                        onError={(e) => (e.target.src = "/assets/images/default-doc.png")}
-                      />
-                    </div>
-                    <h4 className="document-title">{doc.title}</h4>
-                  </Link>
+                  <button
+                    key={page}
+                    onClick={() => handlePageChange(page)}
+                    className={`pagination-page ${currentPage === page ? "active" : ""}`}
+                    disabled={loading}
+                  >
+                    {page}
+                  </button>
                 )
               })}
-            </div>
           </div>
-        )}
-
-        <div className="documents-main">
-          <h3 className="documents-title">Tất cả tài liệu</h3>
-
-          {isLoading ? (
-            <div className="document-grid">
-              {[...Array(itemsPerPage)].map((_, i) => (
-                <div key={i} className="document-card skeleton">
-                  <div className="document-thumbnail skeleton-image" />
-                  <div className="skeleton-title" />
-                  <div className="skeleton-description" />
-                </div>
-              ))}
-            </div>
-          ) : documents.length > 0 ? (
-            <div className="document-grid">
-              {documents.map((doc) => (
-                <Link
-                  key={doc._id}
-                  to={`/documents/${doc._id}`}
-                  onClick={() => handleViewDoc(doc._id)}
-                  className="document-card"
-                >
-                  <div className="document-thumbnail">
-                    <img
-                      src={doc.thumbnail || "/assets/images/default-doc.png"}
-                      alt={doc.title}
-                      loading="lazy"
-                      onError={(e) => (e.target.src = "/assets/images/default-doc.png")}
-                    />
-                  </div>
-                  <h4 className="document-title">{doc.title}</h4>
-                  <p className="document-description">{doc.description?.slice(0, 80)}...</p>
-                  <div className="document-meta">
-                    <p className="document-stats">
-                      <span>
-                        <i className="fas fa-download"></i> {doc.downloads || 0}
-                      </span>
-                      <span>
-                        <i className="fas fa-eye"></i> {doc.views || 0}
-                      </span>
-                    </p>
-                    <p className="document-date">
-                      <i className="fas fa-calendar-alt"></i> {new Date(doc.uploadedAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="no-documents">
-              <i className="fas fa-file-alt"></i>
-              <p>Không có tài liệu nào phù hợp với bộ lọc hiện tại.</p>
-              <button onClick={resetFilters} className="btn-primary">
-                Xóa bộ lọc
-              </button>
-            </div>
-          )}
+          <button
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages || loading}
+            className="pagination-button"
+          >
+            Sau <i className="fas fa-chevron-right"></i>
+          </button>
         </div>
+      )}
 
-        {totalPages > 1 && (
-          <ReactPaginate
-            breakLabel="..."
-            nextLabel="Tiếp >"
-            onPageChange={(event) => setCurrentPage(event.selected + 1)}
-            pageRangeDisplayed={5}
-            pageCount={totalPages}
-            previousLabel="< Trước"
-            renderOnZeroPageCount={null}
-            containerClassName="pagination"
-            activeClassName="active"
-          />
-        )}
-      </motion.section>
+      <div className="document-create-button">
+        <Link to="/documents/create" className="create-button">
+          <i className="fas fa-plus"></i> Tạo tài liệu mới
+        </Link>
+      </div>
     </div>
   )
 }

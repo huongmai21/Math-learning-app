@@ -1,10 +1,10 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Helmet } from "react-helmet";
 import { useSelector } from "react-redux";
-import { toast } from "react-toastify";
-import { getAllCourses, getCourseById } from "../../services/courseService";
+import { getAllCourses } from "../../services/courseService";
 import {
   addBookmark,
   removeBookmark,
@@ -12,11 +12,14 @@ import {
 } from "../../services/bookmarkService";
 import { getEnrolledCourses } from "../../services/userService";
 import SearchBar from "../../components/common/SearchBar/SearchBar";
+import Spinner from "../../components/ui/Spinner";
+import useToast from "../../utils/useToast";
 import "./CoursePage.css";
 
 const CoursePage = () => {
   const { user, token } = useSelector((state) => state.auth);
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [courses, setCourses] = useState([]);
   const [filteredCourses, setFilteredCourses] = useState([]);
   const [bookmarks, setBookmarks] = useState([]);
@@ -36,17 +39,27 @@ const CoursePage = () => {
           limit: 6,
           category: category === "all" ? undefined : category,
         });
-        setCourses(response.data);
-        setFilteredCourses(response.data);
-        setTotalPages(response.totalPages);
+        const coursesData = Array.isArray(response.data) ? response.data : [];
+        setCourses(coursesData);
+        setFilteredCourses(coursesData);
+        setTotalPages(response.totalPages || 1);
       } catch (err) {
-        setError("Không thể tải danh sách khóa học!");
+        if (err.message.includes("Network Error")) {
+          setError("Lỗi kết nối mạng. Vui lòng kiểm tra kết nối của bạn.");
+        } else if (err.response?.status === 401) {
+          setError("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
+          navigate("/auth/login");
+        } else {
+          setError("Không thể tải danh sách khóa học!");
+        }
+        setCourses([]);
+        setFilteredCourses([]);
       } finally {
         setLoading(false);
       }
     };
     loadCourses();
-  }, [page, category]);
+  }, [page, category, navigate]);
 
   useEffect(() => {
     const loadBookmarksAndEnrollments = async () => {
@@ -56,12 +69,16 @@ const CoursePage = () => {
             getBookmarks(),
             getEnrolledCourses(),
           ]);
-          setBookmarks(bookmarkResponse.data.map((b) => b.courseId._id));
-          setEnrolledCourses(enrolledResponse.data.map((c) => c._id));
+          const bookmarkIds = Array.isArray(bookmarkResponse.data)
+            ? bookmarkResponse.data.map((b) => b.courseId?._id).filter(Boolean)
+            : [];
+          const enrolledIds = Array.isArray(enrolledResponse.data)
+            ? enrolledResponse.data.map((c) => c._id).filter(Boolean)
+            : [];
+          setBookmarks(bookmarkIds);
+          setEnrolledCourses(enrolledIds);
         } catch (err) {
-          toast.error(
-            "Không thể tải dữ liệu bookmark hoặc khóa học đã đăng ký!"
-          );
+          setError("Không thể tải dữ liệu bookmark hoặc khóa học đã đăng ký!");
         }
       }
     };
@@ -69,14 +86,16 @@ const CoursePage = () => {
   }, [user, token]);
 
   const handleSearch = (query, results) => {
-    const filtered = results.data?.courses || [];
+    const filtered = Array.isArray(results.data?.courses) ? results.data.courses : [];
     setFilteredCourses(filtered);
     setPage(1);
   };
 
   const handleBookmark = async (courseId) => {
     if (!user || !token) {
-      toast.error("Vui lòng đăng nhập để bookmark khóa học!");
+      showToast("error", "Vui lòng đăng nhập để bookmark khóa học!", {
+        id: "bookmark-auth-error",
+      });
       navigate("/auth/login");
       return;
     }
@@ -84,14 +103,16 @@ const CoursePage = () => {
       if (bookmarks.includes(courseId)) {
         await removeBookmark(courseId);
         setBookmarks(bookmarks.filter((id) => id !== courseId));
-        toast.success("Đã xóa bookmark!");
+        showToast("success", "Đã xóa bookmark!", { id: "bookmark-remove" });
       } else {
         await addBookmark(courseId);
         setBookmarks([...bookmarks, courseId]);
-        toast.success("Đã bookmark khóa học!");
+        showToast("success", "Đã bookmark khóa học!", { id: "bookmark-add" });
       }
     } catch (err) {
-      toast.error(err || "Lỗi khi bookmark khóa học!");
+      showToast("error", err.message || "Lỗi khi bookmark khóa học!", {
+        id: "bookmark-error",
+      });
     }
   };
 
@@ -102,6 +123,38 @@ const CoursePage = () => {
   const sectionVariants = {
     hidden: { opacity: 0, y: 50 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+  };
+
+  const Pagination = ({ currentPage, totalPages, onPageChange }) => {
+    const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+
+    return (
+      <div className="pagination">
+        <button
+          disabled={currentPage === 1}
+          onClick={() => onPageChange(currentPage - 1)}
+          className="pagination-button"
+        >
+          Trang trước
+        </button>
+        {pages.map((p) => (
+          <button
+            key={p}
+            onClick={() => onPageChange(p)}
+            className={`pagination-button ${p === currentPage ? "active" : ""}`}
+          >
+            {p}
+          </button>
+        ))}
+        <button
+          disabled={currentPage === totalPages}
+          onClick={() => onPageChange(currentPage + 1)}
+          className="pagination-button"
+        >
+          Trang sau
+        </button>
+      </div>
+    );
   };
 
   return (
@@ -124,51 +177,76 @@ const CoursePage = () => {
         <h2>Các khóa học của chúng tôi</h2>
         <div className="filter-bar">
           <SearchBar onSearch={handleSearch} />
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="category-filter"
-            aria-label="Lọc theo danh mục"
-          >
-            <option value="all">Tất cả</option>
-            <option value="grade1">Toán cấp 1</option>
-            <option value="grade2">Toán cấp 2</option>
-            <option value="grade3">Toán cấp 3</option>
-            <option value="university">Toán đại học</option>
-          </select>
+          <div className="filter-controls">
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="category-filter"
+              aria-label="Lọc theo danh mục"
+            >
+              <option value="all">Tất cả</option>
+              <option value="grade1">Toán cấp 1</option>
+              <option value="grade2">Toán cấp 2</option>
+              <option value="grade3">Toán cấp 3</option>
+              <option value="university">Toán đại học</option>
+            </select>
+            {category !== "all" && (
+              <button
+                onClick={() => setCategory("all")}
+                className="reset-filter-btn"
+              >
+                Xóa bộ lọc
+              </button>
+            )}
+          </div>
         </div>
+        {error && (
+          <div className="error-message">
+            {error}
+            <button onClick={() => setError("")}>Thử lại</button>
+          </div>
+        )}
         {loading ? (
-          <p className="loading">Đang tải...</p>
-        ) : error ? (
-          <p className="error">{error}</p>
+          <div className="course-loading">
+            <Spinner />
+          </div>
         ) : filteredCourses.length > 0 ? (
-          <div className="courses-list">
+          <div className="course-grid">
             {filteredCourses.map((course) => (
               <motion.div
                 key={course._id}
-                className="course-item"
+                className="course-card"
                 initial={{ opacity: 0, scale: 0.9 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.3 }}
               >
-                <img
-                  src={course.thumbnail || "/assets/images/default-course.jpg"}
-                  alt={course.title}
-                  className="course-image"
-                  onError={handleImageError}
-                />
+                <div className="course-image">
+                  <img
+                    src={course.thumbnail || "/assets/images/default-course.jpg"}
+                    alt={course.title}
+                    onError={handleImageError}
+                    loading="lazy"
+                  />
+                </div>
                 <div className="course-content">
-                  <h3>{course.title}</h3>
-                  <p>{course.description}</p>
-                  <p className="course-price">
-                    Giá: {course.price.toLocaleString()} VND
-                  </p>
-                  {enrolledCourses.includes(course._id) && (
-                    <p className="course-status">Đã đăng ký</p>
-                  )}
+                  <h3 className="course-title">
+                    <Link to={`/courses/${course._id}`}>{course.title}</Link>
+                  </h3>
+                  <p className="course-description">{course.description}</p>
+                  <div className="course-meta">
+                    <p className="course-price">
+                      Giá: {course.price.toLocaleString()} VND
+                    </p>
+                    {enrolledCourses.includes(course._id) && (
+                      <p className="course-status">Đã đăng ký</p>
+                    )}
+                  </div>
                   <div className="course-actions">
-                    <Link to={`/courses/${course._id}`} className="course-link">
+                    <Link
+                      to={`/courses/${course._id}`}
+                      className="enroll-button"
+                    >
                       {enrolledCourses.includes(course._id)
                         ? "Vào học"
                         : "Xem khóa học"}
@@ -200,30 +278,25 @@ const CoursePage = () => {
             ))}
           </div>
         ) : (
-          <p className="no-results">Không tìm thấy khóa học nào.</p>
+          <p className="no-results">
+            Không tìm thấy khóa học nào.{" "}
+            {user && user.role === "teacher" && (
+              <Link to="/courses/create" className="create-course-link">
+                Tạo khóa học mới
+              </Link>
+            )}
+          </p>
         )}
-        <div className="pagination">
-          <button
-            disabled={page === 1}
-            onClick={() => setPage(page - 1)}
-            className="pagination-button"
-          >
-            Trang trước
-          </button>
-          <span className="pagination-info">
-            Trang {page} / {totalPages}
-          </span>
-          <button
-            disabled={page === totalPages}
-            onClick={() => setPage(page + 1)}
-            className="pagination-button"
-          >
-            Trang sau
-          </button>
-        </div>
+        {totalPages > 1 && (
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={(newPage) => setPage(newPage)}
+          />
+        )}
       </motion.section>
     </div>
   );
 };
 
-export default CoursePage;
+export default React.memo(CoursePage);

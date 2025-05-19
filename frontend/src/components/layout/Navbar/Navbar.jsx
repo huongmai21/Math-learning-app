@@ -81,10 +81,12 @@ const Navbar = () => {
       isDropdown: false,
       requireAuth: false,
     },
-    { title: "Thi đấu", 
-      to: "/exams", 
-      isDropdown: false, 
-      requireAuth: true },
+    {
+      title: "Thi đấu",
+      to: "/exams",
+      isDropdown: false,
+      requireAuth: true,
+    },
     {
       title: "Góc học tập",
       to: "/study-corner",
@@ -104,17 +106,26 @@ const Navbar = () => {
     const loadNotifications = async () => {
       const token = localStorage.getItem("token");
       if (user && token) {
-        // Chỉ gọi API nếu có user và token
         try {
-          const response = await getNotifications(user._id);
+          const response = await getNotifications(1, 10, false);
           setNotifications(response.data || []);
         } catch (error) {
           console.error("Error loading notifications:", error);
+          if (error.response?.status === 401) {
+            toast.error("Phiên đăng nhập hết hạn, vui lòng đăng nhập lại", {
+              position: "top-right",
+              autoClose: 3000,
+            });
+            dispatch(logout());
+            navigate("/auth/login");
+          }
         }
+      } else {
+        setNotifications([]);
       }
     };
     loadNotifications();
-  }, [user]);
+  }, [user, dispatch, navigate]);
 
   // Đóng menu mobile khi chuyển trang
   useEffect(() => {
@@ -122,18 +133,26 @@ const Navbar = () => {
   }, [location]);
 
   // Xử lý đăng xuất
-  const handleLogout = () => {
-    dispatch(logout());
-    toast.success("Đăng xuất thành công!", {
-      position: "top-right",
-      autoClose: 3000,
-    });
-    navigate("/auth/login");
+  const handleLogout = async () => {
+    try {
+      await dispatch(logout()).unwrap();
+      toast.success("Đăng xuất thành công!", {
+        position: "top-right",
+        autoClose: 3000,
+      });
+      navigate("/auth/login");
+    } catch (error) {
+      toast.error("Đăng xuất thất bại", {
+        position: "top-right",
+        autoClose: 3000,
+      });
+      console.error("Logout error:", error);
+    }
   };
 
   // Xử lý xóa thông báo
   const handleDeleteNotification = async (id, e) => {
-    e.stopPropagation(); // Ngăn sự kiện click lan ra ngoài
+    e.stopPropagation();
     try {
       await deleteNotification(id);
       setNotifications(notifications.filter((notif) => notif._id !== id));
@@ -149,7 +168,7 @@ const Navbar = () => {
       await markNotificationAsRead(id);
       setNotifications(
         notifications.map((notif) =>
-          notif._id === id ? { ...notif, isRead: true } : notif
+          notif._id === id ? { ...notif, read: true } : notif
         )
       );
       navigate("/notifications");
@@ -185,9 +204,8 @@ const Navbar = () => {
           aria-label="Menu điều hướng"
         >
           {menuItems.map((item, index) => {
-            // Kiểm tra xem mục này có yêu cầu đăng nhập không và người dùng đã đăng nhập chưa
             if (item.requireAuth && !isAuthenticated) {
-              return null; // Không hiển thị mục này nếu yêu cầu đăng nhập nhưng người dùng chưa đăng nhập
+              return null;
             }
 
             return item.isDropdown ? (

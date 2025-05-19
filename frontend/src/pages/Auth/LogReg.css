@@ -58,9 +58,9 @@
 
 .container .content {
   position: absolute;
-  width: 100%;
-  height: 100%; /* Khớp với container và .logreg-box */
-  padding: 50px;
+  width: 90%;
+  height: 90%; /* Khớp với container và .logreg-box */
+  padding: 70px;
   color: #e4e4e4;
   background: rgba(0, 0, 0, 0.215);
   border-radius: 15px 15px 15px 15px;
@@ -128,7 +128,7 @@
 /* Logreg-box (bên phải) */
 .container .logreg-box {
   position: absolute;
-  top: 50px;
+  top: 40px;
   right: 50px;
   width: 38%;
   height: 100%;

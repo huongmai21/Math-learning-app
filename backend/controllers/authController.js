@@ -31,7 +31,6 @@ exports.register = [
     if (!errors.isEmpty()) {
       const formattedErrors = {};
       errors.array().forEach((err) => {
-        // Chỉ gán lỗi nếu field chưa có (tránh bị ghi đè)
         if (!formattedErrors[err.param]) {
           formattedErrors[err.param] = err.msg;
         }
@@ -56,12 +55,10 @@ exports.register = [
 
     const existingUserByUsername = await User.findOne({ username });
     if (existingUserByUsername) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          errors: { username: "Tên người dùng đã được sử dụng" },
-        });
+      return res.status(400).json({
+        success: false,
+        errors: { username: "Tên người dùng đã được sử dụng" },
+      });
     }
 
     let avatarUrl =
@@ -98,7 +95,17 @@ exports.register = [
     });
 
     const token = user.getSignedJwtToken();
-    res.status(201).json({ success: true, token });
+    res.status(201).json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+      },
+    });
   }),
 ];
 
@@ -126,13 +133,22 @@ exports.login = asyncHandler(async (req, res, next) => {
   }
 
   const token = user.getSignedJwtToken();
-  console.log("Generated token:", token); // Debug
-  res.status(200).json({ success: true, token });
+  res.status(200).json({
+    success: true,
+    token,
+    user: {
+      id: user._id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      avatar: user.avatar,
+    },
+  });
 });
 
 exports.getMe = asyncHandler(async (req, res, next) => {
   const user = await User.findById(req.user.id);
-  console.log("User fetched in getMe:", user); // Debugy
+  console.log("User fetched in getMe:", user);
   res.status(200).json({ success: true, data: user });
 });
 
@@ -195,4 +211,36 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
   res
     .status(200)
     .json({ success: true, message: "Đặt lại mật khẩu thành công" });
+});
+
+exports.refreshToken = asyncHandler(async (req, res, next) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  if (!token) {
+    return next(new ErrorResponse("Không có token", 401));
+  }
+
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (err) {
+    return next(new ErrorResponse("Token không hợp lệ hoặc đã hết hạn", 401));
+  }
+
+  const user = await User.findById(decoded.id);
+  if (!user) {
+    return next(new ErrorResponse("Người dùng không tồn tại", 401));
+  }
+
+  const newToken = user.getSignedJwtToken();
+  res.status(200).json({
+    success: true,
+    token: newToken,
+    user: {
+      id: user._id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      avatar: user.avatar,
+    },
+  });
 });

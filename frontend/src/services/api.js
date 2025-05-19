@@ -1,62 +1,98 @@
-import axios from "axios";
-import { toast } from "react-toastify";
+import axios from "axios"
+import { toast } from "react-toastify"
+
+// Tạo một đối tượng để theo dõi các lỗi đã hiển thị
+const displayedErrors = new Set()
+// Thời gian tối thiểu giữa các thông báo lỗi (ms)
+const ERROR_COOLDOWN = 5000
+// Thời gian để xóa lỗi khỏi danh sách đã hiển thị (ms)
+const ERROR_RESET_TIME = 10000
 
 const api = axios.create({
-  baseURL: "http://localhost:5000", // Đã sửa URL không có /api
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000",
+  withCredentials: true,
+})
 
-// Thêm interceptor để tự động thêm token vào header
+// Hàm để tạo mã hash đơn giản cho lỗi
+const getErrorHash = (error) => {
+  const { message, url, method } = error
+  return `${message}-${url}-${method}`
+}
+
+// Hàm để kiểm tra và hiển thị lỗi nếu cần
+const handleErrorDisplay = (error) => {
+  const errorHash = getErrorHash(error)
+
+  // Nếu lỗi này chưa được hiển thị gần đây
+  if (!displayedErrors.has(errorHash)) {
+    displayedErrors.add(errorHash)
+
+    // Hiển thị thông báo lỗi
+    if (error.response && error.response.data && error.response.data.message) {
+      toast.error(error.response.data.message)
+    } else if (error.message.includes("Network Error")) {
+      toast.error("Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng của bạn.")
+    } else {
+      toast.error(error.message)
+    }
+
+    // Xóa lỗi khỏi danh sách sau một khoảng thời gian
+    setTimeout(() => {
+      displayedErrors.delete(errorHash)
+    }, ERROR_RESET_TIME)
+  }
+}
+
+// Interceptor cho request
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("token")
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers.Authorization = `Bearer ${token}`
     }
-    return config;
+    return config
   },
   (error) => {
-    return Promise.reject(error);
-  }
-);
+    return Promise.reject(error)
+  },
+)
 
-// Thêm interceptor để xử lý lỗi
+// Interceptor cho response
 api.interceptors.response.use(
   (response) => {
-    return response;
+    return response
   },
   (error) => {
-    // Không hiển thị toast cho một số lỗi cụ thể
-    const skipErrorToast = [
-      "/auth/me", // Bỏ qua lỗi khi kiểm tra token
-      "/exams/recommended", // Bỏ qua lỗi khi lấy đề thi gợi ý
-      "/ai/math-question", // Bỏ qua lỗi khi gọi AI
-    ];
-
-    const requestUrl = error.config.url;
-    const shouldSkipToast = skipErrorToast.some((url) =>
-      requestUrl.includes(url)
-    );
-
-    if (!shouldSkipToast) {
-      const errorMessage =
-        error.response?.data?.message || "Đã xảy ra lỗi, vui lòng thử lại sau";
-      toast.error(errorMessage);
+    // Tạo đối tượng lỗi với thông tin bổ sung
+    const enhancedError = {
+      ...error,
+      message: error.message,
+      url: error.config.url,
+      method: error.config.method,
     }
+
+    // Xử lý hiển thị lỗi
+    handleErrorDisplay(enhancedError)
 
     // Xử lý lỗi 401 (Unauthorized)
     if (error.response && error.response.status === 401) {
-      // Nếu không phải là lỗi khi kiểm tra token, đăng xuất người dùng
-      if (!requestUrl.includes("/auth/me")) {
-        localStorage.removeItem("token");
-        window.location.href = "/auth/login";
+      // Kiểm tra nếu không phải là request đến endpoint đăng nhập
+      if (!error.config.url.includes("/auth/login")) {
+        localStorage.removeItem("token")
+        localStorage.removeItem("user")
+        // Chỉ chuyển hướng nếu đang ở trang yêu cầu xác thực
+        if (
+          window.location.pathname !== "/login" &&
+          window.location.pathname !== "/register" &&
+          window.location.pathname !== "/forgot-password"
+        ) {
+          window.location.href = "/login"
+        }
       }
     }
 
-    return Promise.reject(error);
-  }
-);
+    return Promise.reject(error)
+  },
+)
 
-export default api;
+export default api

@@ -3,7 +3,7 @@ import api from "./api"
 // Lấy tất cả thông báo của người dùng
 export const getNotifications = async (userId) => {
   try {
-    const response = await api.get(`/notifications/${userId || "me"}`)
+    const response = await api.get(`/notifications`)
     return response.data
   } catch (error) {
     console.error("Error fetching notifications:", error)

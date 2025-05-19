@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react"
+import { useSelector } from "react-redux"
 import { toast } from "react-toastify"
 import "./VideoCallInterface.css"
 
@@ -10,62 +11,84 @@ const VideoCallInterface = forwardRef(({ roomId, participants, user, onEndCall }
   const [isMuted, setIsMuted] = useState(false)
   const [isVideoOff, setIsVideoOff] = useState(false)
   const [isScreenSharing, setIsScreenSharing] = useState(false)
-  const [isFullScreen, setIsFullScreen] = useState(false)
-  const [activeParticipants, setActiveParticipants] = useState([])
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [activeSpeaker, setActiveSpeaker] = useState(null)
+  const [layout, setLayout] = useState("grid") // grid, spotlight
 
   const localVideoRef = useRef(null)
+  const screenShareRef = useRef(null)
   const peerConnections = useRef({})
-  const screenShareStream = useRef(null)
   const containerRef = useRef(null)
+
+  const socket = useSelector((state) => state.socket)
 
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
-    toggleMute: () => toggleMute(),
-    toggleVideo: () => toggleVideo(),
     endCall: () => {
       stopLocalStream()
       onEndCall()
     },
+    toggleMute: () => toggleMute(),
+    toggleVideo: () => toggleVideo(),
+    toggleScreenShare: () => toggleScreenShare(),
   }))
 
-  // Initialize WebRTC when component mounts
+  // Initialize video call
   useEffect(() => {
-    initializeLocalStream()
+    if (!roomId || !user || !socket) return
+
+    // Join video call room
+    socket.emit("join_video_call", { roomId, userId: user._id, username: user.username })
+
+    // Start local stream
+    startLocalStream()
+
+    // Listen for new participants
+    socket.on("user_joined_video", handleUserJoined)
+
+    // Listen for offer
+    socket.on("video_offer", handleVideoOffer)
+
+    // Listen for answer
+    socket.on("video_answer", handleVideoAnswer)
+
+    // Listen for ICE candidate
+    socket.on("ice_candidate", handleIceCandidate)
+
+    // Listen for user left
+    socket.on("user_left_video", handleUserLeft)
 
     return () => {
       stopLocalStream()
-      Object.values(peerConnections.current).forEach((pc) => pc.close())
+      socket.off("user_joined_video")
+      socket.off("video_offer")
+      socket.off("video_answer")
+      socket.off("ice_candidate")
+      socket.off("user_left_video")
     }
-  }, [])
+  }, [roomId, user, socket])
 
-  // Update active participants when participants change
-  useEffect(() => {
-    setActiveParticipants(participants.filter((p) => p._id !== user._id))
-  }, [participants, user._id])
-
-  // Initialize local video stream
-  const initializeLocalStream = async () => {
+  // Start local stream
+  const startLocalStream = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      })
-
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
       setLocalStream(stream)
 
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream
       }
 
-      // Initialize peer connections for each participant
-      activeParticipants.forEach((participant) => {
-        createPeerConnection(participant._id, stream)
-      })
-
-      toast.success("Kết nối video thành công!")
+      // Notify other participants
+      if (socket) {
+        participants.forEach((participant) => {
+          if (participant._id !== user._id) {
+            createPeerConnection(participant._id, stream)
+          }
+        })
+      }
     } catch (error) {
       console.error("Error accessing media devices:", error)
-      toast.error("Không thể truy cập camera hoặc microphone. Vui lòng kiểm tra quyền truy cập.")
+      toast.error("Không thể truy cập camera hoặc microphone")
     }
   }
 
@@ -73,46 +96,132 @@ const VideoCallInterface = forwardRef(({ roomId, participants, user, onEndCall }
   const stopLocalStream = () => {
     if (localStream) {
       localStream.getTracks().forEach((track) => track.stop())
+      setLocalStream(null)
     }
 
-    if (screenShareStream.current) {
-      screenShareStream.current.getTracks().forEach((track) => track.stop())
-      screenShareStream.current = null
-    }
+    // Close all peer connections
+    Object.values(peerConnections.current).forEach((pc) => pc.close())
+    peerConnections.current = {}
+    setRemoteStreams({})
   }
 
-  // Create peer connection for a participant
-  const createPeerConnection = (participantId, stream) => {
+  // Create peer connection
+  const createPeerConnection = (peerId, stream) => {
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }],
     })
 
-    // Add local tracks to peer connection
-    stream.getTracks().forEach((track) => {
-      pc.addTrack(track, stream)
-    })
+    // Add local stream
+    stream.getTracks().forEach((track) => pc.addTrack(track, stream))
 
-    // Handle ICE candidates
+    // Handle ICE candidate
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        // Send ICE candidate to the other peer via signaling server
-        // This would typically use your socket connection
+        socket.emit("ice_candidate", {
+          roomId,
+          candidate: event.candidate,
+          to: peerId,
+          from: user._id,
+        })
       }
     }
 
-    // Handle incoming remote stream
+    // Handle remote stream
     pc.ontrack = (event) => {
       setRemoteStreams((prev) => ({
         ...prev,
-        [participantId]: event.streams[0],
+        [peerId]: event.streams[0],
       }))
     }
 
-    peerConnections.current[participantId] = pc
+    // Create offer
+    pc.createOffer()
+      .then((offer) => pc.setLocalDescription(offer))
+      .then(() => {
+        socket.emit("video_offer", {
+          roomId,
+          offer: pc.localDescription,
+          to: peerId,
+          from: user._id,
+        })
+      })
+      .catch((error) => {
+        console.error("Error creating offer:", error)
+        toast.error("Lỗi kết nối video")
+      })
+
+    peerConnections.current[peerId] = pc
     return pc
   }
 
-  // Toggle mute/unmute
+  // Handle user joined
+  const handleUserJoined = ({ userId, username }) => {
+    if (userId !== user._id && localStream) {
+      createPeerConnection(userId, localStream)
+      toast.info(`${username} đã tham gia cuộc gọi video`)
+    }
+  }
+
+  // Handle video offer
+  const handleVideoOffer = async ({ offer, from }) => {
+    if (from === user._id) return
+
+    let pc = peerConnections.current[from]
+
+    if (!pc && localStream) {
+      pc = createPeerConnection(from, localStream)
+    }
+
+    await pc.setRemoteDescription(new RTCSessionDescription(offer))
+
+    const answer = await pc.createAnswer()
+    await pc.setLocalDescription(answer)
+
+    socket.emit("video_answer", {
+      roomId,
+      answer,
+      to: from,
+      from: user._id,
+    })
+  }
+
+  // Handle video answer
+  const handleVideoAnswer = async ({ answer, from }) => {
+    const pc = peerConnections.current[from]
+
+    if (pc) {
+      await pc.setRemoteDescription(new RTCSessionDescription(answer))
+    }
+  }
+
+  // Handle ICE candidate
+  const handleIceCandidate = ({ candidate, from }) => {
+    const pc = peerConnections.current[from]
+
+    if (pc) {
+      pc.addIceCandidate(new RTCIceCandidate(candidate))
+    }
+  }
+
+  // Handle user left
+  const handleUserLeft = ({ userId, username }) => {
+    const pc = peerConnections.current[userId]
+
+    if (pc) {
+      pc.close()
+      delete peerConnections.current[userId]
+    }
+
+    setRemoteStreams((prev) => {
+      const newStreams = { ...prev }
+      delete newStreams[userId]
+      return newStreams
+    })
+
+    toast.info(`${username} đã rời khỏi cuộc gọi video`)
+  }
+
+  // Toggle mute
   const toggleMute = () => {
     if (localStream) {
       const audioTracks = localStream.getAudioTracks()
@@ -123,7 +232,7 @@ const VideoCallInterface = forwardRef(({ roomId, participants, user, onEndCall }
     }
   }
 
-  // Toggle video on/off
+  // Toggle video
   const toggleVideo = () => {
     if (localStream) {
       const videoTracks = localStream.getVideoTracks()
@@ -134,68 +243,114 @@ const VideoCallInterface = forwardRef(({ roomId, participants, user, onEndCall }
     }
   }
 
-  // Toggle screen sharing
+  // Toggle screen share
   const toggleScreenShare = async () => {
     if (isScreenSharing) {
       // Stop screen sharing
-      if (screenShareStream.current) {
-        screenShareStream.current.getTracks().forEach((track) => track.stop())
+      if (screenShareRef.current && screenShareRef.current.srcObject) {
+        screenShareRef.current.srcObject.getTracks().forEach((track) => track.stop())
+        screenShareRef.current.srcObject = null
       }
-
-      // Restore camera video
-      if (localVideoRef.current && localStream) {
-        localVideoRef.current.srcObject = localStream
-      }
-
       setIsScreenSharing(false)
     } else {
+      // Start screen sharing
       try {
-        // Start screen sharing
-        const stream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: true,
-        })
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true })
 
-        screenShareStream.current = stream
-
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = stream
+        if (screenShareRef.current) {
+          screenShareRef.current.srcObject = screenStream
         }
 
-        // Handle when user stops screen sharing via browser UI
-        stream.getVideoTracks()[0].onended = () => {
-          if (localVideoRef.current && localStream) {
-            localVideoRef.current.srcObject = localStream
+        // Add screen track to all peer connections
+        Object.values(peerConnections.current).forEach((pc) => {
+          const sender = pc.getSenders().find((s) => s.track && s.track.kind === "video")
+          if (sender) {
+            sender.replaceTrack(screenStream.getVideoTracks()[0])
           }
-          setIsScreenSharing(false)
+        })
+
+        // Listen for end of screen sharing
+        screenStream.getVideoTracks()[0].onended = () => {
+          toggleScreenShare()
         }
 
         setIsScreenSharing(true)
       } catch (error) {
         console.error("Error sharing screen:", error)
-        toast.error("Không thể chia sẻ màn hình. Vui lòng thử lại.")
+        toast.error("Không thể chia sẻ màn hình")
       }
     }
   }
 
   // Toggle fullscreen
-  const toggleFullScreen = () => {
-    if (!document.fullscreenElement) {
+  const toggleFullscreen = () => {
+    if (!containerRef.current) return
+
+    if (!isFullscreen) {
       if (containerRef.current.requestFullscreen) {
         containerRef.current.requestFullscreen()
-        setIsFullScreen(true)
+      } else if (containerRef.current.webkitRequestFullscreen) {
+        containerRef.current.webkitRequestFullscreen()
+      } else if (containerRef.current.msRequestFullscreen) {
+        containerRef.current.msRequestFullscreen()
       }
     } else {
       if (document.exitFullscreen) {
         document.exitFullscreen()
-        setIsFullScreen(false)
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen()
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen()
       }
     }
+
+    setIsFullscreen(!isFullscreen)
   }
+
+  // Toggle layout
+  const toggleLayout = () => {
+    setLayout(layout === "grid" ? "spotlight" : "grid")
+  }
+
+  // Find active speaker
+  useEffect(() => {
+    if (!localStream) return
+
+    const audioContext = new AudioContext()
+    const analyser = audioContext.createAnalyser()
+    const microphone = audioContext.createMediaStreamSource(localStream)
+    microphone.connect(analyser)
+    analyser.fftSize = 512
+    const bufferLength = analyser.frequencyBinCount
+    const dataArray = new Uint8Array(bufferLength)
+
+    let speakingDetectionInterval
+
+    const detectSpeaking = () => {
+      analyser.getByteFrequencyData(dataArray)
+      let sum = 0
+      for (let i = 0; i < bufferLength; i++) {
+        sum += dataArray[i]
+      }
+      const average = sum / bufferLength
+      if (average > 100) {
+        setActiveSpeaker(user._id)
+      } else {
+        setActiveSpeaker(null)
+      }
+    }
+
+    speakingDetectionInterval = setInterval(detectSpeaking, 100)
+
+    return () => {
+      clearInterval(speakingDetectionInterval)
+      audioContext.close()
+    }
+  }, [localStream])
 
   return (
     <div className="video-call-interface" ref={containerRef}>
-      <div className="video-grid">
+      <div className={`video-grid ${layout}`}>
         {/* Local video */}
         <div className="video-container local-video">
           <video ref={localVideoRef} autoPlay muted playsInline />
@@ -206,11 +361,14 @@ const VideoCallInterface = forwardRef(({ roomId, participants, user, onEndCall }
 
         {/* Remote videos */}
         {Object.entries(remoteStreams).map(([participantId, stream]) => {
-          const participant = activeParticipants.find((p) => p._id === participantId)
+          const participant = participants.find((p) => p._id === participantId)
           if (!participant) return null
 
           return (
-            <div key={participantId} className="video-container remote-video">
+            <div
+              key={participantId}
+              className={`video-container remote-video ${activeSpeaker === participantId ? "active-speaker" : ""}`}
+            >
               <video
                 autoPlay
                 playsInline
@@ -253,10 +411,18 @@ const VideoCallInterface = forwardRef(({ roomId, participants, user, onEndCall }
 
         <button
           className="control-button"
-          onClick={toggleFullScreen}
-          title={isFullScreen ? "Thoát toàn màn hình" : "Toàn màn hình"}
+          onClick={toggleFullscreen}
+          title={isFullscreen ? "Thoát toàn màn hình" : "Toàn màn hình"}
         >
-          <i className={`fas ${isFullScreen ? "fa-compress" : "fa-expand"}`}></i>
+          <i className={`fas ${isFullscreen ? "fa-compress" : "fa-expand"}`}></i>
+        </button>
+
+        <button
+          className="control-button"
+          onClick={toggleLayout}
+          title={layout === "grid" ? "Chuyển sang bố cục spotlight" : "Chuyển sang bố cục grid"}
+        >
+          <i className={`fas ${layout === "grid" ? "fa-columns" : "fa-user-circle"}`}></i>
         </button>
 
         <button className="control-button end-call" onClick={onEndCall} title="Kết thúc cuộc gọi">

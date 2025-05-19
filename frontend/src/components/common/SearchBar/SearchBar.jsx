@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import searchService from "../../../services/searchService"
 import "./SearchBar.css"
+import { FaSearch } from "react-icons/fa"
 
 const SearchBar = ({ placeholder = "Tìm kiếm...", onSearch, className = "" }) => {
   const [searchTerm, setSearchTerm] = useState("")
@@ -55,9 +56,9 @@ const SearchBar = ({ placeholder = "Tìm kiếm...", onSearch, className = "" })
     setSearchTerm(e.target.value)
   }
 
-  const handleSearch = (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault()
-    if (searchTerm.trim().length > 0) {
+    if (searchTerm.trim()) {
       if (onSearch) {
         onSearch(searchTerm)
       } else {
@@ -129,7 +130,7 @@ const SearchBar = ({ placeholder = "Tìm kiếm...", onSearch, className = "" })
 
   return (
     <div className={`search-container ${className} ${focused ? "focused" : ""}`} ref={searchRef}>
-      <form onSubmit={handleSearch} className="search-form">
+      <form onSubmit={handleSubmit} className="search-form">
         <input
           type="text"
           className="search-input"
@@ -143,7 +144,7 @@ const SearchBar = ({ placeholder = "Tìm kiếm...", onSearch, className = "" })
           aria-label="Tìm kiếm"
         />
         <button type="submit" className="search-button" aria-label="Tìm kiếm">
-          <i className="fas fa-search"></i>
+          <FaSearch />
         </button>
       </form>
 

@@ -1,67 +1,86 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom"
-import { Provider, useDispatch, useSelector } from "react-redux"
-import { ToastContainer } from "react-toastify"
-import "react-toastify/dist/ReactToastify.css"
-import "@fortawesome/fontawesome-free/css/all.min.css"
-import { store } from "./redux/store"
-import Navbar from "./components/layout/Navbar/Navbar"
-import Footer from "./components/layout/Footer/Footer"
-import Home from "./pages/Home/Home"
-import Auth from "./pages/Auth/AuthForm"
-import ResetPassword from "./pages/Auth/ResetPassword"
-import ForgotPassword from "./pages/Auth/ForgotPassword"
-import Profile from "./pages/Profile/Profile"
-import DocumentList from "./pages/Document/DocumentList"
-import DocumentDetail from "./pages/Document/DocumentDetail"
-import CreateDocument from "./pages/Document/CreateDocument"
-import RelatedDocuments from "./pages/Document/RelatedDocuments"
-import CoursePage from "./pages/Course/CoursePage"
-import CourseDetail from "./pages/Course/CourseDetail"
-import MyCourses from "./pages/Course/MyCourses"
-import EditCourse from "./pages/Course/EditCourse"
-import PaymentPage from "./pages/Course/PaymentPage"
-import StudyCorner from "./pages/StudyCorner/StudyCorner"
-import StudyRoom from "./pages/StudyRoom/StudyRoom"
-import CreateExam from "./pages/Exams/CreateExam"
-import ExamList from "./pages/Exams/ExamList"
-import TakeExam from "./pages/Exams/TakeExam"
-import AdminDashboard from "./pages/Admin/AdminDashboard"
-import AchievementsPage from "./pages/Achievements/AchievementsPage"
-import MathAIHelper from "./components/ai/MathAIHelper"
-import { ThemeProvider } from "./context/ThemeContext"
-import ProtectedRoute from "./components/common/ProtectedRoute"
-import { refreshUser } from "./redux/slices/authSlice"
-import Spinner from "./components/ui/Spinner"
-import NewsPage from "./pages/News/NewsPage"
-import NewsEducation from "./pages/News/NewsEducation"
-import NewsMagazine from "./pages/News/NewsMagazine"
-import SearchResults from "./pages/Search/SearchResults"
+import { useEffect, useState } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { Provider, useDispatch, useSelector } from "react-redux";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import "@fortawesome/fontawesome-free/css/all.min.css";
+import { store } from "./redux/store";
+import Navbar from "./components/layout/Navbar/Navbar";
+import Footer from "./components/layout/Footer/Footer";
+import Home from "./pages/Home/Home";
+import Auth from "./pages/Auth/AuthForm";
+import ResetPassword from "./pages/Auth/ResetPassword";
+import ForgotPassword from "./pages/Auth/ForgotPassword";
+import Profile from "./pages/Profile/Profile";
+import DocumentList from "./pages/Document/DocumentList";
+import DocumentDetail from "./pages/Document/DocumentDetail";
+import CreateDocument from "./pages/Document/CreateDocument";
+import RelatedDocuments from "./pages/Document/RelatedDocuments";
+import CoursePage from "./pages/Course/CoursePage";
+import CourseDetail from "./pages/Course/CourseDetail";
+import MyCourses from "./pages/Course/MyCourses";
+import EditCourse from "./pages/Course/EditCourse";
+import PaymentPage from "./pages/Course/PaymentPage";
+import StudyCorner from "./pages/StudyCorner/StudyCorner";
+import StudyRoom from "./pages/StudyRoom/StudyRoom";
+import CreateExam from "./pages/Exams/CreateExam";
+import ExamList from "./pages/Exams/ExamList";
+import TakeExam from "./pages/Exams/TakeExam";
+import AdminDashboard from "./pages/Admin/AdminDashboard";
+import AchievementsPage from "./pages/Achievements/AchievementsPage";
+import MathAIHelper from "./components/ai/MathAIHelper";
+import { ThemeProvider } from "./context/ThemeContext";
+import ProtectedRoute from "./components/common/ProtectedRoute";
+import { refreshUser, refreshToken } from "./redux/slices/authSlice";
+import Spinner from "./components/ui/Spinner";
+import NewsEducation from "./pages/News/NewsEducation";
+import NewsMagazine from "./pages/News/NewsMagazine";
+import SearchResults from "./pages/Search/SearchResults";
 
 const AppContent = () => {
-  const dispatch = useDispatch()
-  const { user, token, loading, isAuthenticated } = useSelector((state) => state.auth)
-  const [appReady, setAppReady] = useState(false)
+  const dispatch = useDispatch();
+  const { user, token, loading, isAuthenticated } = useSelector(
+    (state) => state.auth
+  );
+  const [appReady, setAppReady] = useState(false);
 
   useEffect(() => {
     const initializeAuth = async () => {
       if (token && !user) {
         try {
-          await dispatch(refreshUser()).unwrap()
+          await dispatch(refreshUser()).unwrap();
         } catch (error) {
-          console.error("Failed to refresh user:", error)
+          console.error("Failed to refresh user:", error);
         }
       }
-      setAppReady(true)
-    }
+      setAppReady(true);
+    };
 
-    initializeAuth()
-  }, [dispatch, token, user])
+    initializeAuth();
+
+    // Tự động làm mới token trước khi hết hạn
+    const refreshInterval = setInterval(async () => {
+      if (token) {
+        try {
+          await dispatch(refreshToken()).unwrap();
+        } catch (error) {
+          console.error("Failed to refresh token:", error);
+        }
+      }
+    }, 24 * 60 * 60 * 1000); // Làm mới mỗi 24 giờ
+
+    return () => clearInterval(refreshInterval);
+  }, [dispatch, token, user]);
 
   if (!appReady) {
-    return <Spinner />
+    return <Spinner />;
   }
 
   return (
@@ -83,10 +102,22 @@ const AppContent = () => {
           />
           <Route path="/users/:id" element={<Profile />} />
           <Route path="/documents" element={<DocumentList />} />
-          <Route path="/documents/grade1" element={<DocumentList educationLevel="primary" />} />
-          <Route path="/documents/grade2" element={<DocumentList educationLevel="secondary" />} />
-          <Route path="/documents/grade3" element={<DocumentList educationLevel="highschool" />} />
-          <Route path="/documents/university" element={<DocumentList educationLevel="university" />} />
+          <Route
+            path="/documents/grade1"
+            element={<DocumentList educationLevel="primary" />}
+          />
+          <Route
+            path="/documents/grade2"
+            element={<DocumentList educationLevel="secondary" />}
+          />
+          <Route
+            path="/documents/grade3"
+            element={<DocumentList educationLevel="highschool" />}
+          />
+          <Route
+            path="/documents/university"
+            element={<DocumentList educationLevel="university" />}
+          />
           <Route path="/documents/:id" element={<DocumentDetail />} />
           <Route
             path="/documents/create"
@@ -159,7 +190,6 @@ const AppContent = () => {
               </ProtectedRoute>
             }
           />
-          <Route path="/news" element={<NewsPage />} />
           <Route path="/news/education" element={<NewsEducation />} />
           <Route path="/news/magazine" element={<NewsMagazine />} />
           <Route path="/search" element={<SearchResults />} />
@@ -167,11 +197,11 @@ const AppContent = () => {
         </Routes>
       </main>
       <Footer />
-      {isAuthenticated && <MathAIHelper />}
+      {user && <MathAIHelper />}
       <ToastContainer position="top-right" autoClose={3000} />
     </>
-  )
-}
+  );
+};
 
 const App = () => {
   return (
@@ -182,7 +212,7 @@ const App = () => {
         </Router>
       </ThemeProvider>
     </Provider>
-  )
-}
+  );
+};
 
-export default App
+export default App;

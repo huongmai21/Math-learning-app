@@ -5,7 +5,7 @@ const path = require("path");
 const cors = require("cors");
 const rateLimit = require("express-rate-limit");
 const morgan = require("morgan");
-const { Server } = require("socket.io");
+// const { Server } = require("socket.io");
 const http = require("http");
 const fileUpload = require("express-fileupload");
 const errorHandler = require("./middleware/error");
@@ -38,14 +38,33 @@ const forgotPasswordLimiter = rateLimit({
   message: "Quá nhiều yêu cầu reset mật khẩu, vui lòng thử lại sau 1 giờ.",
 });
 
+
+// Cấu hình CORS
+const corsOptions = {
+  origin: process.env.CLIENT_URL || "http://localhost:5173", // Origin cụ thể
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Bao gồm OPTIONS
+  credentials: true, // Hỗ trợ credentials (cookie, Authorization header)
+  allowedHeaders: ["Authorization", "Content-Type"], // Cho phép các header
+};
+app.use(cors(corsOptions)); // Sử dụng trước các middleware khác
+
 // Middleware
-app.use(cors());
 app.use(express.json());
-app.use(fileUpload());
+app.use(
+  fileUpload({
+    limits: { fileSize: 5 * 1024 * 1024 }, // giới hạn 5MB
+    abortOnLimit: true,
+    useTempFiles: true,
+    tempFileDir: "/tmp/",
+  })
+);
+
 app.use(express.urlencoded({ extended: true }));
 if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
+
+app.options('*', cors(corsOptions)); // Xử lý tất cả preflight request
 
 // Cấu hình session với Redis
 let redisClient;
@@ -61,13 +80,23 @@ console.log("RedisStore:", RedisStore); // Debug RedisStore
 
 app.use(
   session({
-    store: new RedisStore({ client: redisClient }),
+    store: new RedisStore({
+      client: redisClient,
+      prefix: "sess:",
+      ttl: 60 * 60 * 24, // 1 ngày
+      disableTouch: true, // tránh reset TTL mỗi lần request
+    }),
     secret: process.env.JWT_SECRET || "fallback_secret",
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: process.env.NODE_ENV === "production" },
+    cookie: {
+      secure: process.env.NODE_ENV === "production",
+      httpOnly: true,
+      maxAge: 1000 * 60 * 60 * 24, // 1 ngày
+    },
   })
 );
+
 
 // Thêm logging cho các routes
 app.use((req, res, next) => {
@@ -79,11 +108,15 @@ app.use((req, res, next) => {
 app.use((req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
   if (token) {
-    console.log("Token được gửi trong request:", token.substring(0, 10) + "...");
+    console.log(
+      "Token được gửi trong request:",
+      token.substring(0, 10) + "..."
+    );
   }
   next();
 });
 
+const adminRoutes = require("./routes/adminRoutes");
 const authRoutes = require("./routes/authRoutes");
 const usersRoutes = require("./routes/usersRoutes");
 const profileRoutes = require("./routes/profileRoutes");
@@ -100,6 +133,7 @@ const Search = require("./routes/searchRoutes");
 const Bookmark = require("./routes/bookmarkRoutes");
 
 // Routes
+app.use("/admin", adminRoutes);
 app.use("/auth/login", loginLimiter);
 app.use("/auth/forgot-password", forgotPasswordLimiter);
 app.use("/auth", authRoutes);
@@ -137,37 +171,37 @@ app.get("/cloudinary-upload-preset", (req, res) => {
 });
 
 // Socket.io
-global.io = io; // Lưu io vào global để dùng trong controller
+// global.io = io; // Lưu io vào global để dùng trong controller
 
-io.on("connection", (socket) => {
-  console.log("Client connected:", socket.id);
-  socket.on("join", (userId) => {
-    socket.join(userId); // User joins their own room
-    console.log(`User ${userId} joined room`);
-  });
-  socket.on("bookmark", ({ userId, referenceType, referenceId, action }) => {
-    // Gửi thông báo đến người dùng và admin
-    io.to(userId).emit("bookmark_notification", {
-      message: `Bạn đã ${
-        action === "add" ? "đánh dấu" : "bỏ đánh dấu"
-      } ${referenceType} ${referenceId}`,
-      referenceType,
-      referenceId,
-      action,
-    });
-    // Gửi đến admin (giả định admin ở room "admin")
-    io.to("admin").emit("bookmark_notification", {
-      message: `Người dùng ${userId} đã ${
-        action === "add" ? "đánh dấu" : "bỏ đánh dấu"
-      } ${referenceType} ${referenceId}`,
-      userId,
-      referenceType,
-      referenceId,
-      action,
-    });
-  });
-  socket.on("disconnect", () => console.log("Client disconnected:", socket.id));
-});
+// io.on("connection", (socket) => {
+//   console.log("Client connected:", socket.id);
+//   socket.on("join", (userId) => {
+//     socket.join(userId); // User joins their own room
+//     console.log(`User ${userId} joined room`);
+//   });
+//   socket.on("bookmark", ({ userId, referenceType, referenceId, action }) => {
+//     // Gửi thông báo đến người dùng và admin
+//     io.to(userId).emit("bookmark_notification", {
+//       message: `Bạn đã ${
+//         action === "add" ? "đánh dấu" : "bỏ đánh dấu"
+//       } ${referenceType} ${referenceId}`,
+//       referenceType,
+//       referenceId,
+//       action,
+//     });
+//     // Gửi đến admin (giả định admin ở room "admin")
+//     io.to("admin").emit("bookmark_notification", {
+//       message: `Người dùng ${userId} đã ${
+//         action === "add" ? "đánh dấu" : "bỏ đánh dấu"
+//       } ${referenceType} ${referenceId}`,
+//       userId,
+//       referenceType,
+//       referenceId,
+//       action,
+//     });
+//   });
+//   socket.on("disconnect", () => console.log("Client disconnected:", socket.id));
+// });
 
 // Start Server
 const PORT = process.env.PORT || 5000;

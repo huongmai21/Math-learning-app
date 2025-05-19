@@ -1,27 +1,27 @@
-"use client";
+"use client"
 
 // src/pages/HomePage.jsx
-import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
-import { io } from "socket.io-client";
-import { Helmet } from "react-helmet";
-import { motion } from "framer-motion";
-import SearchBar from "../../components/common/SearchBar/SearchBar";
+import { useState, useEffect } from "react"
+import { Link, useNavigate } from "react-router-dom"
+import { toast } from "react-toastify"
+import { io } from "socket.io-client"
+import { Helmet } from "react-helmet"
+import { motion } from "framer-motion"
+import SearchBar from "../../components/common/SearchBar/SearchBar"
 // import Footer from "../../components/layout/Footer/Footer";
-import { getNewsPress } from "../../services/newsService";
-import { getCoursesPress } from "../../services/courseService";
-import api from "../../services/api";
-import "./HomePage.css";
+import { getNewsPress } from "../../services/newsService"
+import { getCoursesPress } from "../../services/courseService"
+import api from "../../services/api"
+import "./HomePage.css"
 
 const HomePage = () => {
-  const [news, setNews] = useState([]);
-  const [courses, setCourses] = useState([]);
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const navigate = useNavigate();
-  const [currentSlide, setCurrentSlide] = useState(0);
+  const [news, setNews] = useState([])
+  const [courses, setCourses] = useState([])
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const navigate = useNavigate()
+  const [currentSlide, setCurrentSlide] = useState(0)
 
   // Danh sách slide cho banner
   const slides = [
@@ -30,104 +30,98 @@ const HomePage = () => {
       description: "Học Toán dễ dàng và thú vị hơn bao giờ hết!",
       buttonText: user ? "Bắt đầu học ngay" : "Đăng nhập để học ngay",
       onClick: () => navigate(user ? "/courses" : "/auth/login"),
-      image:
-        "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934624/1_bsngjz.png",
+      image: "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934624/1_bsngjz.png",
     },
     {
       title: "Khám phá khóa học mới",
       description: "Hàng loạt khóa học Toán học thú vị đang chờ bạn!",
       buttonText: "Xem khóa học",
       onClick: () => navigate("/courses"),
-      image:
-        "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png",
+      image: "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png",
     },
     {
       title: "Tham gia thi đấu",
       description: "Thử thách bản thân với các cuộc thi Toán học!",
       buttonText: "Thi đấu ngay",
       onClick: () => navigate("/exam"),
-      image:
-        "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934942/4_fpzzq2.png",
+      image: "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934942/4_fpzzq2.png",
     },
-  ];
+  ]
 
   // Chuyển slide tự động
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 10000); // Chuyển slide mỗi 10 giây
-    return () => clearInterval(interval);
-  }, [slides.length]);
+      setCurrentSlide((prev) => (prev + 1) % slides.length)
+    }, 10000) // Chuyển slide mỗi 10 giây
+    return () => clearInterval(interval)
+  }, [slides.length])
 
   // Xử lý nút điều hướng
   const handlePrevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
-  };
+    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)
+  }
 
   const handleNextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % slides.length);
-  };
+    setCurrentSlide((prev) => (prev + 1) % slides.length)
+  }
 
   // Kết nối Socket.io
   useEffect(() => {
-    const socket = io("http://localhost:5000");
+    const socket = io("http://localhost:5000")
     socket.on("examNotification", (data) => {
-      toast.info(data.message, { position: "top-right", autoClose: 3000 });
-    });
+      toast.info(data.message, { position: "top-right", autoClose: 3000 })
+    })
     socket.on("messageNotification", (data) => {
-      toast.info(data.message, { position: "top-right", autoClose: 3000 });
-    });
-    return () => socket.disconnect();
-  }, []);
+      toast.info(data.message, { position: "top-right", autoClose: 3000 })
+    })
+    return () => socket.disconnect()
+  }, [])
 
   // Lấy thông tin người dùng
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("token")
     if (token) {
       api
         .get("/auth/me")
         .then((response) => setUser(response.data))
         .catch((err) => {
-          console.error(err);
-          localStorage.removeItem("token");
-        });
+          console.error(err)
+          localStorage.removeItem("token")
+        })
     }
-  }, []);
+  }, [])
 
   // Lấy dữ liệu tin tức và khóa học
   useEffect(() => {
     const loadData = async () => {
-      setLoading(true);
+      setLoading(true)
       try {
         // Sử dụng getNewsPress và getCoursesPress đã được cập nhật
-        const [newsData, coursesData] = await Promise.all([
-          getNewsPress({ limit: 3 }),
-          getCoursesPress({ limit: 3 }),
-        ]);
+        const [newsData, coursesData] = await Promise.all([getNewsPress({ limit: 3 }), getCoursesPress({ limit: 3 })])
 
         // Kiểm tra và xử lý dữ liệu trả về
-        setNews(newsData.news || []);
-        setCourses(coursesData.data || []);
+        setNews(newsData.news || [])
+        setCourses(coursesData.data || [])
       } catch (err) {
-        console.error("Error loading data:", err);
-        setError("Không thể tải dữ liệu");
+        console.error("Error loading data:", err)
+        setError("Không thể tải dữ liệu")
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
-    loadData();
-  }, []);
+    }
+    loadData()
+  }, [])
 
   // Hiệu ứng cho các section
   const sectionVariants = {
     hidden: { opacity: 0, y: 50 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
-  };
+  }
 
   // Xử lý lỗi hình ảnh
   const handleImageError = (e) => {
-    e.target.src = "/assets/images/placeholder.jpg";
-  };
+    e.target.src = "/assets/images/placeholder.jpg"
+  }
 
   return (
     <div className="homepage">
@@ -137,39 +131,49 @@ const HomePage = () => {
           name="description"
           content="FunMath cung cấp tài liệu học tập, khóa học, tin tức giáo dục, và các hoạt động thi đấu Toán học cho học sinh, sinh viên và giáo viên."
         />
-        <meta
-          name="keywords"
-          content="học toán, tài liệu toán, khóa học toán, tin tức giáo dục, thi đấu toán học"
-        />
+        <meta name="keywords" content="học toán, tài liệu toán, khóa học toán, tin tức giáo dục, thi đấu toán học" />
         <meta name="author" content="FunMath Team" />
       </Helmet>
 
       <SearchBar />
 
       {/* Banner Carousel */}
-      <motion.section
-        className="banner"
-        initial="hidden"
-        animate="visible"
-        variants={sectionVariants}
-      >
+      <motion.section className="banner" initial="hidden" animate="visible" variants={sectionVariants}>
         <div className="banner-slides">
           {slides.map((slide, index) => (
             <div
               key={index}
-              className={`banner-slide ${
-                index === currentSlide ? "active" : ""
-              }`}
+              className={`banner-slide ${index === currentSlide ? "active" : ""}`}
               style={{
-                backgroundImage: `linear-gradient(rgba(233, 233, 233, 0.5), rgba(0, 0, 0, 0.5)), url(${slide.image})`,
+                backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url(${slide.image})`,
               }}
             >
               <div className="banner-content">
-                <h1>{slide.title}</h1>
-                <p>{slide.description}</p>
-                <button className="cta-button" onClick={slide.onClick}>
+                <motion.h1
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={index === currentSlide ? { opacity: 1, y: 0 } : { opacity: 0, y: -20 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  {slide.title}
+                </motion.h1>
+                <motion.p
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={index === currentSlide ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                >
+                  {slide.description}
+                </motion.p>
+                <motion.button
+                  className="cta-button"
+                  onClick={slide.onClick}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={index === currentSlide ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.5, delay: 0.4 }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
                   {slide.buttonText}
-                </button>
+                </motion.button>
               </div>
             </div>
           ))}
@@ -181,6 +185,57 @@ const HomePage = () => {
         <button className="banner-nav next" onClick={handleNextSlide}>
           <i className="fas fa-chevron-right"></i>
         </button>
+
+        {/* Indicators */}
+        <div className="banner-indicators">
+          {slides.map((_, index) => (
+            <button
+              key={index}
+              className={`indicator ${index === currentSlide ? "active" : ""}`}
+              onClick={() => setCurrentSlide(index)}
+            ></button>
+          ))}
+        </div>
+      </motion.section>
+
+      {/* Thống kê */}
+      <motion.section
+        className="stats-section"
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true }}
+        variants={sectionVariants}
+      >
+        <div className="stats-container">
+          <div className="stat-item">
+            <i className="fas fa-users"></i>
+            <div>
+              <h3>5,000+</h3>
+              <p>Học viên</p>
+            </div>
+          </div>
+          <div className="stat-item">
+            <i className="fas fa-book"></i>
+            <div>
+              <h3>200+</h3>
+              <p>Tài liệu</p>
+            </div>
+          </div>
+          <div className="stat-item">
+            <i className="fas fa-graduation-cap"></i>
+            <div>
+              <h3>50+</h3>
+              <p>Khóa học</p>
+            </div>
+          </div>
+          <div className="stat-item">
+            <i className="fas fa-trophy"></i>
+            <div>
+              <h3>100+</h3>
+              <p>Bài thi</p>
+            </div>
+          </div>
+        </div>
       </motion.section>
 
       {/* Tin tức nổi bật */}
@@ -206,12 +261,10 @@ const HomePage = () => {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.3 }}
+                whileHover={{ y: -5, boxShadow: "0 10px 20px rgba(0,0,0,0.1)" }}
               >
                 <img
-                  src={
-                    item.image ||
-                    "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934626/3_q1etwh.png"
-                  }
+                  src={item.image || "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934626/3_q1etwh.png"}
                   alt={item.title}
                   className="news-image"
                   onError={handleImageError}
@@ -219,7 +272,9 @@ const HomePage = () => {
                 <div className="news-content">
                   <h3>{item.title}</h3>
                   <p>{item.summary || item.description}</p>
-                  <Link to={`/news/${item._id || item.id}`}>Đọc thêm</Link>
+                  <Link to={`/news/${item._id || item.id}`} className="read-more">
+                    Đọc thêm
+                  </Link>
                 </div>
               </motion.div>
             ))}
@@ -243,10 +298,10 @@ const HomePage = () => {
         <h2>Tài liệu học tập</h2>
         <div className="resources-list">
           {[
-            { to: "/documents/grade1", label: "Cấp 1" },
-            { to: "/documents/grade2", label: "Cấp 2" },
-            { to: "/documents/grade3", label: "Cấp 3" },
-            { to: "/documents/university", label: "Đại học" },
+            { to: "/documents/grade1", label: "Cấp 1", icon: "fa-child" },
+            { to: "/documents/grade2", label: "Cấp 2", icon: "fa-user" },
+            { to: "/documents/grade3", label: "Cấp 3", icon: "fa-user-graduate" },
+            { to: "/documents/university", label: "Đại học", icon: "fa-university" },
           ].map((item, index) => (
             <motion.div
               key={item.to}
@@ -256,7 +311,7 @@ const HomePage = () => {
               transition={{ duration: 0.3, delay: index * 0.1 }}
             >
               <Link to={item.to} className="resource-item">
-                <i className="fas fa-book"></i>
+                <i className={`fas ${item.icon}`}></i>
                 <span>{item.label}</span>
               </Link>
             </motion.div>
@@ -287,12 +342,10 @@ const HomePage = () => {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.3 }}
+                whileHover={{ y: -5, boxShadow: "0 10px 20px rgba(0,0,0,0.1)" }}
               >
                 <img
-                  src={
-                    course.image ||
-                    "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png"
-                  }
+                  src={course.image || "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png"}
                   alt={course.title}
                   className="course-image"
                   onError={handleImageError}
@@ -300,7 +353,15 @@ const HomePage = () => {
                 <div className="course-content">
                   <h3>{course.title}</h3>
                   <p>{course.description}</p>
-                  <Link to={`/courses/${course._id || course.id}`}>
+                  <div className="course-meta">
+                    <span className="course-author">
+                      <i className="fas fa-user"></i> {course.author?.username || "Giảng viên"}
+                    </span>
+                    <span className="course-price">
+                      {course.price === 0 ? "Miễn phí" : `${course.price.toLocaleString()} VND`}
+                    </span>
+                  </div>
+                  <Link to={`/courses/${course._id || course.id}`} className="course-link">
                     Xem khóa học
                   </Link>
                 </div>
@@ -331,7 +392,11 @@ const HomePage = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.3 }}
+            whileHover={{ y: -5, boxShadow: "0 10px 20px rgba(0,0,0,0.1)" }}
           >
+            <div className="activity-icon">
+              <i className="fas fa-medal"></i>
+            </div>
             <h3>Tham gia thi đấu</h3>
             <p>Kiểm tra kiến thức của bạn với các đề thi thú vị!</p>
             <Link to="/exam" className="activity-button">
@@ -346,7 +411,11 @@ const HomePage = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.3, delay: 0.1 }}
+                whileHover={{ y: -5, boxShadow: "0 10px 20px rgba(0,0,0,0.1)" }}
               >
+                <div className="activity-icon">
+                  <i className="fas fa-comments"></i>
+                </div>
                 <h3>Góc học tập</h3>
                 <p>Hỏi bài và giải bài tập cùng cộng đồng.</p>
                 <Link to="/study-corner" className="activity-button">
@@ -359,7 +428,11 @@ const HomePage = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.3, delay: 0.2 }}
+                whileHover={{ y: -5, boxShadow: "0 10px 20px rgba(0,0,0,0.1)" }}
               >
+                <div className="activity-icon">
+                  <i className="fas fa-users"></i>
+                </div>
                 <h3>Phòng học nhóm</h3>
                 <p>Cùng học và trao đổi với bạn bè.</p>
                 <Link to="/study-room" className="activity-button">
@@ -374,13 +447,14 @@ const HomePage = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.3 }}
+              whileHover={{ y: -5, boxShadow: "0 10px 20px rgba(0,0,0,0.1)" }}
             >
+              <div className="activity-icon">
+                <i className="fas fa-user-plus"></i>
+              </div>
               <h3>Tham gia cộng đồng</h3>
               <p>Đăng nhập để truy cập các góc học tập và phòng học nhóm.</p>
-              <button
-                onClick={() => navigate("/auth/login")}
-                className="activity-button"
-              >
+              <button onClick={() => navigate("/auth/login")} className="activity-button">
                 Đăng nhập ngay
               </button>
             </motion.div>
@@ -390,7 +464,7 @@ const HomePage = () => {
 
       {/* <Footer /> */}
     </div>
-  );
-};
+  )
+}
 
-export default HomePage;
+export default HomePage
