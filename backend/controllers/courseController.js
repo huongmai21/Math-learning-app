@@ -9,7 +9,7 @@ const Notification = require("../models/Notification");
 
 exports.getCourses = asyncHandler(async (req, res, next) => {
   const { page = 1, limit = 6, category, instructorId } = req.query;
-  const query = { status: "approved" }; // Chỉ lấy khóa học đã được phê duyệt
+  const query = { status: "approved" };
 
   if (category && category !== "all") {
     query.category = category;
@@ -32,11 +32,10 @@ exports.getCourses = asyncHandler(async (req, res, next) => {
   });
 });
 
-// Lấy khóa học nổi bật
 exports.getFeaturedCourses = asyncHandler(async (req, res, next) => {
   const limit = Number(req.query.limit) || 3;
 
-  // Lấy khóa học có nhiều người đăng ký nhất
+  // Lấy số lượng đăng ký cho mỗi khóa học
   const enrollmentCounts = await Enrollment.aggregate([
     { $group: { _id: "$courseId", count: { $sum: 1 } } },
     { $sort: { count: -1 } },
@@ -45,16 +44,27 @@ exports.getFeaturedCourses = asyncHandler(async (req, res, next) => {
 
   const courseIds = enrollmentCounts.map((item) => item._id);
 
-  // Nếu không đủ khóa học nổi bật, bổ sung thêm khóa học mới nhất
+  // Lấy thông tin khóa học và kết hợp số lượng đăng ký
   let featuredCourses = [];
   if (courseIds.length > 0) {
     featuredCourses = await Course.find({
       _id: { $in: courseIds },
       status: "approved",
     }).populate("instructorId", "username avatar");
+
+    // Thêm số lượng đăng ký vào dữ liệu khóa học
+    featuredCourses = featuredCourses.map((course) => {
+      const enrollment = enrollmentCounts.find(
+        (e) => e._id.toString() === course._id.toString()
+      );
+      return {
+        ...course._doc,
+        enrollmentCount: enrollment ? enrollment.count : 0,
+      };
+    });
   }
 
-  // Nếu không đủ khóa học theo yêu cầu, lấy thêm khóa học mới nhất
+  // Bổ sung khóa học mới nếu không đủ
   if (featuredCourses.length < limit) {
     const additionalCourses = await Course.find({
       _id: { $nin: courseIds },
@@ -64,11 +74,27 @@ exports.getFeaturedCourses = asyncHandler(async (req, res, next) => {
       .limit(limit - featuredCourses.length)
       .populate("instructorId", "username avatar");
 
-    featuredCourses = [...featuredCourses, ...additionalCourses];
+    const additionalEnrollmentCounts = await Enrollment.aggregate([
+      { $match: { courseId: { $in: additionalCourses.map((c) => c._id) } } },
+      { $group: { _id: "$courseId", count: { $sum: 1 } } },
+    ]);
+
+    const additionalWithCounts = additionalCourses.map((course) => {
+      const enrollment = additionalEnrollmentCounts.find(
+        (e) => e._id.toString() === course._id.toString()
+      );
+      return {
+        ...course._doc,
+        enrollmentCount: enrollment ? enrollment.count : 0,
+      };
+    });
+
+    featuredCourses = [...featuredCourses, ...additionalWithCounts];
   }
 
   res.status(200).json({
     success: true,
+    count: featuredCourses.length,
     data: featuredCourses,
   });
 });
@@ -471,32 +497,6 @@ exports.getReviews = asyncHandler(async (req, res, next) => {
   res.status(200).json({ success: true, data: reviews });
 });
 
-// Thêm controller để lấy khóa học nổi bật
-const getFeaturedCourses = async (req, res) => {
-  try {
-    const limit = Number.parseInt(req.query.limit) || 3;
-
-    const featuredCourses = await Course.find({
-      featured: true,
-      status: "approved",
-    })
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .populate("instructorId", "username avatar");
-
-    res.status(200).json({
-      success: true,
-      count: featuredCourses.length,
-      data: featuredCourses,
-    });
-  } catch (error) {
-    console.error("Error fetching featured courses:", error);
-    res.status(500).json({
-      success: false,
-      message: "Không thể lấy khóa học nổi bật",
-    });
-  }
-};
 
 // Thêm controller vào exports
 module.exports = {
@@ -515,5 +515,4 @@ module.exports = {
   getProgress: exports.getProgress,
   createReview: exports.createReview,
   getReviews: exports.getReviews,
-  getFeaturedCourses,
 };

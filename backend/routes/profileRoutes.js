@@ -11,6 +11,7 @@ const {
   enrollCourse,
   createCourse,
   getParticipatedExams,
+  getAchievements,
 } = require("../controllers/profileController");
 const { authenticateToken, checkRole } = require("../middleware/authMiddleware");
 
@@ -23,5 +24,6 @@ router.post("/library", authenticateToken, addBookmark);
 router.post("/posts", authenticateToken, createPost);
 router.post("/courses/enroll", authenticateToken, enrollCourse);
 router.post("/courses", authenticateToken, createCourse);
+router.get("/achievements", authenticateToken, getAchievements);
 
 module.exports = router;

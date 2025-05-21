@@ -1,277 +1,462 @@
-const User = require("../models/User")
-const Exam = require("../models/Exam")
-const Bookmark = require("../models/Bookmark")
-const Course = require("../models/Course")
-const Post = require("../models/Post")
-const News = require("../models/News")
-const Document = require("../models/Document")
-const asyncHandler = require("../middleware/asyncHandler")
+// adminController.js
+const User = require("../models/User");
+const Course = require("../models/Course");
+const Exam = require("../models/Exam");
+const News = require("../models/News");
+const Document = require("../models/Document");
+const Bookmark = require("../models/Bookmark");
+const Comment = require("../models/Comment");
+const Question = require("../models/Question");
+const cloudinary = require("../config/cloudinary");
 
-// Quản lý người dùng
-exports.getUsers = asyncHandler(async (req, res) => {
-  const users = await User.find().select("username email role createdAt")
-  res.json({ users })
-})
-
-exports.deleteUser = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.params.id)
-  if (!user) return res.status(404).json({ message: "Không tìm thấy người dùng" })
-
-  await user.remove()
-  res.json({ message: "Xóa người dùng thành công" })
-})
-
-exports.updateUserRole = asyncHandler(async (req, res) => {
-  const { role } = req.body
-  if (!["student", "teacher", "admin"].includes(role)) {
-    return res.status(400).json({ message: "Vai trò không hợp lệ" })
+exports.getUsers = async (req, res) => {
+  try {
+    const users = await User.find().select("-password");
+    res.json({ users });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
   }
+};
 
-  const user = await User.findById(req.params.id)
-  if (!user) return res.status(404).json({ message: "Không tìm thấy người dùng" })
-
-  user.role = role
-  await user.save()
-
-  res.json({ message: "Cập nhật vai trò thành công", user })
-})
-
-// Quản lý khóa học
-exports.getCourses = asyncHandler(async (req, res) => {
-  const courses = await Course.find().populate("author", "username")
-  res.json({ courses })
-})
-
-exports.approveCourse = asyncHandler(async (req, res) => {
-  const course = await Course.findById(req.params.id)
-  if (!course) return res.status(404).json({ message: "Không tìm thấy khóa học" })
-
-  course.status = "approved"
-  await course.save()
-
-  res.json({ message: "Duyệt khóa học thành công", course })
-})
-
-exports.rejectCourse = asyncHandler(async (req, res) => {
-  const course = await Course.findById(req.params.id)
-  if (!course) return res.status(404).json({ message: "Không tìm thấy khóa học" })
-
-  course.status = "rejected"
-  await course.save()
-
-  res.json({ message: "Từ chối khóa học thành công", course })
-})
-
-exports.deleteCourse = asyncHandler(async (req, res) => {
-  const course = await Course.findById(req.params.id)
-  if (!course) return res.status(404).json({ message: "Không tìm thấy khóa học" })
-
-  await course.remove()
-  res.json({ message: "Xóa khóa học thành công" })
-})
-
-// Quản lý đề thi
-exports.getExams = asyncHandler(async (req, res) => {
-  const exams = await Exam.find().populate("author", "username")
-  res.json({ exams })
-})
-
-exports.approveExam = asyncHandler(async (req, res) => {
-  const exam = await Exam.findById(req.params.id)
-  if (!exam) return res.status(404).json({ message: "Không tìm thấy đề thi" })
-
-  exam.status = "approved"
-  await exam.save()
-
-  res.json({ message: "Duyệt đề thi thành công", exam })
-})
-
-exports.rejectExam = asyncHandler(async (req, res) => {
-  const exam = await Exam.findById(req.params.id)
-  if (!exam) return res.status(404).json({ message: "Không tìm thấy đề thi" })
-
-  exam.status = "rejected"
-  await exam.save()
-
-  res.json({ message: "Từ chối đ�� thi thành công", exam })
-})
-
-exports.deleteExam = asyncHandler(async (req, res) => {
-  const exam = await Exam.findById(req.params.id)
-  if (!exam) return res.status(404).json({ message: "Không tìm thấy đề thi" })
-
-  await exam.remove()
-  res.json({ message: "Xóa đề thi thành công" })
-})
-
-// Quản lý tin tức
-exports.getNews = asyncHandler(async (req, res) => {
-  const news = await News.find().populate("author", "username")
-  res.json({ news })
-})
-
-exports.approveNews = asyncHandler(async (req, res) => {
-  const newsItem = await News.findById(req.params.id)
-  if (!newsItem) return res.status(404).json({ message: "Không tìm thấy tin tức" })
-
-  newsItem.status = "approved"
-  await newsItem.save()
-
-  res.json({ message: "Duyệt tin tức thành công", news: newsItem })
-})
-
-exports.rejectNews = asyncHandler(async (req, res) => {
-  const newsItem = await News.findById(req.params.id)
-  if (!newsItem) return res.status(404).json({ message: "Không tìm thấy tin tức" })
-
-  newsItem.status = "rejected"
-  await newsItem.save()
-
-  res.json({ message: "Từ chối tin tức thành công", news: newsItem })
-})
-
-exports.deleteNews = asyncHandler(async (req, res) => {
-  const newsItem = await News.findById(req.params.id)
-  if (!newsItem) return res.status(404).json({ message: "Không tìm thấy tin tức" })
-
-  await newsItem.remove()
-  res.json({ message: "Xóa tin tức thành công" })
-})
-
-// Quản lý tài liệu
-exports.getDocuments = asyncHandler(async (req, res) => {
-  const documents = await Document.find().populate("author", "username")
-  res.json({ documents })
-})
-
-exports.approveDocument = asyncHandler(async (req, res) => {
-  const document = await Document.findById(req.params.id)
-  if (!document) return res.status(404).json({ message: "Không tìm thấy tài liệu" })
-
-  document.status = "approved"
-  await document.save()
-
-  res.json({ message: "Duyệt tài liệu thành công", document })
-})
-
-exports.rejectDocument = asyncHandler(async (req, res) => {
-  const document = await Document.findById(req.params.id)
-  if (!document) return res.status(404).json({ message: "Không tìm thấy tài liệu" })
-
-  document.status = "rejected"
-  await document.save()
-
-  res.json({ message: "Từ chối tài liệu thành công", document })
-})
-
-exports.deleteDocument = asyncHandler(async (req, res) => {
-  const document = await Document.findById(req.params.id)
-  if (!document) return res.status(404).json({ message: "Không tìm thấy tài liệu" })
-
-  await document.remove()
-  res.json({ message: "Xóa tài liệu thành công" })
-})
-
-// Quản lý thư viện
-exports.getBookmarks = asyncHandler(async (req, res) => {
-  const items = await Bookmark.find().populate("user", "username")
-  res.json({ items })
-})
-
-exports.deleteBookmark = asyncHandler(async (req, res) => {
-  const item = await Bookmark.findById(req.params.id)
-  if (!item) return res.status(404).json({ message: "Không tìm thấy mục thư viện" })
-
-  await item.remove()
-  res.json({ message: "Xóa mục thư viện thành công" })
-})
-
-// Thống kê
-exports.getStats = asyncHandler(async (req, res) => {
-  const totalUsers = await User.countDocuments()
-  const totalExams = await Exam.countDocuments()
-  const totalCourses = await Course.countDocuments()
-  const totalPosts = await Post.countDocuments()
-  const totalDocuments = await Document.countDocuments()
-  const totalNews = await News.countDocuments()
-
-  res.json({
-    totalUsers,
-    totalExams,
-    totalCourses,
-    totalPosts,
-    totalDocuments,
-    totalNews,
-  })
-})
-
-// Thống kê chi tiết
-exports.getDetailedStats = asyncHandler(async (req, res) => {
-  const { period } = req.query
-  let days = 7 // mặc định 7 ngày
-
-  if (period === "month") {
-    days = 30
-  } else if (period === "year") {
-    days = 365
+exports.deleteUser = async (req, res) => {
+  try {
+    await User.findByIdAndDelete(req.params.id);
+    res.json({ message: "Xóa người dùng thành công" });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
   }
+};
 
-  // Tính ngày bắt đầu
-  const startDate = new Date()
-  startDate.setDate(startDate.getDate() - days)
+exports.updateUserRole = async (req, res) => {
+  try {
+    const { role } = req.body;
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { role },
+      { new: true }
+    );
+    res.json({ user });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
 
-  // Thống kê người dùng mới
-  const newUsers = await User.aggregate([
-    {
-      $match: {
-        createdAt: { $gte: startDate },
-      },
-    },
-    {
-      $group: {
-        _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
-        count: { $sum: 1 },
-      },
-    },
-    {
-      $sort: { _id: 1 },
-    },
-    {
-      $project: {
-        date: "$_id",
-        count: 1,
-        _id: 0,
-      },
-    },
-  ])
+exports.getCourses = async (req, res) => {
+  try {
+    const courses = await Course.find().populate("author", "username");
+    res.json({ courses });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
 
-  // Thống kê hoạt động (ví dụ: bài đăng, bình luận, v.v.)
-  const activities = await Post.aggregate([
-    {
-      $match: {
-        createdAt: { $gte: startDate },
-      },
-    },
-    {
-      $group: {
-        _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
-        count: { $sum: 1 },
-      },
-    },
-    {
-      $sort: { _id: 1 },
-    },
-    {
-      $project: {
-        date: "$_id",
-        count: 1,
-        _id: 0,
-      },
-    },
-  ])
+exports.approveCourse = async (req, res) => {
+  try {
+    const course = await Course.findByIdAndUpdate(
+      req.params.id,
+      { status: "approved" },
+      { new: true }
+    );
+    res.json({ course });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
 
-  res.json({
-    newUsers,
-    activities,
-  })
-})
+exports.rejectCourse = async (req, res) => {
+  try {
+    const course = await Course.findByIdAndUpdate(
+      req.params.id,
+      { status: "rejected" },
+      { new: true }
+    );
+    res.json({ course });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
+
+exports.deleteCourse = async (req, res) => {
+  try {
+    await Course.findByIdAndDelete(req.params.id);
+    res.json({ message: "Xóa khóa học thành công" });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
+
+exports.getExams = async (req, res) => {
+  try {
+    const exams = await Exam.find().populate("author", "username");
+    res.json({ exams });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
+
+exports.approveExam = async (req, res) => {
+  try {
+    const exam = await Exam.findByIdAndUpdate(
+      req.params.id,
+      { status: "approved" },
+      { new: true }
+    );
+    res.json({ exam });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
+
+exports.rejectExam = async (req, res) => {
+  try {
+    const exam = await Exam.findByIdAndUpdate(
+      req.params.id,
+      { status: "rejected" },
+      { new: true }
+    );
+    res.json({ exam });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
+
+exports.deleteExam = async (req, res) => {
+  try {
+    await Exam.findByIdAndDelete(req.params.id);
+    res.json({ message: "Xóa đề thi thành công" });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
+
+exports.getNews = async (req, res) => {
+  try {
+    const news = await News.find().populate("author", "username");
+    res.json({ news });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
+
+exports.createNews = async (req, res) => {
+  try {
+    const { title, content, summary, category, tags, issueNumber, year } =
+      req.body;
+    let imageUrl, pdfUrl;
+
+    if (req.files.image) {
+      const result = await cloudinary.uploader.upload(req.files.image[0].path);
+      imageUrl = result.secure_url;
+    }
+
+    if (req.files.file && category === "math-magazine") {
+      const result = await cloudinary.uploader.upload(req.files.file[0].path, {
+        resource_type: "raw",
+      });
+      pdfUrl = result.secure_url;
+    }
+
+    const news = new News({
+      title,
+      content,
+      summary,
+      category,
+      tags: tags ? JSON.parse(tags) : [],
+      author: req.user._id,
+      status: "pending",
+      image: imageUrl,
+      file: pdfUrl,
+      issueNumber: category === "math-magazine" ? issueNumber : undefined,
+      year: category === "math-magazine" ? year : undefined,
+    });
+
+    await news.save();
+    res.status(201).json({ news });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
+
+exports.updateNews = async (req, res) => {
+  try {
+    const { title, content, summary, category, tags, issueNumber, year } =
+      req.body;
+    let imageUrl, pdfUrl;
+
+    const news = await News.findById(req.params.id);
+    if (!news)
+      return res.status(404).json({ message: "Không tìm thấy tin tức" });
+
+    if (req.files.image) {
+      const result = await cloudinary.uploader.upload(req.files.image[0].path);
+      imageUrl = result.secure_url;
+    }
+
+    if (req.files.file && category === "math-magazine") {
+      const result = await cloudinary.uploader.upload(req.files.file[0].path, {
+        resource_type: "raw",
+      });
+      pdfUrl = result.secure_url;
+    }
+
+    news.title = title || news.title;
+    news.content = content || news.content;
+    news.summary = summary || news.summary;
+    news.category = category || news.category;
+    news.tags = tags ? JSON.parse(tags) : news.tags;
+    news.image = imageUrl || news.image;
+    news.file = pdfUrl || news.file;
+    news.issueNumber =
+      category === "math-magazine" ? issueNumber : news.issueNumber;
+    news.year = category === "math-magazine" ? year : news.year;
+
+    await news.save();
+    res.json({ news });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
+
+exports.approveNews = async (req, res) => {
+  try {
+    const news = await News.findByIdAndUpdate(
+      req.params.id,
+      { status: "approved" },
+      { new: true }
+    );
+    res.json({ news });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
+
+exports.rejectNews = async (req, res) => {
+  try {
+    const news = await News.findByIdAndUpdate(
+      req.params.id,
+      { status: "rejected" },
+      { new: true }
+    );
+    res.json({ news });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
+
+exports.deleteNews = async (req, res) => {
+  try {
+    await News.findByIdAndDelete(req.params.id);
+    res.json({ message: "Xóa tin tức thành công" });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
+
+exports.getDocuments = async (req, res) => {
+  try {
+    const documents = await Document.find().populate("uploadedBy", "username");
+    res.json({ documents });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
+
+exports.approveDocument = async (req, res) => {
+  try {
+    const document = await Document.findByIdAndUpdate(
+      req.params.id,
+      { status: "approved" },
+      { new: true }
+    );
+    res.json({ document });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
+
+exports.rejectDocument = async (req, res) => {
+  try {
+    const document = await Document.findByIdAndUpdate(
+      req.params.id,
+      { status: "rejected" },
+      { new: true }
+    );
+    res.json({ document });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
+
+exports.deleteDocument = async (req, res) => {
+  try {
+    await Document.findByIdAndDelete(req.params.id);
+    res.json({ message: "Xóa tài liệu thành công" });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
+
+exports.getBookmarks = async (req, res) => {
+  try {
+    const bookmarks = await Bookmark.find().populate("user", "username");
+    res.json({ items: bookmarks });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
+
+exports.deleteBookmark = async (req, res) => {
+  try {
+    await Bookmark.findByIdAndDelete(req.params.id);
+    res.json({ message: "Xóa mục thư viện thành công" });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
+
+exports.getComments = async (req, res) => {
+  try {
+    const comments = await Comment.find().populate("author", "username");
+    res.json({ comments });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
+
+exports.deleteComment = async (req, res) => {
+  try {
+    await Comment.findByIdAndDelete(req.params.id);
+    res.json({ message: "Xóa bình luận thành công" });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
+
+exports.getQuestions = async (req, res) => {
+  try {
+    const questions = await Question.find().populate("author", "username");
+    res.json({ questions });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
+
+exports.answerQuestion = async (req, res) => {
+  try {
+    const { answer } = req.body;
+    const question = await Question.findByIdAndUpdate(
+      req.params.id,
+      { answer, status: "answered" },
+      { new: true }
+    );
+    res.json({ question });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
+
+exports.deleteQuestion = async (req, res) => {
+  try {
+    await Question.findByIdAndDelete(req.params.id);
+    res.json({ message: "Xóa câu hỏi thành công" });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
+
+exports.getStats = async (req, res) => {
+  try {
+    const totalUsers = await User.countDocuments();
+    const totalCourses = await Course.countDocuments();
+    const totalExams = await Exam.countDocuments();
+    const totalNews = await News.countDocuments();
+    const totalDocuments = await Document.countDocuments();
+    const totalPosts = await Comment.countDocuments();
+
+    res.json({
+      totalUsers,
+      totalCourses,
+      totalExams,
+      totalNews,
+      totalDocuments,
+      totalPosts,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
+
+exports.getDetailedStats = async (req, res) => {
+  try {
+    const { period } = req.query;
+    const days = period === "year" ? 365 : period === "month" ? 30 : 7;
+
+    const newUsers = await User.aggregate([
+      {
+        $match: {
+          createdAt: {
+            $gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000),
+          },
+        },
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    const activities = await Comment.aggregate([
+      {
+        $match: {
+          createdAt: {
+            $gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000),
+          },
+        },
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    res.json({
+      newUsers: newUsers.map((item) => ({ date: item._id, count: item.count })),
+      activities: activities.map((item) => ({
+        date: item._id,
+        count: item.count,
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};
+
+exports.getNewsStats = async (req, res) => {
+  try {
+    const viewsByCategory = await News.aggregate([
+      {
+        $group: {
+          _id: "$category",
+          views: { $sum: "$views" },
+        },
+      },
+      {
+        $project: {
+          category: "$_id",
+          views: 1,
+          _id: 0,
+        },
+      },
+    ]);
+
+    res.json({ viewsByCategory });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server", error: err.message });
+  }
+};

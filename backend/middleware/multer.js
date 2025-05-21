@@ -1,19 +1,21 @@
 const multer = require("multer");
 
 const fileFilter = (req, file, cb) => {
-  const filetypes = /jpeg|jpg|png/;
-  const mimetype = filetypes.test(file.mimetype);
-  const extname = filetypes.test(file.originalname.toLowerCase());
+  const imageTypes = /jpeg|jpg|png/;
+  const pdfType = /pdf/;
+  const mimetype = imageTypes.test(file.mimetype) || pdfType.test(file.mimetype);
+  const extname = imageTypes.test(file.originalname.toLowerCase()) || pdfType.test(file.originalname.toLowerCase());
 
   if (mimetype && extname) {
     return cb(null, true);
   }
-  cb(new Error("Chỉ hỗ trợ file JPEG, JPG, PNG!"));
+  cb(new Error("Chỉ hỗ trợ file JPEG, JPG, PNG hoặc PDF!"));
 };
 
+const storage = multer.memoryStorage(); // Sử dụng memoryStorage để xử lý file lớn
 const upload = multer({
-  storage: multer.memoryStorage(), // Lưu file vào bộ nhớ, không lưu đĩa
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // Tăng lên 10MB để hỗ trợ PDF
   fileFilter,
 });
 

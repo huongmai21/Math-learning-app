@@ -30,7 +30,7 @@ export const register = createAsyncThunk(
 );
 
 export const refreshUser = createAsyncThunk(
-  "auth/refreshUser",
+  "auth/me",
   async (_, { rejectWithValue }) => {
     try {
       const data = await refreshUserService();
@@ -56,7 +56,7 @@ export const logout = createAsyncThunk(
 );
 
 export const refreshToken = createAsyncThunk(
-  "auth/refreshToken",
+  "auth/refresh-token",
   async (_, { rejectWithValue }) => {
     try {
       const data = await refreshTokenService();
@@ -100,6 +100,7 @@ const authSlice = createSlice({
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload.errors || action.payload.message;
+        state.isAuthenticated = false;
       })
       .addCase(register.pending, (state) => {
         state.loading = true;
@@ -114,6 +115,7 @@ const authSlice = createSlice({
       .addCase(register.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload.errors || action.payload.message;
+        state.isAuthenticated = false;
       })
       .addCase(refreshUser.pending, (state) => {
         state.loading = true;

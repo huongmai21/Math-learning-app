@@ -1,23 +1,13 @@
 import { Link } from "react-router-dom";
+import { useMemo } from "react";
 
 const OverviewTab = ({ profile, isCurrentUser, contributions = [] }) => {
-  // Tạo dữ liệu cho biểu đồ đóng góp
-  const getContributionLevel = (count) => {
-    if (count === 0) return "level-0";
-    if (count <= 2) return "level-1";
-    if (count <= 5) return "level-2";
-    if (count <= 8) return "level-3";
-    return "level-4";
-  };
-
-  // Tạo mảng tuần cho biểu đồ đóng góp
-  const getContributionWeeks = () => {
-    // Sắp xếp contributions theo ngày
+  // Memoize contribution calculations
+  const contributionWeeks = useMemo(() => {
     const sortedContributions = [...contributions].sort(
       (a, b) => new Date(a.date) - new Date(b.date)
     );
 
-    // Nhóm theo tuần
     const weeks = [];
     let currentWeek = [];
 
@@ -34,21 +24,28 @@ const OverviewTab = ({ profile, isCurrentUser, contributions = [] }) => {
     }
 
     return weeks.slice(-52); // Lấy 52 tuần gần nhất
+  }, [contributions]);
+
+  const totalContributions = useMemo(() => {
+    return contributions.reduce((sum, item) => sum + item.count, 0);
+  }, [contributions]);
+
+  const getContributionLevel = (count) => {
+    if (count === 0) return "level-0";
+    if (count <= 2) return "level-1";
+    if (count <= 5) return "level-2";
+    if (count <= 8) return "level-3";
+    return "level-4";
   };
 
-  const contributionWeeks = getContributionWeeks();
-
-  // Tính tổng đóng góp
-  const totalContributions = contributions.reduce(
-    (sum, item) => sum + item.count,
-    0
-  );
-
   return (
-    <div className="overview-tab">
+    <div className="overview-tab" role="region" aria-label="Tổng quan hồ sơ">
       <div className="overview-grid">
-        <section className="profile-section user-info-section">
-          <h2>Thông tin cá nhân</h2>
+        <section
+          className="profile-section user-info-section"
+          aria-labelledby="user-info-heading"
+        >
+          <h2 id="user-info-heading">Thông tin cá nhân</h2>
           <div className="profile-info-grid">
             <div className="info-item">
               <span className="info-label">Tên người dùng</span>
@@ -80,14 +77,17 @@ const OverviewTab = ({ profile, isCurrentUser, contributions = [] }) => {
             </div>
           </div>
 
-          <section className="profile-section">
-            <h2>Hoạt động gần đây</h2>
+          <section
+            className="profile-section"
+            aria-labelledby="recent-activity-heading"
+          >
+            <h2 id="recent-activity-heading">Hoạt động gần đây</h2>
             {isCurrentUser ? (
               <div className="activity-timeline">
                 {contributions.length > 0 ? (
                   contributions.slice(0, 5).map((activity, index) => (
                     <div key={index} className="activity-item">
-                      <div className="activity-icon">
+                      <div className="activity-icon" aria-hidden="true">
                         <i className="fas fa-code-branch"></i>
                       </div>
                       <div className="activity-content">
@@ -108,7 +108,7 @@ const OverviewTab = ({ profile, isCurrentUser, contributions = [] }) => {
           </section>
 
           {isCurrentUser && (
-            <section className="profile-actions">
+            <section className="profile-actions" aria-label="Hành động hồ sơ">
               <Link to="/documents/create" className="btn-primary">
                 <i className="fas fa-file-alt"></i> Tạo tài liệu mới
               </Link>
@@ -125,15 +125,22 @@ const OverviewTab = ({ profile, isCurrentUser, contributions = [] }) => {
         </section>
 
         {isCurrentUser && (
-          <section className="profile-section contribution-section">
-            <h2>Đóng góp</h2>
+          <section
+            className="profile-section contribution-section"
+            aria-labelledby="contribution-heading"
+          >
+            <h2 id="contribution-heading">Đóng góp</h2>
             <div className="contribution-stats">
               <p>
                 <strong>{totalContributions}</strong> đóng góp trong năm qua
               </p>
-              <div className="contribution-grid">
+              <div
+                className="contribution-grid"
+                role="grid"
+                aria-label="Biểu đồ đóng góp"
+              >
                 {contributionWeeks.map((week, weekIndex) => (
-                  <div key={weekIndex} className="contribution-week">
+                  <div key={weekIndex} className="contribution-week" role="row">
                     {week.map((day, dayIndex) => (
                       <div
                         key={dayIndex}
@@ -141,6 +148,8 @@ const OverviewTab = ({ profile, isCurrentUser, contributions = [] }) => {
                           day.count
                         )}`}
                         title={`${day.date}: ${day.count} đóng góp`}
+                        role="gridcell"
+                        aria-label={`${day.date}: ${day.count} đóng góp`}
                       ></div>
                     ))}
                   </div>
@@ -148,11 +157,26 @@ const OverviewTab = ({ profile, isCurrentUser, contributions = [] }) => {
               </div>
               <div className="contribution-legend">
                 <span>Ít hơn</span>
-                <div className="contribution-day level-0"></div>
-                <div className="contribution-day level-1"></div>
-                <div className="contribution-day level-2"></div>
-                <div className="contribution-day level-3"></div>
-                <div className="contribution-day level-4"></div>
+                <div
+                  className="contribution-day level-0"
+                  aria-hidden="true"
+                ></div>
+                <div
+                  className="contribution-day level-1"
+                  aria-hidden="true"
+                ></div>
+                <div
+                  className="contribution-day level-2"
+                  aria-hidden="true"
+                ></div>
+                <div
+                  className="contribution-day level-3"
+                  aria-hidden="true"
+                ></div>
+                <div
+                  className="contribution-day level-4"
+                  aria-hidden="true"
+                ></div>
                 <span>Nhiều hơn</span>
               </div>
             </div>

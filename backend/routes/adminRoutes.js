@@ -1,46 +1,69 @@
-const express = require("express")
-const router = express.Router()
-const adminController = require("../controllers/adminController")
-const { authenticateToken, checkRole } = require("../middleware/authMiddleware")
+// adminRoutes.js
+const express = require("express");
+const router = express.Router();
+const adminController = require("../controllers/adminController");
+const { authenticateToken, checkRole } = require("../middleware/authMiddleware");
+const upload = require("../middleware/multer");
 
-// Middleware để kiểm tra quyền admin
-router.use(authenticateToken, checkRole("admin"))
+// Routes quản lý người dùng
+router.get("/users", authenticateToken, checkRole(['admin']), adminController.getUsers);
+router.delete("/users/:id", authenticateToken, checkRole(['admin']), adminController.deleteUser);
+router.put("/users/:id/role", authenticateToken, checkRole(['admin']), adminController.updateUserRole);
 
-// Quản lý người dùng
-router.get("/admin/users", adminController.getUsers)
-router.delete("/admin/users/:id", adminController.deleteUser)
-router.put("/admin/users/:id/role", adminController.updateUserRole)
+// Routes quản lý khóa học
+router.get("/courses", authenticateToken, checkRole(['admin']), adminController.getCourses);
+router.put("/courses/:id/approve", authenticateToken, checkRole(['admin']), adminController.approveCourse);
+router.put("/courses/:id/reject", authenticateToken, checkRole(['admin']), adminController.rejectCourse);
+router.delete("/courses/:id", authenticateToken, checkRole(['admin']), adminController.deleteCourse);
 
-// Quản lý khóa học
-router.get("/admin/courses", adminController.getCourses)
-router.put("/admin/courses/:id/approve", adminController.approveCourse)
-router.put("/admin/courses/:id/reject", adminController.rejectCourse)
-router.delete("/admin/courses/:id", adminController.deleteCourse)
+// Routes quản lý đề thi
+router.get("/exams", authenticateToken, checkRole(['admin']), adminController.getExams);
+router.put("/exams/:id/approve", authenticateToken, checkRole(['admin']), adminController.approveExam);
+router.put("/exams/:id/reject", authenticateToken, checkRole(['admin']), adminController.rejectExam);
+router.delete("/exams/:id", authenticateToken, checkRole(['admin']), adminController.deleteExam);
 
-// Quản lý đề thi
-router.get("/admin/exams", adminController.getExams)
-router.put("/admin/exams/:id/approve", adminController.approveExam)
-router.put("/admin/exams/:id/reject", adminController.rejectExam)
-router.delete("/admin/exams/:id", adminController.deleteExam)
+// Routes quản lý tin tức
+router.get("/news", authenticateToken, checkRole(['admin']), adminController.getNews);
+router.post(
+  "/news",
+  authenticateToken,
+  checkRole(['admin']),
+  upload.fields([{ name: "image", maxCount: 1 }, { name: "file", maxCount: 1 }]),
+  adminController.createNews
+);
+router.put(
+  "/news/:id",
+  authenticateToken,
+  checkRole(['admin']),
+  upload.fields([{ name: "image", maxCount: 1 }, { name: "file", maxCount: 1 }]),
+  adminController.updateNews
+);
+router.put("/news/:id/approve", authenticateToken, checkRole(['admin']), adminController.approveNews);
+router.put("/news/:id/reject", authenticateToken, checkRole(['admin']), adminController.rejectNews);
+router.delete("/news/:id", authenticateToken, checkRole(['admin']), adminController.deleteNews);
 
-// Quản lý tin tức
-router.get("/admin/news", adminController.getNews)
-router.put("/admin/news/:id/approve", adminController.approveNews)
-router.put("/admin/news/:id/reject", adminController.rejectNews)
-router.delete("/admin/news/:id", adminController.deleteNews)
+// Routes quản lý tài liệu
+router.get("/documents", authenticateToken, checkRole(['admin']), adminController.getDocuments);
+router.put("/documents/:id/approve", authenticateToken, checkRole(['admin']), adminController.approveDocument);
+router.put("/documents/:id/reject", authenticateToken, checkRole(['admin']), adminController.rejectDocument);
+router.delete("/documents/:id", authenticateToken, checkRole(['admin']), adminController.deleteDocument);
 
-// Quản lý tài liệu
-router.get("/admin/documents", adminController.getDocuments)
-router.put("/admin/documents/:id/approve", adminController.approveDocument)
-router.put("/admin/documents/:id/reject", adminController.rejectDocument)
-router.delete("/admin/documents/:id", adminController.deleteDocument)
+// Routes quản lý thư viện
+router.get("/bookmarks", authenticateToken, checkRole(['admin']), adminController.getBookmarks);
+router.delete("/bookmarks/:id", authenticateToken, checkRole(['admin']), adminController.deleteBookmark);
 
-// Quản lý thư viện
-router.get("/admin/library", adminController.getBookmarks)
-router.delete("/admin/library/:id", adminController.deleteBookmark)
+// Routes quản lý bình luận
+router.get("/comments", authenticateToken, checkRole(['admin']), adminController.getComments);
+router.delete("/comments/:id", authenticateToken, checkRole(['admin']), adminController.deleteComment);
 
-// Thống kê
-router.get("/admin/stats", adminController.getStats)
-router.get("/admin/stats/detailed", adminController.getDetailedStats)
+// Routes quản lý hỏi đáp
+router.get("/questions", authenticateToken, checkRole(['admin']), adminController.getQuestions);
+router.put("/questions/:id/answer", authenticateToken, checkRole(['admin']), adminController.answerQuestion);
+router.delete("/questions/:id", authenticateToken, checkRole(['admin']), adminController.deleteQuestion);
 
-module.exports = router
+// Routes thống kê
+router.get("/stats", authenticateToken, checkRole(['admin']), adminController.getStats);
+router.get("/stats/detailed", authenticateToken, checkRole(['admin']), adminController.getDetailedStats);
+router.get("/stats/news", authenticateToken, checkRole(['admin']), adminController.getNewsStats);
+
+module.exports = router;

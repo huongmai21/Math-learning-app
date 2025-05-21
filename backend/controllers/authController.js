@@ -147,9 +147,43 @@ exports.login = asyncHandler(async (req, res, next) => {
 });
 
 exports.getMe = asyncHandler(async (req, res, next) => {
-  const user = await User.findById(req.user.id);
-  console.log("User fetched in getMe:", user);
+  const user = await User.findById(req.user.id).select("-password");
+  if (!user) {
+    return next(new ErrorResponse("Người dùng không tồn tại", 404));
+  }
   res.status(200).json({ success: true, data: user });
+});
+
+exports.refreshToken = asyncHandler(async (req, res, next) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  if (!token) {
+    return next(new ErrorResponse("Không có token", 401));
+  }
+
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (err) {
+    return next(new ErrorResponse("Token không hợp lệ hoặc đã hết hạn", 401));
+  }
+
+  const user = await User.findById(decoded.id).select("-password");
+  if (!user) {
+    return next(new ErrorResponse("Người dùng không tồn tại", 401));
+  }
+
+  const newToken = user.getSignedJwtToken();
+  res.status(200).json({
+    success: true,
+    token: newToken,
+    user: {
+      id: user._id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      avatar: user.avatar,
+    },
+  });
 });
 
 exports.forgotPassword = asyncHandler(async (req, res, next) => {
@@ -213,34 +247,6 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
     .json({ success: true, message: "Đặt lại mật khẩu thành công" });
 });
 
-exports.refreshToken = asyncHandler(async (req, res, next) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
-  if (!token) {
-    return next(new ErrorResponse("Không có token", 401));
-  }
-
-  let decoded;
-  try {
-    decoded = jwt.verify(token, process.env.JWT_SECRET);
-  } catch (err) {
-    return next(new ErrorResponse("Token không hợp lệ hoặc đã hết hạn", 401));
-  }
-
-  const user = await User.findById(decoded.id);
-  if (!user) {
-    return next(new ErrorResponse("Người dùng không tồn tại", 401));
-  }
-
-  const newToken = user.getSignedJwtToken();
-  res.status(200).json({
-    success: true,
-    token: newToken,
-    user: {
-      id: user._id,
-      username: user.username,
-      email: user.email,
-      role: user.role,
-      avatar: user.avatar,
-    },
-  });
+exports.logout = asyncHandler(async (req, res, next) => {
+  res.status(200).json({ success: true, message: "Đăng xuất thành công" });
 });

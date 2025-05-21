@@ -58,7 +58,7 @@ exports.updateProfile = asyncHandler(async (req, res, next) => {
   let avatarUrl = user.avatar;
   if (req.file) {
     try {
-      const result = await cloudinary.uploader.upload(req.file.path, {
+      const result = await cloudinary.uploader.upload(req.file.buffer, {
         folder: "avatar",
         transformation: [
           {
@@ -132,32 +132,18 @@ exports.followUser = asyncHandler(async (req, res, next) => {
     followingId: userToFollow._id,
   });
 
-  await UserActivity.findOneAndUpdate(
-    {
-      userId: currentUser._id,
-      date: new Date().toISOString().split("T")[0],
-      type: "follow",
-    },
-    {
-      $set: { description: `Followed ${userToFollow.username}` },
-      $inc: { count: 1 },
-    },
-    { upsert: true, new: true }
-  );
-
-  // Emit notification
-  const io = req.app.get('io');
+  const io = req.app.get("io");
   const notification = await Notification.create({
     recipient: userToFollow._id,
     sender: currentUser._id,
-    type: 'system',
-    title: 'Người theo dõi mới',
+    type: "system",
+    title: "Người theo dõi mới",
     message: `${currentUser.username} đã theo dõi bạn.`,
     link: `/users/profile/${currentUser._id}`,
-    relatedModel: 'User',
+    relatedModel: "User",
     relatedId: currentUser._id,
   });
-  io.to(userToFollow._id.toString()).emit('newNotification', {
+  io.to(userToFollow._id.toString()).emit("newNotification", {
     _id: notification._id,
     title: notification.title,
     message: notification.message,
@@ -165,7 +151,7 @@ exports.followUser = asyncHandler(async (req, res, next) => {
     createdAt: notification.createdAt,
   });
 
-  res.json({ message: "Followed successfully" });
+  res.json({ message: "Theo dõi thành công" });
 });
 
 exports.unfollowUser = asyncHandler(async (req, res, next) => {

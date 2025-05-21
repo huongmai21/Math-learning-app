@@ -8,8 +8,10 @@ const {
   forgotPassword,
   resetPassword,
   refreshToken,
+  logout,
+  getAchievements,
 } = require("../controllers/authController");
-const { authenticateToken, logout } = require("../middleware/authMiddleware");
+const { authenticateToken } = require("../middleware/authMiddleware");
 
 router.post("/register", register);
 router.post("/login", login);

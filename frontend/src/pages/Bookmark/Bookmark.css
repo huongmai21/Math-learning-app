@@ -1,4 +1,4 @@
-.news-page {
+.bookmarks-page {
   max-width: 1200px;
   margin: 0 auto;
   padding: 70px 20px 20px;
@@ -6,14 +6,14 @@
   min-height: 100vh;
 }
 
-.news-container {
+.bookmarks-container {
   background-color: white;
   border-radius: 12px;
   padding: 2rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.news-container h1 {
+.bookmarks-container h1 {
   font-size: clamp(2rem, 4vw, 2.5rem);
   color: #333;
   text-align: center;
@@ -21,7 +21,7 @@
   position: relative;
 }
 
-.news-container h1::after {
+.bookmarks-container h1::after {
   content: "";
   position: absolute;
   bottom: -10px;
@@ -33,11 +33,11 @@
   border-radius: 2px;
 }
 
-.news-list {
+.bookmarks-list {
   margin-bottom: 2rem;
 }
 
-.news-item {
+.bookmark-item {
   display: flex;
   flex-direction: column;
   background-color: #fff;
@@ -48,12 +48,12 @@
   margin: 1rem;
 }
 
-.news-item:hover {
+.bookmark-item:hover {
   transform: translateY(-5px);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
 }
 
-.news-image {
+.bookmark-image {
   width: 100%;
   height: 180px;
   object-fit: cover;
@@ -61,16 +61,16 @@
   transition: transform 0.3s ease;
 }
 
-.news-item:hover .news-image {
+.bookmark-item:hover .bookmark-image {
   transform: scale(1.05);
 }
 
-.news-content {
+.bookmark-content {
   padding: 1.5rem;
   flex-grow: 1;
 }
 
-.news-content h2 {
+.bookmark-content h2 {
   font-size: 1.4rem;
   color: #333;
   margin: 0 0 0.75rem;
@@ -78,11 +78,11 @@
   transition: color 0.3s ease;
 }
 
-.news-content h2:hover {
+.bookmark-content h2:hover {
   color: #4a6cf7;
 }
 
-.news-meta {
+.bookmark-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
@@ -91,17 +91,17 @@
   color: #666;
 }
 
-.news-meta span {
+.bookmark-meta span {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.news-meta i {
+.bookmark-meta i {
   color: #ff6f61;
 }
 
-.news-content p {
+.bookmark-content p {
   color: #666;
   margin: 0 0 1rem;
   font-size: 0.95rem;
@@ -111,34 +111,35 @@
   overflow: hidden;
 }
 
-.news-tags {
-  font-size: 0.9rem;
-  color: #666;
-  margin-bottom: 1rem;
-}
-
-.action-button {
-  background: none;
+.remove-bookmark-button {
+  background-color: #ff6f61;
+  color: white;
+  padding: 0.5rem 1rem;
   border: none;
+  border-radius: 5px;
   cursor: pointer;
-  font-size: 1.2rem;
-  color: #666;
-  transition: color 0.3s ease;
+  transition: background-color 0.3s ease;
 }
 
-.action-button.bookmarked {
-  color: #ff6f61;
+.remove-bookmark-button:hover {
+  background-color: #e55a4d;
 }
 
-.action-button:hover {
-  color: #4a6cf7;
+.no-bookmarks {
+  text-align: center;
+  color: #777;
+  font-style: italic;
+  font-size: 1.1rem;
 }
 
-.action-button:disabled .spinner {
-  border: 2px solid #f3f3f3;
-  border-top: 2px solid #ff6f61;
+.loading-spinner {
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #ff6f61;
   border-radius: 50%;
+  width: 24px;
+  height: 24px;
   animation: spin 1s linear infinite;
+  margin: 1rem auto;
 }
 
 @keyframes spin {
@@ -146,7 +147,7 @@
   100% { transform: rotate(360deg); }
 }
 
-/* Modal Styles */
+/* Modal styles (tương tự News.css) */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -226,11 +227,36 @@
   border-radius: 4px;
 }
 
+.news-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.news-meta span {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.news-meta i {
+  color: #ff6f61;
+}
+
 .news-content-full {
   color: #333;
   font-size: 1rem;
   line-height: 1.6;
   margin-bottom: 1.5rem;
+}
+
+.news-tags {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 1rem;
 }
 
 .modal-actions {
@@ -239,9 +265,7 @@
   margin-bottom: 1.5rem;
 }
 
-.share-button,
-.download-button,
-.upload-button {
+.download-button {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -251,19 +275,6 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-}
-
-.share-button {
-  background-color: #4a6cf7;
-  color: white;
-}
-
-.share-button:hover {
-  background-color: #3a5ce5;
-  transform: translateY(-3px);
-}
-
-.download-button {
   background-color: #28a745;
   color: white;
   text-decoration: none;
@@ -274,85 +285,17 @@
   transform: translateY(-3px);
 }
 
-.upload-button {
-  background-color: #ffc107;
-  color: white;
-}
-
-.upload-button:hover {
-  background-color: #e0a800;
-  transform: translateY(-3px);
-}
-
-.upload-button:disabled {
-  background-color: #cccccc;
-  cursor: not-allowed;
-}
-
-.pdf-upload-input {
-  display: none;
-}
-
-.upload-button + label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  background-color: #ffc107;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.upload-button + label:hover {
-  background-color: #e0a800;
-  transform: translateY(-3px);
-}
-
-.pagination-container {
-  display: flex;
-  justify-content: center;
-  gap: 0.5rem;
-  margin-top: 2rem;
-}
-
-.pagination-page {
-  padding: 0.5rem 1rem;
-  background-color: #f8f9fa;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.pagination-page:hover {
-  background-color: #4a6cf7;
-  color: white;
-}
-
-.pagination-active {
-  background-color: #4a6cf7;
-  color: white;
-}
-
-.pagination-disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Responsive Styles */
+/* Responsive styles */
 @media (max-width: 768px) {
-  .news-container {
+  .bookmarks-container {
     padding: 1.5rem;
   }
 
-  .news-container h1 {
+  .bookmarks-container h1 {
     font-size: clamp(1.6rem, 3vw, 1.8rem);
   }
 
-  .news-image {
+  .bookmark-image {
     height: 160px;
   }
 
@@ -368,23 +311,18 @@
   .modal-content h2 {
     font-size: 1.6rem;
   }
-
-  .modal-actions {
-    flex-direction: column;
-    align-items: flex-start;
-  }
 }
 
 @media (max-width: 480px) {
-  .news-image {
+  .bookmark-image {
     height: 140px;
   }
 
-  .news-content h2 {
+  .bookmark-content h2 {
     font-size: 1.3rem;
   }
 
-  .news-meta {
+  .bookmark-meta {
     font-size: 0.85rem;
   }
 

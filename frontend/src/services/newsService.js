@@ -40,8 +40,8 @@ export const getNewsSuggestions = async (query) => {
 // Lấy tin tức nổi bật cho trang chủ
 export const getNewsPress = async ({ limit = 3 } = {}) => {
   try {
-    const response = await api.get("/news", {
-      params: { limit, featured: true },
+    const response = await api.get("/news/featured", {
+      params: { limit },
     })
     return response.data
   } catch (error) {
@@ -55,23 +55,37 @@ export const getNewsPress = async ({ limit = 3 } = {}) => {
           title: "Tin tức Toán học mới nhất",
           summary: "Những phát triển mới nhất trong lĩnh vực Toán học và ứng dụng",
           image: "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934626/3_q1etwh.png",
-          createdAt: new Date().toISOString(),
+          publishedAt: new Date().toISOString(),
+          views: 100,
         },
         {
           _id: "sample2",
           title: "Kỳ thi Toán học quốc tế sắp diễn ra",
           summary: "Thông tin về kỳ thi Toán học quốc tế và cách chuẩn bị",
           image: "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934625/2_yjbcfb.png",
-          createdAt: new Date().toISOString(),
+          publishedAt: new Date().toISOString(),
+          views: 80,
         },
         {
           _id: "sample3",
           title: "Phương pháp học Toán hiệu quả",
           summary: "Các phương pháp giúp học Toán hiệu quả và nâng cao kết quả",
           image: "https://res.cloudinary.com/duyqt3bpy/image/upload/v1746934624/1_bsngjz.png",
-          createdAt: new Date().toISOString(),
+          publishedAt: new Date().toISOString(),
+          views: 50,
         },
       ],
     }
+  }
+}
+
+// Cập nhật tin tức
+export const updateNews = async (id, data) => {
+  try {
+    const response = await api.put(`/news/update/${id}`, data);
+    return response.data;
+  } catch (error) {
+    console.error("Error updating news:", error);
+    throw new Error(error.response?.data?.message || "Không thể cập nhật tin tức");
   }
 }

@@ -1,3 +1,4 @@
+// AdminDashboard.jsx
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -65,6 +66,8 @@ const AdminDashboard = () => {
   const [news, setNews] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [libraryItems, setBookmarks] = useState([]);
+  const [comments, setComments] = useState([]); // Thêm state cho bình luận
+  const [questions, setQuestions] = useState([]); // Thêm state cho hỏi đáp
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalExams: 0,
@@ -73,122 +76,88 @@ const AdminDashboard = () => {
     totalDocuments: 0,
     totalNews: 0,
   });
+  const [newsStats, setNewsStats] = useState(null); // Thêm state cho thống kê tin tức
   const [detailedStats, setDetailedStats] = useState(null);
   const [statsPeriod, setStatsPeriod] = useState("week");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [filterTag, setFilterTag] = useState(""); // Bộ lọc theo tag
+  const [filterDate, setFilterDate] = useState(""); // Bộ lọc theo ngày
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [showCreateNews, setShowCreateNews] = useState(false); // Modal tạo tin tức
+  const [showEditNews, setShowEditNews] = useState(null); // Modal chỉnh sửa tin tức
+  const [formData, setFormData] = useState({
+    title: "",
+    content: "",
+    summary: "",
+    category: "education",
+    tags: "",
+    image: null,
+    pdfFile: null,
+    issueNumber: "",
+    year: "",
+  });
 
   // Hàm fetch dữ liệu
   const fetchData = useCallback(async () => {
-    if (!user || user.role !== "admin") {
-      return;
-    }
+    if (!user || user.role !== "admin") return;
 
     setLoading(true);
     setError(null);
     try {
-      // Tải dữ liệu dựa trên tab đang active
       switch (activeTab) {
         case "dashboard":
-          try {
-            const statsResponse = await getStats();
-            setStats(
-              statsResponse.data || {
-                totalUsers: 0,
-                totalExams: 0,
-                totalCourses: 0,
-                totalPosts: 0,
-                totalDocuments: 0,
-                totalNews: 0,
-              }
-            );
-          } catch (error) {
-            console.error("Error fetching stats:", error);
-            // Sử dụng dữ liệu mẫu nếu API không hoạt động
-            setStats({
-              totalUsers: 120,
-              totalExams: 45,
-              totalCourses: 30,
-              totalPosts: 250,
-              totalDocuments: 85,
-              totalNews: 42,
-            });
-          }
-
-          try {
-            const detailedStatsResponse = await getDetailedStats(statsPeriod);
-            setDetailedStats(
-              detailedStatsResponse.data || generateMockDetailedStats()
-            );
-          } catch (error) {
-            console.error("Error fetching detailed stats:", error);
-            setDetailedStats(generateMockDetailedStats());
-          }
+          const statsResponse = await getStats();
+          setStats(statsResponse.data || generateMockStats());
+          const detailedStatsResponse = await getDetailedStats(statsPeriod);
+          setDetailedStats(
+            detailedStatsResponse.data || generateMockDetailedStats()
+          );
+          // Thêm thống kê lượt xem tin tức
+          const newsStatsResponse = await getNewsStats();
+          setNewsStats(newsStatsResponse.data || generateMockNewsStats());
           break;
         case "users":
-          try {
-            const usersResponse = await getUsers();
-            setUsers(usersResponse.data.users || []);
-          } catch (error) {
-            console.error("Error fetching users:", error);
-            // Sử dụng dữ liệu mẫu nếu API không hoạt động
-            setUsers(generateMockUsers());
-          }
+          const usersResponse = await getUsers();
+          setUsers(usersResponse.data.users || generateMockUsers());
           break;
         case "courses":
-          try {
-            const coursesResponse = await getCourses();
-            setCourses(coursesResponse.data.courses || []);
-          } catch (error) {
-            console.error("Error fetching courses:", error);
-            // Sử dụng dữ liệu mẫu nếu API không hoạt động
-            setCourses(generateMockCourses());
-          }
+          const coursesResponse = await getCourses();
+          setCourses(coursesResponse.data.courses || generateMockCourses());
           break;
         case "exams":
-          try {
-            const examsResponse = await getExams();
-            setExams(examsResponse.data.exams || []);
-          } catch (error) {
-            console.error("Error fetching exams:", error);
-            // Sử dụng dữ liệu mẫu nếu API không hoạt động
-            setExams(generateMockExams());
-          }
+          const examsResponse = await getExams();
+          setExams(examsResponse.data.exams || generateMockExams());
           break;
         case "news":
-          try {
-            const newsResponse = await getNews();
-            setNews(newsResponse.data.news || []);
-          } catch (error) {
-            console.error("Error fetching news:", error);
-            // Sử dụng dữ liệu mẫu nếu API không hoạt động
-            setNews(generateMockNews());
-          }
+          const newsResponse = await getNews();
+          setNews(newsResponse.data.news || generateMockNews());
           break;
         case "documents":
-          try {
-            const documentsResponse = await getDocuments();
-            setDocuments(documentsResponse.data.documents || []);
-          } catch (error) {
-            console.error("Error fetching documents:", error);
-            // Sử dụng dữ liệu mẫu nếu API không hoạt động
-            setDocuments(generateMockDocuments());
-          }
+          const documentsResponse = await getDocuments();
+          setDocuments(
+            documentsResponse.data.documents || generateMockDocuments()
+          );
           break;
         case "library":
-          try {
-            const libraryResponse = await getBookmarks();
-            setBookmarks(libraryResponse.data.items || []);
-          } catch (error) {
-            console.error("Error fetching library items:", error);
-            // Sử dụng dữ liệu mẫu nếu API không hoạt động
-            setBookmarks(generateMockLibraryItems());
-          }
+          const libraryResponse = await getBookmarks();
+          setBookmarks(
+            libraryResponse.data.items || generateMockLibraryItems()
+          );
+          break;
+        case "comments":
+          const commentsResponse = await getComments();
+          setComments(commentsResponse.data.comments || generateMockComments());
+          break;
+        case "questions":
+          const questionsResponse = await getQuestions();
+          setQuestions(
+            questionsResponse.data.questions || generateMockQuestions()
+          );
           break;
         default:
           break;
@@ -206,7 +175,16 @@ const AdminDashboard = () => {
     fetchData();
   }, [fetchData]);
 
-  // Hàm tạo dữ liệu mẫu cho thống kê chi tiết
+  // Hàm tạo dữ liệu mẫu
+  const generateMockStats = () => ({
+    totalUsers: 120,
+    totalExams: 45,
+    totalCourses: 30,
+    totalPosts: 250,
+    totalDocuments: 85,
+    totalNews: 42,
+  });
+
   const generateMockDetailedStats = () => {
     const dates = Array.from({ length: 7 }, (_, i) => {
       const date = new Date();
@@ -226,7 +204,15 @@ const AdminDashboard = () => {
     };
   };
 
-  // Hàm tạo dữ liệu mẫu cho người dùng
+  const generateMockNewsStats = () => ({
+    viewsByCategory: [
+      { category: "education", views: 500 },
+      { category: "math-magazine", views: 300 },
+      { category: "science", views: 200 },
+      { category: "competitions", views: 100 },
+    ],
+  });
+
   const generateMockUsers = () => {
     return Array.from({ length: 20 }, (_, i) => ({
       _id: `user_${i + 1}`,
@@ -239,7 +225,6 @@ const AdminDashboard = () => {
     }));
   };
 
-  // Hàm tạo dữ liệu mẫu cho khóa học
   const generateMockCourses = () => {
     const statuses = ["pending", "approved", "rejected"];
     return Array.from({ length: 15 }, (_, i) => ({
@@ -252,7 +237,6 @@ const AdminDashboard = () => {
     }));
   };
 
-  // Hàm tạo dữ liệu mẫu cho đề thi
   const generateMockExams = () => {
     const statuses = ["pending", "approved", "rejected"];
     const educationLevels = [
@@ -281,21 +265,29 @@ const AdminDashboard = () => {
     }));
   };
 
-  // Hàm tạo dữ liệu mẫu cho tin tức
   const generateMockNews = () => {
     const statuses = ["pending", "approved", "rejected"];
-    const categories = ["Giáo dục", "Thi cử", "Đại học", "Học bổng", "Sự kiện"];
+    const categories = [
+      "education",
+      "math-magazine",
+      "science",
+      "competitions",
+    ];
     return Array.from({ length: 15 }, (_, i) => ({
       _id: `news_${i + 1}`,
       title: `Tin tức mẫu ${i + 1}`,
-      description: `Mô tả tin tức mẫu ${i + 1}`,
+      summary: `Tóm tắt tin tức mẫu ${i + 1}`,
+      content: `Nội dung tin tức mẫu ${i + 1}`,
       author: { username: `author_${(i % 5) + 1}` },
       category: categories[i % categories.length],
+      tags: ["math", "education"],
       status: statuses[i % 3],
+      createdAt: new Date(
+        Date.now() - Math.floor(Math.random() * 10000000000)
+      ).toISOString(),
     }));
   };
 
-  // Hàm tạo dữ liệu mẫu cho tài liệu
   const generateMockDocuments = () => {
     const statuses = ["pending", "approved", "rejected"];
     const educationLevels = ["primary", "secondary", "high", "university"];
@@ -317,7 +309,6 @@ const AdminDashboard = () => {
     }));
   };
 
-  // Hàm tạo dữ liệu mẫu cho thư viện
   const generateMockLibraryItems = () => {
     const types = ["document", "news"];
     return Array.from({ length: 15 }, (_, i) => ({
@@ -331,10 +322,122 @@ const AdminDashboard = () => {
     }));
   };
 
-  // Xử lý người dùng
+  const generateMockComments = () => {
+    return Array.from({ length: 10 }, (_, i) => ({
+      _id: `comment_${i + 1}`,
+      content: `Bình luận mẫu ${i + 1}`,
+      author: { username: `user_${(i % 5) + 1}` },
+      referenceId: `news_${(i % 5) + 1}`,
+      referenceType: "article",
+      createdAt: new Date(
+        Date.now() - Math.floor(Math.random() * 10000000000)
+      ).toISOString(),
+    }));
+  };
+
+  const generateMockQuestions = () => {
+    return Array.from({ length: 10 }, (_, i) => ({
+      _id: `question_${i + 1}`,
+      content: `Câu hỏi mẫu ${i + 1}`,
+      author: { username: `user_${(i % 5) + 1}` },
+      status: i % 2 === 0 ? "pending" : "answered",
+      createdAt: new Date(
+        Date.now() - Math.floor(Math.random() * 10000000000)
+      ).toISOString(),
+    }));
+  };
+
+  // Xử lý tạo tin tức
+  const handleCreateNews = async (e) => {
+    e.preventDefault();
+    try {
+      const data = new FormData();
+      data.append("title", formData.title);
+      data.append("content", formData.content);
+      data.append("summary", formData.summary);
+      data.append("category", formData.category);
+      data.append(
+        "tags",
+        formData.tags.split(",").map((tag) => tag.trim())
+      );
+      if (formData.image) data.append("image", formData.image);
+      if (formData.pdfFile) data.append("file", formData.pdfFile);
+      if (formData.category === "math-magazine") {
+        data.append("issueNumber", formData.issueNumber);
+        data.append("year", formData.year);
+      }
+
+      const response = await createNews(data);
+      setNews([...news, response.data.news]);
+      setShowCreateNews(false);
+      setFormData({
+        title: "",
+        content: "",
+        summary: "",
+        category: "education",
+        tags: "",
+        image: null,
+        pdfFile: null,
+        issueNumber: "",
+        year: "",
+      });
+      toast.success("Tạo tin tức thành công!");
+    } catch (err) {
+      toast.error(
+        "Tạo tin tức thất bại: " + (err.message || "Vui lòng thử lại.")
+      );
+    }
+  };
+
+  // Xử lý chỉnh sửa tin tức
+  const handleEditNews = async (e) => {
+    e.preventDefault();
+    try {
+      const data = new FormData();
+      data.append("title", formData.title);
+      data.append("content", formData.content);
+      data.append("summary", formData.summary);
+      data.append("category", formData.category);
+      data.append(
+        "tags",
+        formData.tags.split(",").map((tag) => tag.trim())
+      );
+      if (formData.image) data.append("image", formData.image);
+      if (formData.pdfFile) data.append("file", formData.pdfFile);
+      if (formData.category === "math-magazine") {
+        data.append("issueNumber", formData.issueNumber);
+        data.append("year", formData.year);
+      }
+
+      const response = await updateNews(showEditNews._id, data);
+      setNews(
+        news.map((item) =>
+          item._id === showEditNews._id ? response.data.news : item
+        )
+      );
+      setShowEditNews(null);
+      setFormData({
+        title: "",
+        content: "",
+        summary: "",
+        category: "education",
+        tags: "",
+        image: null,
+        pdfFile: null,
+        issueNumber: "",
+        year: "",
+      });
+      toast.success("Cập nhật tin tức thành công!");
+    } catch (err) {
+      toast.error(
+        "Cập nhật tin tức thất bại: " + (err.message || "Vui lòng thử lại.")
+      );
+    }
+  };
+
+  // Xử lý người dùng, khóa học, đề thi, tài liệu, thư viện (giữ nguyên từ mã cũ)
   const handleDeleteUser = async (userId) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa người dùng này?")) return;
-
     try {
       await deleteUser(userId);
       setUsers(users.filter((u) => u._id !== userId));
@@ -358,7 +461,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // Xử lý khóa học
   const handleApproveCourse = async (courseId) => {
     try {
       const response = await approveCourse(courseId);
@@ -393,7 +495,6 @@ const AdminDashboard = () => {
 
   const handleDeleteCourse = async (courseId) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa khóa học này?")) return;
-
     try {
       await deleteCourse(courseId);
       setCourses(courses.filter((course) => course._id !== courseId));
@@ -405,7 +506,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // Xử lý đề thi
   const handleApproveExam = async (examId) => {
     try {
       const response = await approveExam(examId);
@@ -436,7 +536,6 @@ const AdminDashboard = () => {
 
   const handleDeleteExam = async (examId) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa đề thi này?")) return;
-
     try {
       await deleteExam(examId);
       setExams(exams.filter((exam) => exam._id !== examId));
@@ -448,7 +547,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // Xử lý tin tức
   const handleApproveNews = async (newsId) => {
     try {
       const response = await approveNews(newsId);
@@ -479,7 +577,6 @@ const AdminDashboard = () => {
 
   const handleDeleteNews = async (newsId) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa tin tức này?")) return;
-
     try {
       await deleteNews(newsId);
       setNews(news.filter((item) => item._id !== newsId));
@@ -491,7 +588,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // Xử lý tài liệu
   const handleApproveDocument = async (documentId) => {
     try {
       const response = await approveDocument(documentId);
@@ -526,7 +622,6 @@ const AdminDashboard = () => {
 
   const handleDeleteDocument = async (documentId) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa tài liệu này?")) return;
-
     try {
       await deleteDocument(documentId);
       setDocuments(documents.filter((doc) => doc._id !== documentId));
@@ -538,11 +633,9 @@ const AdminDashboard = () => {
     }
   };
 
-  // Xử lý thư viện
   const handleDeleteBookmark = async (itemId) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa mục này khỏi thư viện?"))
       return;
-
     try {
       await deleteBookmark(itemId);
       setBookmarks(libraryItems.filter((item) => item._id !== itemId));
@@ -550,6 +643,37 @@ const AdminDashboard = () => {
     } catch (err) {
       toast.error(
         "Xóa mục thư viện thất bại: " + (err.message || "Vui lòng thử lại.")
+      );
+    }
+  };
+
+  // Xử lý bình luận
+  const handleDeleteComment = async (commentId) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa bình luận này?")) return;
+    try {
+      await deleteComment(commentId);
+      setComments(comments.filter((comment) => comment._id !== commentId));
+      toast.success("Xóa bình luận thành công!");
+    } catch (err) {
+      toast.error(
+        "Xóa bình luận thất bại: " + (err.message || "Vui lòng thử lại.")
+      );
+    }
+  };
+
+  // Xử lý hỏi đáp
+  const handleAnswerQuestion = async (questionId, answer) => {
+    try {
+      const response = await answerQuestion(questionId, { answer });
+      setQuestions(
+        questions.map((q) =>
+          q._id === questionId ? response.data.question : q
+        )
+      );
+      toast.success("Trả lời câu hỏi thành công!");
+    } catch (err) {
+      toast.error(
+        "Trả lời câu hỏi thất bại: " + (err.message || "Vui lòng thử lại.")
       );
     }
   };
@@ -570,19 +694,28 @@ const AdminDashboard = () => {
     setCurrentPage(1);
   };
 
+  const handleTagFilterChange = (e) => {
+    setFilterTag(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleDateFilterChange = (e) => {
+    setFilterDate(e.target.value);
+    setCurrentPage(1);
+  };
+
   // Xử lý phân trang
   const handlePageChange = (page) => {
     setCurrentPage(page);
   };
 
-  // Lọc dữ liệu theo tìm kiếm và trạng thái
+  // Lọc dữ liệu theo tìm kiếm, trạng thái, tag và ngày
   const getFilteredData = (data, type) => {
     let filteredData = [...data];
 
     // Lọc theo từ khóa tìm kiếm
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
-
       switch (type) {
         case "users":
           filteredData = filteredData.filter(
@@ -595,10 +728,13 @@ const AdminDashboard = () => {
         case "exams":
         case "news":
         case "documents":
+        case "comments":
+        case "questions":
           filteredData = filteredData.filter(
             (item) =>
               item.title?.toLowerCase().includes(searchLower) ||
-              item.description?.toLowerCase().includes(searchLower)
+              item.description?.toLowerCase().includes(searchLower) ||
+              item.content?.toLowerCase().includes(searchLower)
           );
           break;
         case "library":
@@ -614,10 +750,31 @@ const AdminDashboard = () => {
     // Lọc theo trạng thái
     if (
       filterStatus !== "all" &&
-      ["courses", "exams", "news", "documents"].includes(type)
+      ["courses", "exams", "news", "documents", "questions"].includes(type)
     ) {
       filteredData = filteredData.filter(
         (item) => item.status === filterStatus
+      );
+    }
+
+    // Lọc theo tag (chỉ áp dụng cho tin tức)
+    if (filterTag && type === "news") {
+      filteredData = filteredData.filter((item) =>
+        item.tags?.includes(filterTag)
+      );
+    }
+
+    // Lọc theo ngày
+    if (filterDate && ["news", "comments", "questions"].includes(type)) {
+      const startDate = new Date();
+      if (filterDate === "week") startDate.setDate(startDate.getDate() - 7);
+      else if (filterDate === "month")
+        startDate.setDate(startDate.getDate() - 30);
+      else if (filterDate === "year")
+        startDate.setDate(startDate.getDate() - 365);
+
+      filteredData = filteredData.filter(
+        (item) => new Date(item.createdAt) >= startDate
       );
     }
 
@@ -633,9 +790,8 @@ const AdminDashboard = () => {
 
   // Tạo dữ liệu biểu đồ
   const createChartData = () => {
-    if (!detailedStats) return null;
+    if (!detailedStats || !newsStats) return null;
 
-    // Dữ liệu biểu đồ người dùng mới
     const newUsersData = {
       labels: detailedStats.newUsers.map((item) => item.date),
       datasets: [
@@ -650,7 +806,6 @@ const AdminDashboard = () => {
       ],
     };
 
-    // Dữ liệu biểu đồ hoạt động
     const activitiesData = {
       labels: detailedStats.activities.map((item) => item.date),
       datasets: [
@@ -665,7 +820,6 @@ const AdminDashboard = () => {
       ],
     };
 
-    // Dữ liệu biểu đồ tròn phân phối nội dung
     const contentDistributionData = {
       labels: ["Khóa học", "Đề thi", "Tài liệu", "Tin tức", "Bài đăng"],
       datasets: [
@@ -689,31 +843,45 @@ const AdminDashboard = () => {
       ],
     };
 
+    const newsViewsData = {
+      labels: newsStats.viewsByCategory.map((item) => item.category),
+      datasets: [
+        {
+          label: "Lượt xem",
+          data: newsStats.viewsByCategory.map((item) => item.views),
+          backgroundColor: [
+            "rgba(255, 111, 97, 0.7)",
+            "rgba(54, 162, 235, 0.7)",
+            "rgba(255, 206, 86, 0.7)",
+            "rgba(75, 192, 192, 0.7)",
+          ],
+          borderColor: [
+            "rgba(255, 111, 97, 1)",
+            "rgba(54, 162, 235, 1)",
+            "rgba(255, 206, 86, 1)",
+            "rgba(75, 192, 192, 1)",
+          ],
+          borderWidth: 1,
+        },
+      ],
+    };
+
     return {
       newUsersData,
       activitiesData,
       contentDistributionData,
+      newsViewsData,
     };
   };
 
-  // Tạo options cho biểu đồ
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: {
-        position: "top",
-      },
-      tooltip: {
-        mode: "index",
-        intersect: false,
-      },
+      legend: { position: "top" },
+      tooltip: { mode: "index", intersect: false },
     },
-    scales: {
-      y: {
-        beginAtZero: true,
-      },
-    },
+    scales: { y: { beginAtZero: true } },
   };
 
   // Kiểm tra quyền truy cập
@@ -732,7 +900,6 @@ const AdminDashboard = () => {
     );
   }
 
-  // Hiển thị trạng thái loading
   if (loading && isInitialLoad) {
     return (
       <div className="admin-loading">
@@ -742,7 +909,6 @@ const AdminDashboard = () => {
     );
   }
 
-  // Hiển thị lỗi
   if (error && isInitialLoad) {
     return (
       <div className="admin-error">
@@ -756,7 +922,6 @@ const AdminDashboard = () => {
     );
   }
 
-  // Tạo dữ liệu biểu đồ
   const chartData = createChartData();
 
   return (
@@ -809,12 +974,26 @@ const AdminDashboard = () => {
             <i className="fas fa-book"></i>
             <span>Quản lý tài liệu</span>
           </li>
-          <li
+          {/* <li
             className={activeTab === "library" ? "active" : ""}
             onClick={() => setActiveTab("library")}
           >
             <i className="fas fa-bookmark"></i>
             <span>Quản lý thư viện</span>
+          </li> */}
+          <li
+            className={activeTab === "comments" ? "active" : ""}
+            onClick={() => setActiveTab("comments")}
+          >
+            <i className="fas fa-comments"></i>
+            <span>Quản lý bình luận</span>
+          </li>
+          <li
+            className={activeTab === "questions" ? "active" : ""}
+            onClick={() => setActiveTab("questions")}
+          >
+            <i className="fas fa-question-circle"></i>
+            <span>Hỏi đáp Toán học</span>
           </li>
         </ul>
         <div className="admin-sidebar-footer">
@@ -946,12 +1125,17 @@ const AdminDashboard = () => {
                       options={{
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: {
-                          legend: {
-                            position: "right",
-                          },
-                        },
+                        plugins: { legend: { position: "right" } },
                       }}
+                    />
+                  </div>
+                </div>
+                <div className="chart-wrapper">
+                  <h3>Lượt xem tin tức theo danh mục</h3>
+                  <div className="chart">
+                    <Bar
+                      data={chartData.newsViewsData}
+                      options={chartOptions}
                     />
                   </div>
                 </div>
@@ -1472,8 +1656,1140 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* Các tab khác tương tự */}
-        {/* Quản lý tin tức, tài liệu, thư viện... */}
+        {/* Quản lý tin tức */}
+        {activeTab === "news" && (
+          <div className="news-tab">
+            <div className="admin-header">
+              <h2>Quản lý tin tức</h2>
+              <div className="admin-actions">
+                <div className="search-filter">
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm tin tức..."
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    className="search-input"
+                  />
+                  <select
+                    value={filterStatus}
+                    onChange={handleFilterChange}
+                    className="filter-select"
+                  >
+                    <option value="all">Tất cả trạng thái</option>
+                    <option value="pending">Chờ duyệt</option>
+                    <option value="approved">Đã duyệt</option>
+                    <option value="rejected">Bị từ chối</option>
+                  </select>
+                  <select
+                    value={filterTag}
+                    onChange={handleTagFilterChange}
+                    className="filter-select"
+                  >
+                    <option value="">Tất cả tags</option>
+                    <option value="math">Toán học</option>
+                    <option value="education">Giáo dục</option>
+                    <option value="science">Khoa học</option>
+                    <option value="competitions">Kỳ thi</option>
+                  </select>
+                  <select
+                    value={filterDate}
+                    onChange={handleDateFilterChange}
+                    className="filter-select"
+                  >
+                    <option value="">Tất cả thời gian</option>
+                    <option value="week">7 ngày qua</option>
+                    <option value="month">30 ngày qua</option>
+                    <option value="year">365 ngày qua</option>
+                  </select>
+                </div>
+                <button
+                  onClick={() => setShowCreateNews(true)}
+                  className="refresh-btn"
+                >
+                  <i className="fas fa-plus"></i> Tạo tin tức
+                </button>
+                <button onClick={fetchData} className="refresh-btn">
+                  <i className="fas fa-sync-alt"></i> Làm mới
+                </button>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="loading-indicator">
+                <div className="spinner-sm"></div>
+                <p>Đang tải dữ liệu...</p>
+              </div>
+            ) : (
+              <>
+                <div className="data-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Tiêu đề</th>
+                        <th>Tác giả</th>
+                        <th>Danh mục</th>
+                        <th>Tags</th>
+                        <th>Trạng thái</th>
+                        <th>Ngày tạo</th>
+                        <th>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getPaginatedData(getFilteredData(news, "news")).map(
+                        (item) => (
+                          <tr key={item._id}>
+                            <td>{item.title}</td>
+                            <td>{item.author?.username || "Không xác định"}</td>
+                            <td>
+                              {item.category === "education"
+                                ? "Giáo dục"
+                                : item.category === "math-magazine"
+                                ? "Tạp chí Toán"
+                                : item.category === "science"
+                                ? "Khoa học"
+                                : "Kỳ thi"}
+                            </td>
+                            <td>{item.tags?.join(", ") || "Không có"}</td>
+                            <td>
+                              <span
+                                className={`status-badge status-${item.status}`}
+                              >
+                                {item.status === "pending"
+                                  ? "Chờ duyệt"
+                                  : item.status === "approved"
+                                  ? "Đã duyệt"
+                                  : "Bị từ chối"}
+                              </span>
+                            </td>
+                            <td>
+                              {new Date(item.createdAt).toLocaleDateString(
+                                "vi-VN"
+                              )}
+                            </td>
+                            <td>
+                              <div className="action-buttons">
+                                <button
+                                  onClick={() => {
+                                    setShowEditNews(item);
+                                    setFormData({
+                                      title: item.title,
+                                      content: item.content,
+                                      summary: item.summary,
+                                      category: item.category,
+                                      tags: item.tags?.join(", ") || "",
+                                      image: null,
+                                      pdfFile: null,
+                                      issueNumber: item.issueNumber || "",
+                                      year: item.year || "",
+                                    });
+                                  }}
+                                  className="edit-btn"
+                                  title="Chỉnh sửa tin tức"
+                                >
+                                  <i className="fas fa-edit"></i>
+                                </button>
+                                {item.status === "pending" && (
+                                  <>
+                                    <button
+                                      onClick={() =>
+                                        handleApproveNews(item._id)
+                                      }
+                                      className="approve-btn"
+                                      title="Duyệt tin tức"
+                                    >
+                                      <i className="fas fa-check"></i>
+                                    </button>
+                                    <button
+                                      onClick={() => handleRejectNews(item._id)}
+                                      className="reject-btn"
+                                      title="Từ chối tin tức"
+                                    >
+                                      <i className="fas fa-times"></i>
+                                    </button>
+                                  </>
+                                )}
+                                <button
+                                  onClick={() => handleDeleteNews(item._id)}
+                                  className="delete-btn"
+                                  title="Xóa tin tức"
+                                >
+                                  <i className="fas fa-trash-alt"></i>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {getFilteredData(news, "news").length === 0 && (
+                  <div className="no-data">
+                    <i className="fas fa-search"></i>
+                    <p>Không tìm thấy tin tức nào</p>
+                  </div>
+                )}
+
+                {getFilteredData(news, "news").length > itemsPerPage && (
+                  <div className="pagination">
+                    <button
+                      onClick={() => handlePageChange(1)}
+                      disabled={currentPage === 1}
+                      className="pagination-btn"
+                    >
+                      <i className="fas fa-angle-double-left"></i>
+                    </button>
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="pagination-btn"
+                    >
+                      <i className="fas fa-angle-left"></i>
+                    </button>
+                    <span className="pagination-info">
+                      Trang {currentPage} /{" "}
+                      {Math.ceil(
+                        getFilteredData(news, "news").length / itemsPerPage
+                      )}
+                    </span>
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={
+                        currentPage ===
+                        Math.ceil(
+                          getFilteredData(news, "news").length / itemsPerPage
+                        )
+                      }
+                      className="pagination-btn"
+                    >
+                      <i className="fas fa-angle-right"></i>
+                    </button>
+                    <button
+                      onClick={() =>
+                        handlePageChange(
+                          Math.ceil(
+                            getFilteredData(news, "news").length / itemsPerPage
+                          )
+                        )
+                      }
+                      disabled={
+                        currentPage ===
+                        Math.ceil(
+                          getFilteredData(news, "news").length / itemsPerPage
+                        )
+                      }
+                      className="pagination-btn"
+                    >
+                      <i className="fas fa-angle-double-right"></i>
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Modal tạo tin tức */}
+            {showCreateNews && (
+              <div className="modal">
+                <div className="modal-content">
+                  <h2>Tạo Tin Tức Mới</h2>
+                  <form onSubmit={handleCreateNews}>
+                    <input
+                      type="text"
+                      name="title"
+                      placeholder="Tiêu đề"
+                      value={formData.title}
+                      onChange={(e) =>
+                        setFormData({ ...formData, title: e.target.value })
+                      }
+                      required
+                    />
+                    <textarea
+                      name="content"
+                      placeholder="Nội dung"
+                      value={formData.content}
+                      onChange={(e) =>
+                        setFormData({ ...formData, content: e.target.value })
+                      }
+                      required
+                    />
+                    <textarea
+                      name="summary"
+                      placeholder="Tóm tắt"
+                      value={formData.summary}
+                      onChange={(e) =>
+                        setFormData({ ...formData, summary: e.target.value })
+                      }
+                    />
+                    <select
+                      name="category"
+                      value={formData.category}
+                      onChange={(e) =>
+                        setFormData({ ...formData, category: e.target.value })
+                      }
+                    >
+                      <option value="education">Giáo dục</option>
+                      <option value="math-magazine">Tạp chí Toán</option>
+                      <option value="science">Khoa học</option>
+                      <option value="competitions">Kỳ thi</option>
+                    </select>
+                    <input
+                      type="text"
+                      name="tags"
+                      placeholder="Tags (phân cách bởi dấu phẩy)"
+                      value={formData.tags}
+                      onChange={(e) =>
+                        setFormData({ ...formData, tags: e.target.value })
+                      }
+                    />
+                    <input
+                      type="file"
+                      name="image"
+                      accept="image/*"
+                      onChange={(e) =>
+                        setFormData({ ...formData, image: e.target.files[0] })
+                      }
+                    />
+                    {formData.category === "math-magazine" && (
+                      <>
+                        <input
+                          type="file"
+                          name="pdfFile"
+                          accept="application/pdf"
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              pdfFile: e.target.files[0],
+                            })
+                          }
+                          required
+                        />
+                        <input
+                          type="number"
+                          name="issueNumber"
+                          placeholder="Số kỳ"
+                          value={formData.issueNumber}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              issueNumber: e.target.value,
+                            })
+                          }
+                          required
+                        />
+                        <input
+                          type="number"
+                          name="year"
+                          placeholder="Năm"
+                          value={formData.year}
+                          onChange={(e) =>
+                            setFormData({ ...formData, year: e.target.value })
+                          }
+                          required
+                        />
+                      </>
+                    )}
+                    <div className="modal-actions">
+                      <button type="submit">Tạo Tin Tức</button>
+                      <button
+                        type="button"
+                        onClick={() => setShowCreateNews(false)}
+                      >
+                        Hủy
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* Modal chỉnh sửa tin tức */}
+            {showEditNews && (
+              <div className="modal">
+                <div className="modal-content">
+                  <h2>Chỉnh Sửa Tin Tức</h2>
+                  <form onSubmit={handleEditNews}>
+                    <input
+                      type="text"
+                      name="title"
+                      placeholder="Tiêu đề"
+                      value={formData.title}
+                      onChange={(e) =>
+                        setFormData({ ...formData, title: e.target.value })
+                      }
+                      required
+                    />
+                    <textarea
+                      name="content"
+                      placeholder="Nội dung"
+                      value={formData.content}
+                      onChange={(e) =>
+                        setFormData({ ...formData, content: e.target.value })
+                      }
+                      required
+                    />
+                    <textarea
+                      name="summary"
+                      placeholder="Tóm tắt"
+                      value={formData.summary}
+                      onChange={(e) =>
+                        setFormData({ ...formData, summary: e.target.value })
+                      }
+                    />
+                    <select
+                      name="category"
+                      value={formData.category}
+                      onChange={(e) =>
+                        setFormData({ ...formData, category: e.target.value })
+                      }
+                    >
+                      <option value="education">Giáo dục</option>
+                      <option value="math-magazine">Tạp chí Toán</option>
+                      <option value="science">Khoa học</option>
+                      <option value="competitions">Kỳ thi</option>
+                    </select>
+                    <input
+                      type="text"
+                      name="tags"
+                      placeholder="Tags (phân cách bởi dấu phẩy)"
+                      value={formData.tags}
+                      onChange={(e) =>
+                        setFormData({ ...formData, tags: e.target.value })
+                      }
+                    />
+                    <input
+                      type="file"
+                      name="image"
+                      accept="image/*"
+                      onChange={(e) =>
+                        setFormData({ ...formData, image: e.target.files[0] })
+                      }
+                    />
+                    {formData.category === "math-magazine" && (
+                      <>
+                        <input
+                          type="file"
+                          name="pdfFile"
+                          accept="application/pdf"
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              pdfFile: e.target.files[0],
+                            })
+                          }
+                        />
+                        <input
+                          type="number"
+                          name="issueNumber"
+                          placeholder="Số kỳ"
+                          value={formData.issueNumber}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              issueNumber: e.target.value,
+                            })
+                          }
+                          required
+                        />
+                        <input
+                          type="number"
+                          name="year"
+                          placeholder="Năm"
+                          value={formData.year}
+                          onChange={(e) =>
+                            setFormData({ ...formData, year: e.target.value })
+                          }
+                          required
+                        />
+                      </>
+                    )}
+                    <div className="modal-actions">
+                      <button type="submit">Cập nhật Tin Tức</button>
+                      <button
+                        type="button"
+                        onClick={() => setShowEditNews(null)}
+                      >
+                        Hủy
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Quản lý tài liệu */}
+        {activeTab === "documents" && (
+          <div className="documents-tab">
+            <div className="admin-header">
+              <h2>Quản lý tài liệu</h2>
+              <div className="admin-actions">
+                <div className="search-filter">
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm tài liệu..."
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    className="search-input"
+                  />
+                  <select
+                    value={filterStatus}
+                    onChange={handleFilterChange}
+                    className="filter-select"
+                  >
+                    <option value="all">Tất cả trạng thái</option>
+                    <option value="pending">Chờ duyệt</option>
+                    <option value="approved">Đã duyệt</option>
+                    <option value="rejected">Bị từ chối</option>
+                  </select>
+                </div>
+                <button onClick={fetchData} className="refresh-btn">
+                  <i className="fas fa-sync-alt"></i> Làm mới
+                </button>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="loading-indicator">
+                <div className="spinner-sm"></div>
+                <p>Đang tải dữ liệu...</p>
+              </div>
+            ) : (
+              <>
+                <div className="data-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Tiêu đề</th>
+                        <th>Người tải lên</th>
+                        <th>Cấp học</th>
+                        <th>Loại tài liệu</th>
+                        <th>Trạng thái</th>
+                        <th>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getPaginatedData(
+                        getFilteredData(documents, "documents")
+                      ).map((doc) => (
+                        <tr key={doc._id}>
+                          <td>{doc.title}</td>
+                          <td>
+                            {doc.uploadedBy?.username || "Không xác định"}
+                          </td>
+                          <td>
+                            {doc.educationLevel === "primary"
+                              ? "Tiểu học"
+                              : doc.educationLevel === "secondary"
+                              ? "THCS"
+                              : doc.educationLevel === "high"
+                              ? "THPT"
+                              : "Đại học"}
+                          </td>
+                          <td>{doc.documentType}</td>
+                          <td>
+                            <span
+                              className={`status-badge status-${doc.status}`}
+                            >
+                              {doc.status === "pending"
+                                ? "Chờ duyệt"
+                                : doc.status === "approved"
+                                ? "Đã duyệt"
+                                : "Bị từ chối"}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="action-buttons">
+                              {doc.status === "pending" && (
+                                <>
+                                  <button
+                                    onClick={() =>
+                                      handleApproveDocument(doc._id)
+                                    }
+                                    className="approve-btn"
+                                    title="Duyệt tài liệu"
+                                  >
+                                    <i className="fas fa-check"></i>
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      handleRejectDocument(doc._id)
+                                    }
+                                    className="reject-btn"
+                                    title="Từ chối tài liệu"
+                                  >
+                                    <i className="fas fa-times"></i>
+                                  </button>
+                                </>
+                              )}
+                              <button
+                                onClick={() => handleDeleteDocument(doc._id)}
+                                className="delete-btn"
+                                title="Xóa tài liệu"
+                              >
+                                <i className="fas fa-trash-alt"></i>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {getFilteredData(documents, "documents").length === 0 && (
+                  <div className="no-data">
+                    <i className="fas fa-search"></i>
+                    <p>Không tìm thấy tài liệu nào</p>
+                  </div>
+                )}
+
+                {getFilteredData(documents, "documents").length >
+                  itemsPerPage && (
+                  <div className="pagination">
+                    <button
+                      onClick={() => handlePageChange(1)}
+                      disabled={currentPage === 1}
+                      className="pagination-btn"
+                    >
+                      <i className="fas fa-angle-double-left"></i>
+                    </button>
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="pagination-btn"
+                    >
+                      <i className="fas fa-angle-left"></i>
+                    </button>
+                    <span className="pagination-info">
+                      Trang {currentPage} /{" "}
+                      {Math.ceil(
+                        getFilteredData(documents, "documents").length /
+                          itemsPerPage
+                      )}
+                    </span>
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={
+                        currentPage ===
+                        Math.ceil(
+                          getFilteredData(documents, "documents").length /
+                            itemsPerPage
+                        )
+                      }
+                      className="pagination-btn"
+                    >
+                      <i className="fas fa-angle-right"></i>
+                    </button>
+                    <button
+                      onClick={() =>
+                        handlePageChange(
+                          Math.ceil(
+                            getFilteredData(documents, "documents").length /
+                              itemsPerPage
+                          )
+                        )
+                      }
+                      disabled={
+                        currentPage ===
+                        Math.ceil(
+                          getFilteredData(documents, "documents").length /
+                            itemsPerPage
+                        )
+                      }
+                      className="pagination-btn"
+                    >
+                      <i className="fas fa-angle-double-right"></i>
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Quản lý thư viện */}
+        {/* {activeTab === "library" && (
+          <div className="library-tab">
+            <div className="admin-header">
+              <h2>Quản lý thư viện</h2>
+              <div className="admin-actions">
+                <div className="search-filter">
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm mục thư viện..."
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    className="search-input"
+                  />
+                </div>
+                <button onClick={fetchData} className="refresh-btn">
+                  <i className="fas fa-sync-alt"></i> Làm mới
+                </button>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="loading-indicator">
+                <div className="spinner-sm"></div>
+                <p>Đang tải dữ liệu...</p>
+              </div>
+            ) : (
+              <>
+                <div className="data-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Tiêu đề</th>
+                        <th>Loại</th>
+                        <th>Người dùng</th>
+                        <th>Ngày tạo</th>
+                        <th>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getPaginatedData(
+                        getFilteredData(libraryItems, "library")
+                      ).map((item) => (
+                        <tr key={item._id}>
+                          <td>{item.title}</td>
+                          <td>
+                            {item.type === "document" ? "Tài liệu" : "Tin tức"}
+                          </td>
+                          <td>{item.user?.username || "Không xác định"}</td>
+                          <td>
+                            {new Date(item.createdAt).toLocaleDateString(
+                              "vi-VN"
+                            )}
+                          </td>
+                          <td>
+                            <button
+                              onClick={() => handleDeleteBookmark(item._id)}
+                              className="delete-btn"
+                              title="Xóa mục thư viện"
+                            >
+                              <i className="fas fa-trash-alt"></i>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {getFilteredData(libraryItems, "library").length === 0 && (
+                  <div className="no-data">
+                    <i className="fas fa-search"></i>
+                    <p>Không tìm thấy mục thư viện nào</p>
+                  </div>
+                )}
+
+                {getFilteredData(libraryItems, "library").length >
+                  itemsPerPage && (
+                  <div className="pagination">
+                    <button
+                      onClick={() => handlePageChange(1)}
+                      disabled={currentPage === 1}
+                      className="pagination-btn"
+                    >
+                      <i className="fas fa-angle-double-left"></i>
+                    </button>
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="pagination-btn"
+                    >
+                      <i className="fas fa-angle-left"></i>
+                    </button>
+                    <span className="pagination-info">
+                      Trang {currentPage} /{" "}
+                      {Math.ceil(
+                        getFilteredData(libraryItems, "library").length /
+                          itemsPerPage
+                      )}
+                    </span>
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={
+                        currentPage ===
+                        Math.ceil(
+                          getFilteredData(libraryItems, "library").length /
+                            itemsPerPage
+                        )
+                      }
+                      className="pagination-btn"
+                    >
+                      <i className="fas fa-angle-right"></i>
+                    </button>
+                    <button
+                      onClick={() =>
+                        handlePageChange(
+                          Math.ceil(
+                            getFilteredData(libraryItems, "library").length /
+                              itemsPerPage
+                          )
+                        )
+                      }
+                      disabled={
+                        currentPage ===
+                        Math.ceil(
+                          getFilteredData(libraryItems, "library").length /
+                            itemsPerPage
+                        )
+                      }
+                      className="pagination-btn"
+                    >
+                      <i className="fas fa-angle-double-right"></i>
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )} */}
+
+        {/* Quản lý bình luận */}
+        {activeTab === "comments" && (
+          <div className="comments-tab">
+            <div className="admin-header">
+              <h2>Quản lý bình luận</h2>
+              <div className="admin-actions">
+                <div className="search-filter">
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm bình luận..."
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    className="search-input"
+                  />
+                  <select
+                    value={filterDate}
+                    onChange={handleDateFilterChange}
+                    className="filter-select"
+                  >
+                    <option value="">Tất cả thời gian</option>
+                    <option value="week">7 ngày qua</option>
+                    <option value="month">30 ngày qua</option>
+                    <option value="year">365 ngày qua</option>
+                  </select>
+                </div>
+                <button onClick={fetchData} className="refresh-btn">
+                  <i className="fas fa-sync-alt"></i> Làm mới
+                </button>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="loading-indicator">
+                <div className="spinner-sm"></div>
+                <p>Đang tải dữ liệu...</p>
+              </div>
+            ) : (
+              <>
+                <div className="data-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Nội dung</th>
+                        <th>Tác giả</th>
+                        <th>Tham chiếu</th>
+                        <th>Ngày tạo</th>
+                        <th>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getPaginatedData(
+                        getFilteredData(comments, "comments")
+                      ).map((comment) => (
+                        <tr key={comment._id}>
+                          <td>{comment.content}</td>
+                          <td>
+                            {comment.author?.username || "Không xác định"}
+                          </td>
+                          <td>
+                            {comment.referenceType === "article"
+                              ? "Tin tức"
+                              : "Khác"}
+                            : {comment.referenceId}
+                          </td>
+                          <td>
+                            {new Date(comment.createdAt).toLocaleDateString(
+                              "vi-VN"
+                            )}
+                          </td>
+                          <td>
+                            <button
+                              onClick={() => handleDeleteComment(comment._id)}
+                              className="delete-btn"
+                              title="Xóa bình luận"
+                            >
+                              <i className="fas fa-trash-alt"></i>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {getFilteredData(comments, "comments").length === 0 && (
+                  <div className="no-data">
+                    <i className="fas fa-search"></i>
+                    <p>Không tìm thấy bình luận nào</p>
+                  </div>
+                )}
+
+                {getFilteredData(comments, "comments").length >
+                  itemsPerPage && (
+                  <div className="pagination">
+                    <button
+                      onClick={() => handlePageChange(1)}
+                      disabled={currentPage === 1}
+                      className="pagination-btn"
+                    >
+                      <i className="fas fa-angle-double-left"></i>
+                    </button>
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="pagination-btn"
+                    >
+                      <i className="fas fa-angle-left"></i>
+                    </button>
+                    <span className="pagination-info">
+                      Trang {currentPage} /{" "}
+                      {Math.ceil(
+                        getFilteredData(comments, "comments").length /
+                          itemsPerPage
+                      )}
+                    </span>
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={
+                        currentPage ===
+                        Math.ceil(
+                          getFilteredData(comments, "comments").length /
+                            itemsPerPage
+                        )
+                      }
+                      className="pagination-btn"
+                    >
+                      <i className="fas fa-angle-right"></i>
+                    </button>
+                    <button
+                      onClick={() =>
+                        handlePageChange(
+                          Math.ceil(
+                            getFilteredData(comments, "comments").length /
+                              itemsPerPage
+                          )
+                        )
+                      }
+                      disabled={
+                        currentPage ===
+                        Math.ceil(
+                          getFilteredData(comments, "comments").length /
+                            itemsPerPage
+                        )
+                      }
+                      className="pagination-btn"
+                    >
+                      <i className="fas fa-angle-double-right"></i>
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Hỏi đáp Toán học */}
+        {activeTab === "questions" && (
+          <div className="questions-tab">
+            <div className="admin-header">
+              <h2>Hỏi đáp Toán học</h2>
+              <div className="admin-actions">
+                <div className="search-filter">
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm câu hỏi..."
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    className="search-input"
+                  />
+                  <select
+                    value={filterStatus}
+                    onChange={handleFilterChange}
+                    className="filter-select"
+                  >
+                    <option value="all">Tất cả trạng thái</option>
+                    <option value="pending">Chưa trả lời</option>
+                    <option value="answered">Đã trả lời</option>
+                  </select>
+                  <select
+                    value={filterDate}
+                    onChange={handleDateFilterChange}
+                    className="filter-select"
+                  >
+                    <option value="">Tất cả thời gian</option>
+                    <option value="week">7 ngày qua</option>
+                    <option value="month">30 ngày qua</option>
+                    <option value="year">365 ngày qua</option>
+                  </select>
+                </div>
+                <button onClick={fetchData} className="refresh-btn">
+                  <i className="fas fa-sync-alt"></i> Làm mới
+                </button>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="loading-indicator">
+                <div className="spinner-sm"></div>
+                <p>Đang tải dữ liệu...</p>
+              </div>
+            ) : (
+              <>
+                <div className="data-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Câu hỏi</th>
+                        <th>Tác giả</th>
+                        <th>Trạng thái</th>
+                        <th>Ngày tạo</th>
+                        <th>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getPaginatedData(
+                        getFilteredData(questions, "questions")
+                      ).map((question) => (
+                        <tr key={question._id}>
+                          <td>{question.content}</td>
+                          <td>
+                            {question.author?.username || "Không xác định"}
+                          </td>
+                          <td>
+                            <span
+                              className={`status-badge status-${question.status}`}
+                            >
+                              {question.status === "pending"
+                                ? "Chưa trả lời"
+                                : "Đã trả lời"}
+                            </span>
+                          </td>
+                          <td>
+                            {new Date(question.createdAt).toLocaleDateString(
+                              "vi-VN"
+                            )}
+                          </td>
+                          <td>
+                            <div className="action-buttons">
+                              {question.status === "pending" && (
+                                <button
+                                  onClick={() => {
+                                    const answer = prompt("Nhập câu trả lời:");
+                                    if (answer)
+                                      handleAnswerQuestion(
+                                        question._id,
+                                        answer
+                                      );
+                                  }}
+                                  className="approve-btn"
+                                  title="Trả lời câu hỏi"
+                                >
+                                  <i className="fas fa-comment"></i>
+                                </button>
+                              )}
+                              <button
+                                onClick={() =>
+                                  handleDeleteComment(question._id)
+                                }
+                                className="delete-btn"
+                                title="Xóa câu hỏi"
+                              >
+                                <i className="fas fa-trash-alt"></i>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {getFilteredData(questions, "questions").length === 0 && (
+                  <div className="no-data">
+                    <i className="fas fa-search"></i>
+                    <p>Không tìm thấy câu hỏi nào</p>
+                  </div>
+                )}
+
+                {getFilteredData(questions, "questions").length >
+                  itemsPerPage && (
+                  <div className="pagination">
+                    <button
+                      onClick={() => handlePageChange(1)}
+                      disabled={currentPage === 1}
+                      className="pagination-btn"
+                    >
+                      <i className="fas fa-angle-double-left"></i>
+                    </button>
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="pagination-btn"
+                    >
+                      <i className="fas fa-angle-left"></i>
+                    </button>
+                    <span className="pagination-info">
+                      Trang {currentPage} /{" "}
+                      {Math.ceil(
+                        getFilteredData(questions, "questions").length /
+                          itemsPerPage
+                      )}
+                    </span>
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={
+                        currentPage ===
+                        Math.ceil(
+                          getFilteredData(questions, "questions").length /
+                            itemsPerPage
+                        )
+                      }
+                      className="pagination-btn"
+                    >
+                      <i className="fas fa-angle-right"></i>
+                    </button>
+                    <button
+                      onClick={() =>
+                        handlePageChange(
+                          Math.ceil(
+                            getFilteredData(questions, "questions").length /
+                              itemsPerPage
+                          )
+                        )
+                      }
+                      disabled={
+                        currentPage ===
+                        Math.ceil(
+                          getFilteredData(questions, "questions").length /
+                            itemsPerPage
+                        )
+                      }
+                      className="pagination-btn"
+                    >
+                      <i className="fas fa-angle-double-right"></i>
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,136 +1,381 @@
-// "use client"
+import React, { useState, useEffect, useRef } from "react";
+import { FixedSizeList as List } from "react-window";
+import AutoSizer from "react-virtualized-auto-sizer";
+import io from "socket.io-client";
+import { Tooltip } from "react-tooltip";
+import { useSelector } from "react-redux";
+import { toast } from "react-toastify";
+import ReactPaginate from "react-paginate";
+import { getNews, getNewsById, getNewsSuggestions, updateNews } from "../../services/newsService";
+import { addBookmark, removeBookmark, checkBookmarks } from "../../services/bookmarkService";
+import CommentSection from "../../components/common/CommentSection/CommentSection";
+import SearchBar from "../../components/common/SearchBar/SearchBar";
+import "./News.css";
 
-// import { useState, useEffect } from "react"
-// import { Link } from "react-router-dom"
-// import { FaCalendarAlt, FaUser, FaTag, FaSearch, FaFilter } from "react-icons/fa"
-// import { getNews, getCategories } from "../../services/newsService"
-// import Spinner from "../../components/ui/Spinner"
-// import "./News.css"
+const NewsPage = ({ category, title }) => {
+  const { user } = useSelector((state) => state.auth);
+  const [newsData, setNewsData] = useState({ news: [], total: 0, totalPages: 0, currentPage: 1 });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [selectedNews, setSelectedNews] = useState(null);
+  const [bookmarkedNewsIds, setBookmarkedNewsIds] = useState([]);
+  const [bookmarkLoading, setBookmarkLoading] = useState({});
+  const [pdfFile, setPdfFile] = useState(null);
+  const socketRef = useRef(null);
 
-// const NewsPage = () => {
-//   const [news, setNews] = useState([])
-//   const [categories, setCategories] = useState([])
-//   const [loading, setLoading] = useState(true)
-//   const [searchTerm, setSearchTerm] = useState("")
-//   const [selectedCategory, setSelectedCategory] = useState("all")
-//   const [showFilters, setShowFilters] = useState(false)
+  useEffect(() => {
+    if (user) {
+      socketRef.current = io("http://localhost:5000", {
+        transports: ["websocket"],
+      });
 
-//   useEffect(() => {
-//     const fetchData = async () => {
-//       try {
-//         setLoading(true)
-//         const [newsData, categoriesData] = await Promise.all([getNews(), getCategories()])
-//         setNews(newsData.data)
-//         setCategories(categoriesData.data)
-//       } catch (error) {
-//         console.error("Error fetching news data:", error)
-//       } finally {
-//         setLoading(false)
-//       }
-//     }
+      socketRef.current.on("connect", () => {
+        console.log("Connected to WebSocket");
+        socketRef.current.emit("join", user._id);
+      });
 
-//     fetchData()
-//   }, [])
+      socketRef.current.on("bookmark_notification", ({ message }) => {
+        toast.info(message);
+      });
 
-//   const filteredNews = news.filter((item) => {
-//     const matchesSearch =
-//       item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-//       item.summary.toLowerCase().includes(searchTerm.toLowerCase())
-//     const matchesCategory = selectedCategory === "all" || item.category === selectedCategory
-//     return matchesSearch && matchesCategory
-//   })
+      return () => {
+        socketRef.current.disconnect();
+      };
+    }
+  }, [user]);
 
-//   const toggleFilters = () => {
-//     setShowFilters(!showFilters)
-//   }
+  const loadBookmarkedNewsIds = async (newsItems) => {
+    if (!user || !newsItems || newsItems.length === 0) return;
+    try {
+      const newsIds = newsItems.map((item) => item._id);
+      const response = await checkBookmarks("news", newsIds);
+      setBookmarkedNewsIds(response.data || []);
+    } catch (error) {
+      console.error("Error checking bookmarks:", error);
+    }
+  };
 
-//   if (loading) {
-//     return (
-//       <div className="news-loading">
-//         <Spinner />
-//       </div>
-//     )
-//   }
+  useEffect(() => {
+    const loadNews = async () => {
+      const result = await getNews(1, searchQuery, category);
+      setNewsData(result);
+      await loadBookmarkedNewsIds(result.news);
+    };
+    loadNews();
+  }, [searchQuery, category]);
 
-//   return (
-//     <div className="news-page">
-//       <div className="news-header">
-//         <h1>Tin tức giáo dục</h1>
-//         <p>Cập nhật những tin tức mới nhất về giáo dục và học tập</p>
-//       </div>
+  useEffect(() => {
+    const loadSuggestions = async () => {
+      if (searchQuery.trim()) {
+        const response = await getNewsSuggestions(searchQuery);
+        setSuggestions(response.suggestions || []);
+      } else {
+        setSuggestions([]);
+      }
+    };
+    loadSuggestions();
+  }, [searchQuery]);
 
-//       <div className="news-search-container">
-//         <div className="news-search">
-//           <FaSearch className="search-icon" />
-//           <input
-//             type="text"
-//             placeholder="Tìm kiếm tin tức..."
-//             value={searchTerm}
-//             onChange={(e) => setSearchTerm(e.target.value)}
-//           />
-//         </div>
-//         <button className="filter-toggle" onClick={toggleFilters}>
-//           <FaFilter /> Bộ lọc
-//         </button>
-//       </div>
+  const handleSearch = (query) => {
+    setSearchQuery(query);
+  };
 
-//       {showFilters && (
-//         <div className="news-filters">
-//           <div className="category-filters">
-//             <button className={selectedCategory === "all" ? "active" : ""} onClick={() => setSelectedCategory("all")}>
-//               Tất cả
-//             </button>
-//             {categories.map((category) => (
-//               <button
-//                 key={category._id}
-//                 className={selectedCategory === category.name ? "active" : ""}
-//                 onClick={() => setSelectedCategory(category.name)}
-//               >
-//                 {category.name}
-//               </button>
-//             ))}
-//           </div>
-//         </div>
-//       )}
+  const handlePageChange = (event) => {
+    const newPage = event.selected + 1;
+    getNews(newPage, searchQuery, category).then((result) => {
+      setNewsData(result);
+      loadBookmarkedNewsIds(result.news);
+    });
+  };
 
-//       {filteredNews.length === 0 ? (
-//         <div className="no-news">
-//           <p>Không tìm thấy tin tức phù hợp với tìm kiếm của bạn.</p>
-//         </div>
-//       ) : (
-//         <div className="news-grid">
-//           {filteredNews.map((item) => (
-//             <div className="news-card" key={item._id}>
-//               <div className="news-image">
-//                 <img src={item.image || "/placeholder.svg?height=200&width=300"} alt={item.title} />
-//                 <div className="news-category">{item.category}</div>
-//               </div>
-//               <div className="news-content">
-//                 <h3>
-//                   <Link to={`/news/${item._id}`}>{item.title}</Link>
-//                 </h3>
-//                 <p className="news-summary">{item.summary}</p>
-//                 <div className="news-meta">
-//                   <span>
-//                     <FaCalendarAlt /> {new Date(item.createdAt).toLocaleDateString("vi-VN")}
-//                   </span>
-//                   <span>
-//                     <FaUser /> {item.author}
-//                   </span>
-//                   <span>
-//                     <FaTag /> {item.category}
-//                   </span>
-//                 </div>
-//                 <Link to={`/news/${item._id}`} className="read-more">
-//                   Đọc tiếp
-//                 </Link>
-//               </div>
-//             </div>
-//           ))}
-//         </div>
-//       )}
-//     </div>
-//   )
-// }
+  const handleNewsClick = async (id) => {
+    const result = await getNewsById(id);
+    if (result.success) {
+      setSelectedNews(result.news);
+    }
+  };
 
-// export default NewsPage
+  const closeNewsDetail = () => {
+    setSelectedNews(null);
+    setPdfFile(null);
+  };
+
+  const handleBookmarkNews = async (newsId) => {
+    if (!user) {
+      toast.error("Vui lòng đăng nhập để đánh dấu tin tức");
+      return;
+    }
+    setBookmarkLoading((prev) => ({ ...prev, [newsId]: true }));
+    try {
+      const isBookmarked = bookmarkedNewsIds.includes(newsId);
+      if (isBookmarked) {
+        await removeBookmark("news", newsId);
+        setBookmarkedNewsIds(bookmarkedNewsIds.filter((id) => id !== newsId));
+        socketRef.current.emit("bookmark", {
+          userId: user._id,
+          referenceType: "news",
+          referenceId: newsId,
+          action: "remove",
+        });
+      } else {
+        await addBookmark("news", newsId);
+        setBookmarkedNewsIds([...bookmarkedNewsIds, newsId]);
+        socketRef.current.emit("bookmark", {
+          userId: user._id,
+          referenceType: "news",
+          referenceId: newsId,
+          action: "add",
+        });
+      }
+    } catch (error) {
+      toast.error(error.message || "Không thể đánh dấu tin tức");
+    } finally {
+      setBookmarkLoading((prev) => ({ ...prev, [newsId]: false }));
+    }
+  };
+
+  const handleShare = async (news) => {
+    const shareUrl = `${window.location.origin}/news/${news._id}`;
+    const shareData = {
+      title: news.title,
+      text: news.summary || news.content.slice(0, 150) + "...",
+      url: shareUrl,
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success("Đã sao chép liên kết bài viết!");
+      }
+    } catch (error) {
+      console.error("Error sharing:", error);
+      toast.error("Không thể chia sẻ bài viết");
+    }
+  };
+
+  const handlePdfUpload = async (e) => {
+    if (!user) {
+      toast.error("Vui lòng đăng nhập để tải lên PDF");
+      return;
+    }
+    const file = e.target.files[0];
+    if (!file || !file.type.includes("pdf")) {
+      toast.error("Vui lòng chọn file PDF hợp lệ!");
+      return;
+    }
+    setPdfFile(file);
+  };
+
+  const handlePdfSubmit = async () => {
+    if (!pdfFile) {
+      toast.error("Vui lòng chọn file PDF để tải lên!");
+      return;
+    }
+    const formData = new FormData();
+    formData.append("file", pdfFile);
+    formData.append("folder", "math-magazine");
+
+    try {
+      const response = await fetch("/api/upload/file", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json();
+      if (data.success) {
+        const updatedNews = { ...selectedNews, pdfUrl: data.url };
+        await updateNews(selectedNews._id, { pdfUrl: data.url });
+        setSelectedNews(updatedNews);
+        toast.success("Đã tải lên PDF thành công!");
+      }
+    } catch (error) {
+      console.error("Error uploading PDF:", error);
+      toast.error("Không thể tải lên PDF");
+    }
+  };
+
+  const NewsRow = ({ index, style }) => {
+    const item = newsData.news[index];
+    const isBookmarked = bookmarkedNewsIds.includes(item._id);
+
+    return (
+      <div style={style} className="news-item">
+        {item.image && (
+          <img
+            src={item.image}
+            alt={item.title}
+            className="news-image"
+            onClick={() => handleNewsClick(item._id)}
+          />
+        )}
+        <div className="news-content">
+          <h2 onClick={() => handleNewsClick(item._id)}>{item.title}</h2>
+          <div className="news-meta">
+            <span>
+              <i className="fas fa-user"></i> {item.author?.fullName || item.author?.username}
+            </span>
+            <span>
+              <i className="fas fa-calendar"></i> {new Date(item.publishedAt).toLocaleDateString()}
+            </span>
+            <span>
+              <i className="fas fa-eye"></i> {item.views} lượt xem
+            </span>
+          </div>
+          <p>{item.summary || item.content.slice(0, 150) + "..."}</p>
+          {item.tags && item.tags.length > 0 && (
+            <div className="news-tags">
+              Tags: {item.tags.join(", ")}
+            </div>
+          )}
+          {user && (
+            <button
+              className={`action-button ${isBookmarked ? "bookmarked" : ""}`}
+              onClick={() => handleBookmarkNews(item._id)}
+              disabled={bookmarkLoading[item._id]}
+              data-tooltip-id={`tooltip-bookmark-news-${item._id}`}
+              data-tooltip-content={isBookmarked ? "Bỏ lưu" : "Lưu tin tức"}
+            >
+              {bookmarkLoading[item._id] ? (
+                <div className="spinner" style={{ width: "16px", height: "16px" }}></div>
+              ) : (
+                <i className="fas fa-bookmark"></i>
+              )}
+            </button>
+          )}
+          <Tooltip id={`tooltip-bookmark-news-${item._id}`} />
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="news-page">
+      <div className="news-container">
+        <h1>{title}</h1>
+        <SearchBar
+          onSearch={handleSearch}
+          placeholder={`Tìm kiếm ${title.toLowerCase()}...`}
+          suggestions={suggestions}
+        />
+        
+        {selectedNews && (
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <button onClick={closeNewsDetail} className="modal-close-btn">
+                <i className="fas fa-times"></i>
+              </button>
+              {selectedNews.image && (
+                <img
+                  src={selectedNews.image}
+                  alt={selectedNews.title}
+                  className="modal-image"
+                />
+              )}
+              <h2>{selectedNews.title}</h2>
+              {category === "math-magazine" && selectedNews.issueNumber && selectedNews.year && (
+                <div className="magazine-meta">
+                  <span>Số kỳ: {selectedNews.issueNumber}</span>
+                  <span>Năm: {selectedNews.year}</span>
+                </div>
+              )}
+              <div className="news-meta">
+                <span>
+                  <i className="fas fa-user"></i> {selectedNews.author?.fullName || selectedNews.author?.username}
+                </span>
+                <span>
+                  <i className="fas fa-calendar"></i> {new Date(selectedNews.publishedAt).toLocaleDateString()}
+                </span>
+                <span>
+                  <i className="fas fa-eye"></i> {selectedNews.views} lượt xem
+                </span>
+              </div>
+              <div className="news-content-full">{selectedNews.content}</div>
+              {selectedNews.tags && selectedNews.tags.length > 0 && (
+                <div className="news-tags">
+                  Tags: {selectedNews.tags.join(", ")}
+                </div>
+              )}
+              <div className="modal-actions">
+                <button
+                  className="share-button"
+                  onClick={() => handleShare(selectedNews)}
+                >
+                  <i className="fas fa-share"></i> Chia sẻ
+                </button>
+                {category === "math-magazine" && (
+                  <>
+                    {selectedNews.pdfUrl ? (
+                      <a
+                        href={selectedNews.pdfUrl}
+                        className="download-button"
+                        download
+                      >
+                        <i className="fas fa-download"></i> Tải về
+                      </a>
+                    ) : user && user.role === "admin" ? (
+                      <>
+                        <input
+                          type="file"
+                          accept="application/pdf"
+                          onChange={handlePdfUpload}
+                          className="pdf-upload-input"
+                          id="pdf-upload"
+                        />
+                        <label htmlFor="pdf-upload" className="upload-button">
+                          <i className="fas fa-upload"></i> Chọn PDF
+                        </label>
+                        <button
+                          className="upload-button"
+                          onClick={handlePdfSubmit}
+                          disabled={!pdfFile}
+                        >
+                          <i className="fas fa-upload"></i> Tải lên
+                        </button>
+                      </>
+                    ) : null}
+                  </>
+                )}
+              </div>
+              <CommentSection referenceId={selectedNews._id} referenceType="article" />
+            </div>
+          </div>
+        )}
+
+        <div className="news-list" style={{ height: "600px" }}>
+          <AutoSizer>
+            {({ height, width }) => (
+              <List
+                height={height}
+                width={width}
+                itemCount={newsData.news.length}
+                itemSize={300}
+              >
+                {NewsRow}
+              </List>
+            )}
+          </AutoSizer>
+        </div>
+
+        {newsData.totalPages > 1 && (
+          <div className="pagination">
+            <ReactPaginate
+              breakLabel="..."
+              nextLabel="Tiếp >"
+              onPageChange={handlePageChange}
+              pageRangeDisplayed={5}
+              pageCount={newsData.totalPages}
+              previousLabel="< Trước"
+              renderOnZeroPageCount={null}
+              containerClassName="pagination-container"
+              pageClassName="pagination-page"
+              activeClassName="pagination-active"
+              disabledClassName="pagination-disabled"
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default NewsPage;

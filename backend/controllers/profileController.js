@@ -8,10 +8,22 @@ const Course = require("../models/Course");
 const Exam = require("../models/Exam"); // Thêm model Exam
 
 exports.getScores = asyncHandler(async (req, res, next) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+
   const scores = await Score.find({ userId: req.user.id })
     .populate("examId", "title")
-    .populate("courseId", "title");
-  res.status(200).json({ success: true, data: scores });
+    .populate("courseId", "title")
+    .skip(skip)
+    .limit(limit);
+  const total = await Score.countDocuments({ userId: req.user.id });
+
+  res.status(200).json({
+    success: true,
+    data: scores,
+    pagination: { page, limit, total },
+  });
 });
 
 exports.getBookmarks = asyncHandler(async (req, res, next) => {
@@ -105,4 +117,20 @@ exports.getParticipatedExams = asyncHandler(async (req, res, next) => {
       endTime: score.examId.endTime,
     }));
   res.status(200).json({ success: true, data: participatedExams });
+});
+
+exports.getAchievements = asyncHandler(async (req, res, next) => {
+  const scores = await Score.find({ userId: req.user.id });
+  const totalExams = scores.length;
+  const perfectScores = scores.filter((s) => s.score === 100).length;
+
+  const achievements = [];
+  if (totalExams >= 10) {
+    achievements.push({ name: "Hoàn thành 10 bài thi", badge: "exam-master" });
+  }
+  if (perfectScores >= 1) {
+    achievements.push({ name: "Đạt điểm 100", badge: "perfect-score" });
+  }
+
+  res.status(200).json({ success: true, data: achievements });
 });

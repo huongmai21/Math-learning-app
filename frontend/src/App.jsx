@@ -23,6 +23,7 @@ import DocumentList from "./pages/Document/DocumentList";
 import DocumentDetail from "./pages/Document/DocumentDetail";
 import CreateDocument from "./pages/Document/CreateDocument";
 import RelatedDocuments from "./pages/Document/RelatedDocuments";
+import NewsPage from "./pages/News/NewsPage";
 import CoursePage from "./pages/Course/CoursePage";
 import CourseDetail from "./pages/Course/CourseDetail";
 import MyCourses from "./pages/Course/MyCourses";
@@ -40,8 +41,6 @@ import { ThemeProvider } from "./context/ThemeContext";
 import ProtectedRoute from "./components/common/ProtectedRoute";
 import { refreshUser, refreshToken } from "./redux/slices/authSlice";
 import Spinner from "./components/ui/Spinner";
-import NewsEducation from "./pages/News/NewsEducation";
-import NewsMagazine from "./pages/News/NewsMagazine";
 import SearchResults from "./pages/Search/SearchResults";
 
 const AppContent = () => {
@@ -58,6 +57,10 @@ const AppContent = () => {
           await dispatch(refreshUser()).unwrap();
         } catch (error) {
           console.error("Failed to refresh user:", error);
+          // Xóa token và user nếu refresh thất bại
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          dispatch(logout());
         }
       }
       setAppReady(true);
@@ -65,16 +68,19 @@ const AppContent = () => {
 
     initializeAuth();
 
-    // Tự động làm mới token trước khi hết hạn
+    // Làm mới token mỗi 24 giờ
     const refreshInterval = setInterval(async () => {
       if (token) {
         try {
           await dispatch(refreshToken()).unwrap();
         } catch (error) {
           console.error("Failed to refresh token:", error);
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          dispatch(logout());
         }
       }
-    }, 24 * 60 * 60 * 1000); // Làm mới mỗi 24 giờ
+    }, 24 * 60 * 60 * 1000);
 
     return () => clearInterval(refreshInterval);
   }, [dispatch, token, user]);
@@ -128,6 +134,16 @@ const AppContent = () => {
             }
           />
           <Route path="/documents/related/:id" element={<RelatedDocuments />} />
+          <Route
+            path="/news/education"
+            element={
+              <NewsPage category="education" title="Thông tin giáo dục" />
+            }
+          />
+          <Route
+            path="/news/magazine"
+            element={<NewsPage category="math-magazine" title="Tạp chí Toán" />}
+          />
           <Route path="/courses" element={<CoursePage />} />
           <Route path="/courses/:id" element={<CourseDetail />} />
           <Route
@@ -190,8 +206,6 @@ const AppContent = () => {
               </ProtectedRoute>
             }
           />
-          <Route path="/news/education" element={<NewsEducation />} />
-          <Route path="/news/magazine" element={<NewsMagazine />} />
           <Route path="/search" element={<SearchResults />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

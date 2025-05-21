@@ -1,4 +1,3 @@
-
 import api from "./api";
 
 // Hàm retry để thử lại API khi thất bại
@@ -46,9 +45,7 @@ export const createCourse = async (courseData) => {
     return response.data;
   } catch (error) {
     console.error("Error creating course:", error);
-    throw new Error(
-      error.response?.data?.message || "Không thể tạo khóa học"
-    );
+    throw new Error(error.response?.data?.message || "Không thể tạo khóa học");
   }
 };
 
@@ -72,9 +69,7 @@ export const deleteCourse = async (id) => {
     return response.data;
   } catch (error) {
     console.error("Error deleting course:", error);
-    throw new Error(
-      error.response?.data?.message || "Không thể xóa khóa học"
-    );
+    throw new Error(error.response?.data?.message || "Không thể xóa khóa học");
   }
 };
 
@@ -137,9 +132,7 @@ export const getCourseLessons = async (courseId) => {
     return response.data;
   } catch (error) {
     console.error("Error fetching course lessons:", error);
-    throw new Error(
-      error.response?.data?.message || "Không thể lấy bài học"
-    );
+    throw new Error(error.response?.data?.message || "Không thể lấy bài học");
   }
 };
 
@@ -150,16 +143,17 @@ export const createLesson = async (courseId, lessonData) => {
     return response.data;
   } catch (error) {
     console.error("Error creating lesson:", error);
-    throw new Error(
-      error.response?.data?.message || "Không thể tạo bài học"
-    );
+    throw new Error(error.response?.data?.message || "Không thể tạo bài học");
   }
 };
 
 // Cập nhật bài học
 export const updateLesson = async (courseId, lessonId, lessonData) => {
   try {
-    const response = await api.put(`/courses/${courseId}/lessons/${lessonId}`, lessonData);
+    const response = await api.put(
+      `/courses/${courseId}/lessons/${lessonId}`,
+      lessonData
+    );
     return response.data;
   } catch (error) {
     console.error("Error updating lesson:", error);
@@ -172,20 +166,23 @@ export const updateLesson = async (courseId, lessonId, lessonData) => {
 // Xóa bài học
 export const deleteLesson = async (courseId, lessonId) => {
   try {
-    const response = await api.delete(`/courses/${courseId}/lessons/${lessonId}`);
+    const response = await api.delete(
+      `/courses/${courseId}/lessons/${lessonId}`
+    );
     return response.data;
   } catch (error) {
     console.error("Error deleting lesson:", error);
-    throw new Error(
-      error.response?.data?.message || "Không thể xóa bài học"
-    );
+    throw new Error(error.response?.data?.message || "Không thể xóa bài học");
   }
 };
 
 // Cập nhật tiến độ học tập
 export const updateProgress = async (courseId, contentId, completed) => {
   try {
-    const response = await api.post(`/courses/${courseId}/progress`, { contentId, completed });
+    const response = await api.post(`/courses/${courseId}/progress`, {
+      contentId,
+      completed,
+    });
     return response.data;
   } catch (error) {
     console.error("Error updating progress:", error);

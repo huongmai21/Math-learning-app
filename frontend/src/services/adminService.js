@@ -1,101 +1,338 @@
+// adminService.js
 import api from "./api"
 
-// Quản lý người dùng
+// Cache đơn giản sử dụng Map
+const cache = new Map();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 phút
+
+// Helper để kiểm tra và lấy cache
+const getCachedData = (key) => {
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    return cached.data;
+  }
+  return null;
+};
+
+// Helper để lưu cache
+const setCachedData = (key, data) => {
+  cache.set(key, { data, timestamp: Date.now() });
+};
+
 export const getUsers = async () => {
-  return await api.get("/admin/users")
-}
+  const cacheKey = "users";
+  const cachedData = getCachedData(cacheKey);
+  if (cachedData) return cachedData;
+
+  const response = await api.get(`/users`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  setCachedData(cacheKey, response);
+  return response;
+};
 
 export const deleteUser = async (userId) => {
-  return await api.delete(`/admin/users/${userId}`)
-}
+  const response = await api.delete(`/users/${userId}`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  cache.delete("users"); // Xóa cache khi có thay đổi
+  return response;
+};
 
 export const updateUserRole = async (userId, role) => {
-  return await api.put(`/admin/users/${userId}/role`, { role })
-}
+  const response = await api.put(
+    `/users/${userId}/role`,
+    { role },
+    { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+  );
+  cache.delete("users");
+  return response;
+};
 
-// Quản lý khóa học
 export const getCourses = async () => {
-  return await api.get("/admin/courses")
-}
+  const cacheKey = "courses";
+  const cachedData = getCachedData(cacheKey);
+  if (cachedData) return cachedData;
+
+  const response = await api.get(`/courses`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  setCachedData(cacheKey, response);
+  return response;
+};
 
 export const approveCourse = async (courseId) => {
-  return await api.put(`/admin/courses/${courseId}/approve`)
-}
+  const response = await api.put(
+    `/courses/${courseId}/approve`,
+    {},
+    { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+  );
+  cache.delete("courses");
+  return response;
+};
 
 export const rejectCourse = async (courseId) => {
-  return await api.put(`/admin/courses/${courseId}/reject`)
-}
+  const response = await api.put(
+    `/courses/${courseId}/reject`,
+    {},
+    { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+  );
+  cache.delete("courses");
+  return response;
+};
 
 export const deleteCourse = async (courseId) => {
-  return await api.delete(`/admin/courses/${courseId}`)
-}
+  const response = await api.delete(`/courses/${courseId}`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  cache.delete("courses");
+  return response;
+};
 
-// Quản lý đề thi
 export const getExams = async () => {
-  return await api.get("/admin/exams")
-}
+  const cacheKey = "exams";
+  const cachedData = getCachedData(cacheKey);
+  if (cachedData) return cachedData;
+
+  const response = await api.get(`/exams`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  setCachedData(cacheKey, response);
+  return response;
+};
 
 export const approveExam = async (examId) => {
-  return await api.put(`/admin/exams/${examId}/approve`)
-}
+  const response = await api.put(
+    `/exams/${examId}/approve`,
+    {},
+    { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+  );
+  cache.delete("exams");
+  return response;
+};
 
 export const rejectExam = async (examId) => {
-  return await api.put(`/admin/exams/${examId}/reject`)
-}
+  const response = await api.put(
+    `/exams/${examId}/reject`,
+    {},
+    { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+  );
+  cache.delete("exams");
+  return response;
+};
 
 export const deleteExam = async (examId) => {
-  return await api.delete(`/admin/exams/${examId}`)
-}
+  const response = await api.delete(`/exams/${examId}`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  cache.delete("exams");
+  return response;
+};
 
-// Quản lý tin tức
 export const getNews = async () => {
-  return await api.get("/admin/news")
-}
+  const cacheKey = "news";
+  const cachedData = getCachedData(cacheKey);
+  if (cachedData) return cachedData;
+
+  const response = await api.get(`/news`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  setCachedData(cacheKey, response);
+  return response;
+};
+
+export const createNews = async (formData) => {
+  const response = await api.post(`/news`, formData, {
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+      "Content-Type": "multipart/form-data",
+    },
+  });
+  cache.delete("news");
+  return response;
+};
+
+export const updateNews = async (newsId, formData) => {
+  const response = await api.put(`/news/${newsId}`, formData, {
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+      "Content-Type": "multipart/form-data",
+    },
+  });
+  cache.delete("news");
+  return response;
+};
 
 export const approveNews = async (newsId) => {
-  return await api.put(`/admin/news/${newsId}/approve`)
-}
+  const response = await api.put(
+    `/news/${newsId}/approve`,
+    {},
+    { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+  );
+  cache.delete("news");
+  return response;
+};
 
 export const rejectNews = async (newsId) => {
-  return await api.put(`/admin/news/${newsId}/reject`)
-}
+  const response = await api.put(
+    `/news/${newsId}/reject`,
+    {},
+    { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+  );
+  cache.delete("news");
+  return response;
+};
 
 export const deleteNews = async (newsId) => {
-  return await api.delete(`/admin/news/${newsId}`)
-}
+  const response = await api.delete(`/news/${newsId}`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  cache.delete("news");
+  return response;
+};
 
-// Quản lý tài liệu
 export const getDocuments = async () => {
-  return await api.get("/admin/documents")
-}
+  const cacheKey = "documents";
+  const cachedData = getCachedData(cacheKey);
+  if (cachedData) return cachedData;
+
+  const response = await api.get(`/documents`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  setCachedData(cacheKey, response);
+  return response;
+};
 
 export const approveDocument = async (documentId) => {
-  return await api.put(`/admin/documents/${documentId}/approve`)
-}
+  const response = await api.put(
+    `/documents/${documentId}/approve`,
+    {},
+    { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+  );
+  cache.delete("documents");
+  return response;
+};
 
 export const rejectDocument = async (documentId) => {
-  return await api.put(`/admin/documents/${documentId}/reject`)
-}
+  const response = await api.put(
+    `/documents/${documentId}/reject`,
+    {},
+    { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+  );
+  cache.delete("documents");
+  return response;
+};
 
 export const deleteDocument = async (documentId) => {
-  return await api.delete(`/admin/documents/${documentId}`)
-}
+  const response = await api.delete(`/documents/${documentId}`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  cache.delete("documents");
+  return response;
+};
 
-// Quản lý thư viện
 export const getBookmarks = async () => {
-  return await api.get("/admin/library")
-}
+  const cacheKey = "bookmarks";
+  const cachedData = getCachedData(cacheKey);
+  if (cachedData) return cachedData;
 
-export const deleteBookmark = async (bookmarkId) => {
-  return await api.delete(`/admin/library/${bookmarkId}`)
-}
+  const response = await api.get(`/bookmarks`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  setCachedData(cacheKey, response);
+  return response;
+};
 
-// Thống kê
+export const deleteBookmark = async (itemId) => {
+  const response = await api.delete(`/bookmarks/${itemId}`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  cache.delete("bookmarks");
+  return response;
+};
+
+export const getComments = async () => {
+  const cacheKey = "comments";
+  const cachedData = getCachedData(cacheKey);
+  if (cachedData) return cachedData;
+
+  const response = await api.get(`/comments`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  setCachedData(cacheKey, response);
+  return response;
+};
+
+export const deleteComment = async (commentId) => {
+  const response = await api.delete(`/comments/${commentId}`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  cache.delete("comments");
+  return response;
+};
+
+export const getQuestions = async () => {
+  const cacheKey = "questions";
+  const cachedData = getCachedData(cacheKey);
+  if (cachedData) return cachedData;
+
+  const response = await api.get(`/questions`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  setCachedData(cacheKey, response);
+  return response;
+};
+
+export const answerQuestion = async (questionId, data) => {
+  const response = await api.put(
+    `/questions/${questionId}/answer`,
+    data,
+    { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+  );
+  cache.delete("questions");
+  return response;
+};
+
+export const deleteQuestion = async (questionId) => {
+  const response = await api.delete(`/questions/${questionId}`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  cache.delete("questions");
+  return response;
+};
+
 export const getStats = async () => {
-  return await api.get("/admin/stats")
-}
+  const cacheKey = "stats";
+  const cachedData = getCachedData(cacheKey);
+  if (cachedData) return cachedData;
 
-// Thống kê chi tiết
+  const response = await api.get(`/stats`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  setCachedData(cacheKey, response);
+  return response;
+};
+
 export const getDetailedStats = async (period) => {
-  return await api.get(`/admin/stats/detailed?period=${period}`)
-}
+  const cacheKey = `detailedStats_${period}`;
+  const cachedData = getCachedData(cacheKey);
+  if (cachedData) return cachedData;
+
+  const response = await api.get(`/stats/detailed?period=${period}`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  setCachedData(cacheKey, response);
+  return response;
+};
+
+export const getNewsStats = async () => {
+  const cacheKey = "newsStats";
+  const cachedData = getCachedData(cacheKey);
+  if (cachedData) return cachedData;
+
+  const response = await api.get(`/stats/news`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  setCachedData(cacheKey, response);
+  return response;
+};
