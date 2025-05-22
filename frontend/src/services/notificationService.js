@@ -1,64 +1,116 @@
-import api from "./api"
+import api from "./api";
+import { io } from "socket.io-client";
+
+const socket = io(process.env.REACT_APP_API_URL || "http://localhost:5000", {
+  autoConnect: false,
+});
+
+const retryRequest = async (request, retries = 3, delay = 1000) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await request();
+    } catch (error) {
+      if (i === retries - 1) throw error;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+};
+
+// Khởi tạo kết nối Socket.IO
+export const initSocket = (token) => {
+  socket.auth = { token };
+  socket.connect();
+  return socket;
+};
 
 // Lấy tất cả thông báo của người dùng
-export const getNotifications = async (userId) => {
+export const getNotifications = async (
+  page = 1,
+  limit = 10,
+  unread = false
+) => {
   try {
-    const response = await api.get(`/notifications`)
-    return response.data
+    const response = await retryRequest(() =>
+      api.get(`/notifications?page=${page}&limit=${limit}&unread=${unread}`)
+    );
+    return response.data;
   } catch (error) {
-    console.error("Error fetching notifications:", error)
-    throw error
+    console.error("Error fetching notifications:", error);
+    throw error;
   }
-}
+};
 
 // Đánh dấu thông báo đã đọc
 export const markNotificationAsRead = async (notificationId) => {
   try {
-    const response = await api.put(`/notifications/${notificationId}/read`)
-    return response.data
+    const response = await retryRequest(() =>
+      api.put(`/notifications/${notificationId}/read`)
+    );
+    socket.emit("ackNotifications");
+    return response.data;
   } catch (error) {
-    console.error("Error marking notification as read:", error)
-    throw error
+    console.error("Error marking notification as read:", error);
+    throw error;
   }
-}
+};
 
 // Đánh dấu tất cả thông báo đã đọc
 export const markAllNotificationsAsRead = async () => {
   try {
-    const response = await api.put("/notifications/read-all")
-    return response.data
+    const response = await retryRequest(() =>
+      api.put("/notifications/read-all")
+    );
+    socket.emit("ackNotifications");
+    return response.data;
   } catch (error) {
-    console.error("Error marking all notifications as read:", error)
-    throw error
+    console.error("Error marking all notifications as read:", error);
+    throw error;
   }
-}
+};
 
 // Xóa thông báo
 export const deleteNotification = async (notificationId) => {
   try {
-    const response = await api.delete(`/notifications/${notificationId}`)
-    return response.data
+    const response = await retryRequest(() =>
+      api.delete(`/notifications/${notificationId}`)
+    );
+    socket.emit("ackNotifications");
+    return response.data;
   } catch (error) {
-    console.error("Error deleting notification:", error)
-    throw error
+    console.error("Error deleting notification:", error);
+    throw error;
   }
-}
+};
 
 // Tạo thông báo mới (chủ yếu dùng cho admin)
 export const createNotification = async (notificationData) => {
   try {
-    const response = await api.post("/notifications", notificationData)
-    return response.data
+    const response = await retryRequest(() =>
+      api.post("/notifications", notificationData)
+    );
+    return response.data;
   } catch (error) {
-    console.error("Error creating notification:", error)
-    throw error
+    console.error("Error creating notification:", error);
+    throw error;
   }
-}
+};
+
+// Lắng nghe thông báo thời gian thực
+export const listenForNotifications = (userId, callback) => {
+  socket.on("newNotifications", (notification) => {
+    callback(notification);
+  });
+  socket.on("global_notification", (notification) => {
+    callback(notification);
+  });
+};
 
 export default {
+  initSocket,
   getNotifications,
   markNotificationAsRead,
   markAllNotificationsAsRead,
   deleteNotification,
   createNotification,
-}
+  listenForNotifications,
+};

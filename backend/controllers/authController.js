@@ -247,6 +247,6 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
     .json({ success: true, message: "Đặt lại mật khẩu thành công" });
 });
 
-exports.logout = asyncHandler(async (req, res, next) => {
-  res.status(200).json({ success: true, message: "Đăng xuất thành công" });
-});
+// exports.logout = asyncHandler(async (req, res, next) => {
+//   res.status(200).json({ success: true, message: "Đăng xuất thành công" });
+// });

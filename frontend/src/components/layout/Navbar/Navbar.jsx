@@ -10,6 +10,9 @@ import {
   getNotifications,
   deleteNotification,
   markNotificationAsRead,
+  markAllNotificationsAsRead,
+  initSocket,
+  listenForNotifications,
 } from "../../../services/notificationService";
 import useDropdown from "../../../hooks/useDropdown";
 import "./Navbar.css";
@@ -23,8 +26,8 @@ const Navbar = () => {
 
   const [notifications, setNotifications] = useState([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
 
-  // Sử dụng custom hook cho dropdown
   const {
     isOpen: documentsOpen,
     toggle: toggleDocuments,
@@ -47,7 +50,6 @@ const Navbar = () => {
     ref: settingsRef,
   } = useDropdown();
 
-  // Cấu hình menu
   const menuItems = [
     {
       title: "Tài liệu",
@@ -101,13 +103,32 @@ const Navbar = () => {
     },
   ];
 
-  // Lấy thông báo
+  // Khởi tạo Socket.IO và lắng nghe thông báo
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (user && token) {
+      const socket = initSocket(token);
+      listenForNotifications(user._id, (notification) => {
+        setNotifications((prev) => [notification, ...prev].slice(0, 10));
+        toast.info(`Thông báo mới: ${notification.message}`, {
+          position: "top-right",
+        });
+      });
+
+      return () => {
+        socket.disconnect();
+      };
+    }
+  }, [user]);
+
+  // Tải thông báo
   useEffect(() => {
     const loadNotifications = async () => {
       const token = localStorage.getItem("token");
       if (user && token) {
+        setIsLoadingNotifications(true);
         try {
-          const response = await getNotifications(1, 10, false);
+          const response = await getNotifications(1, 10, true);
           setNotifications(response.data || []);
         } catch (error) {
           console.error("Error loading notifications:", error);
@@ -119,6 +140,8 @@ const Navbar = () => {
             dispatch(logout());
             navigate("/auth/login");
           }
+        } finally {
+          setIsLoadingNotifications(false);
         }
       } else {
         setNotifications([]);
@@ -127,12 +150,10 @@ const Navbar = () => {
     loadNotifications();
   }, [user, dispatch, navigate]);
 
-  // Đóng menu mobile khi chuyển trang
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [location]);
 
-  // Xử lý đăng xuất
   const handleLogout = async () => {
     try {
       await dispatch(logout()).unwrap();
@@ -150,7 +171,6 @@ const Navbar = () => {
     }
   };
 
-  // Xử lý xóa thông báo
   const handleDeleteNotification = async (id, e) => {
     e.stopPropagation();
     try {
@@ -162,7 +182,6 @@ const Navbar = () => {
     }
   };
 
-  // Xử lý đánh dấu thông báo đã đọc
   const handleMarkAsRead = async (id) => {
     try {
       await markNotificationAsRead(id);
@@ -177,7 +196,22 @@ const Navbar = () => {
     }
   };
 
-  // Toggle menu di động
+  const handleMarkAllAsRead = async () => {
+    try {
+      await markAllNotificationsAsRead();
+      setNotifications(
+        notifications.map((notif) => ({ ...notif, read: true }))
+      );
+      toast.success("Đã đánh dấu tất cả thông báo là đã đọc!", {
+        position: "top-right",
+      });
+    } catch (error) {
+      toast.error("Không thể đánh dấu tất cả thông báo", {
+        position: "top-right",
+      });
+    }
+  };
+
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
@@ -343,27 +377,55 @@ const Navbar = () => {
             )}
             {notificationsOpen && (
               <div className="notification-dropdown" role="menu">
-                {notifications.length > 0 ? (
-                  notifications.map((notif) => (
-                    <div
-                      key={notif._id}
-                      className="notification-item"
-                      role="menuitem"
-                      onClick={() => handleMarkAsRead(notif._id)}
+                {isLoadingNotifications ? (
+                  <div className="notification-item">Đang tải thông báo...</div>
+                ) : notifications.length > 0 ? (
+                  <>
+                    <button
+                      className="dropdown-item"
+                      onClick={handleMarkAllAsRead}
+                      style={{
+                        borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+                      }}
                     >
-                      <span>{notif.message}</span>
-                      <span className="notification-time">
-                        {new Date(notif.createdAt).toLocaleTimeString("vi-VN")}
-                      </span>
-                      <button
-                        className="delete-notification"
-                        onClick={(e) => handleDeleteNotification(notif._id, e)}
-                        aria-label={`Xóa thông báo: ${notif.message}`}
+                      Đánh dấu tất cả đã đọc
+                    </button>
+                    {notifications.map((notif) => (
+                      <div
+                        key={notif._id}
+                        className={`notification-item ${notif.importance}`}
+                        role="menuitem"
+                        onClick={() => handleMarkAsRead(notif._id)}
                       >
-                        ✕
-                      </button>
-                    </div>
-                  ))
+                        <span className="notification-title">
+                          {notif.title}
+                        </span>
+                        <span>{notif.message}</span>
+                        {notif.link && (
+                          <a
+                            href={notif.link}
+                            className="notification-link"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            Xem chi tiết
+                          </a>
+                        )}
+                        <span className="notification-time">
+                          {new Date(notif.createdAt).toLocaleString("vi-VN")}
+                        </span>
+                        <button
+                          className="delete-notification"
+                          onClick={(e) =>
+                            handleDeleteNotification(notif._id, e)
+                          }
+                          aria-label={`Xóa thông báo: ${notif.message}`}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </>
                 ) : (
                   <div className="notification-item">Không có thông báo</div>
                 )}

@@ -13,6 +13,9 @@
   --input-border: #d1d5db;
   --primary-color: #ff6f61;
   --secondary-color: #ff9a8b;
+  --notification-low: #4caf50;
+  --notification-normal: #2196f3;
+  --notification-high: #f44336;
 }
 
 body.dark {
@@ -229,7 +232,7 @@ body {
 }
 
 .notification-dropdown {
-  width: 250px;
+  width: 300px;
   right: -10px;
 }
 
@@ -273,8 +276,36 @@ body {
   position: relative;
 }
 
+.notification-item.low {
+  border-left: 3px solid var(--notification-low);
+}
+
+.notification-item.normal {
+  border-left: 3px solid var(--notification-normal);
+}
+
+.notification-item.high {
+  border-left: 3px solid var(--notification-high);
+}
+
 .notification-item:hover {
   background-color: rgba(255, 255, 255, 0.05);
+}
+
+.notification-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.notification-link {
+  color: var(--primary-color);
+  text-decoration: none;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.notification-link:hover {
+  text-decoration: underline;
 }
 
 .notification-time {
