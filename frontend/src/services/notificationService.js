@@ -1,7 +1,7 @@
 import api from "./api";
 import { io } from "socket.io-client";
 
-const socket = io(process.env.REACT_APP_API_URL || "http://localhost:5000", {
+const socket = io(import.meta.env.VITE_API_URL || "http://localhost:5000", {
   autoConnect: false,
 });
 
@@ -20,6 +20,9 @@ const retryRequest = async (request, retries = 3, delay = 1000) => {
 export const initSocket = (token) => {
   socket.auth = { token };
   socket.connect();
+  socket.on("connect_error", (err) => {
+    console.error("Socket.IO connection error:", err);
+  });
   return socket;
 };
 
@@ -40,11 +43,22 @@ export const getNotifications = async (
   }
 };
 
+// Lấy số lượng thông báo chưa đọc
+export const getUnreadCount = async () => {
+  try {
+    const response = await retryRequest(() => api.get("/notifications/unread"));
+    return response.data.count;
+  } catch (error) {
+    console.error("Error fetching unread count:", error);
+    throw error;
+  }
+};
+
 // Đánh dấu thông báo đã đọc
 export const markNotificationAsRead = async (notificationId) => {
   try {
     const response = await retryRequest(() =>
-      api.put(`/notifications/${notificationId}/read`)
+      api.put(`/notifications/${notificationId}`)
     );
     socket.emit("ackNotifications");
     return response.data;
@@ -103,11 +117,15 @@ export const listenForNotifications = (userId, callback) => {
   socket.on("global_notification", (notification) => {
     callback(notification);
   });
+  socket.on("ackNotifications", () => {
+    callback({ type: "ack" }); // Thông báo cập nhật từ các tab khác
+  });
 };
 
 export default {
   initSocket,
   getNotifications,
+  getUnreadCount,
   markNotificationAsRead,
   markAllNotificationsAsRead,
   deleteNotification,

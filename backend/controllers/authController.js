@@ -6,6 +6,7 @@ const bcrypt = require("bcryptjs");
 const cloudinary = require("../config/cloudinary");
 const { sendEmail } = require("../utils/sendEmail");
 const { body, validationResult } = require("express-validator");
+const redisUtils = require("../config/redis"); // Import redisUtils để xử lý blacklist
 
 exports.register = [
   body("username").notEmpty().withMessage("Tên người dùng không được để trống"),
@@ -110,29 +111,18 @@ exports.register = [
 ];
 
 exports.login = asyncHandler(async (req, res, next) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    const errorMessages = errors.array().map((err) => err.msg);
-    return res.status(400).json({ success: false, errors: errorMessages });
-  }
-
-  if (!req.body || Object.keys(req.body).length === 0) {
-    return next(new ErrorResponse("Không nhận được dữ liệu đăng nhập", 400));
-  }
-
   const { email, password } = req.body;
   const user = await User.findOne({ email }).select("+password");
-
+  console.log("User found:", user); // Debug
   if (!user) {
     return next(new ErrorResponse("Email hoặc mật khẩu không đúng", 401));
   }
-
   const isMatch = await user.matchPassword(password);
   if (!isMatch) {
     return next(new ErrorResponse("Email hoặc mật khẩu không đúng", 401));
   }
-
   const token = user.getSignedJwtToken();
+  console.log("Generated token:", token); // Debug
   res.status(200).json({
     success: true,
     token,
@@ -247,6 +237,22 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
     .json({ success: true, message: "Đặt lại mật khẩu thành công" });
 });
 
-// exports.logout = asyncHandler(async (req, res, next) => {
-//   res.status(200).json({ success: true, message: "Đăng xuất thành công" });
-// });
+exports.logout = asyncHandler(async (req, res, next) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  console.log("Logout token:", token); // Debug
+  if (token) {
+    await redisUtils.setCache(
+      `bl_token:${token}`,
+      true,
+      Number.parseInt(process.env.JWT_EXPIRE) || 86400
+    );
+    await redisUtils.getClient().del(`auth_user:${token}`);
+    console.log("Token blacklisted and cache cleared"); // Debug
+    if (global.io) {
+      global.io
+        .to(req.user._id.toString())
+        .emit("logout", { message: "Bạn đã đăng xuất" });
+    }
+  }
+  res.status(200).json({ success: true, message: "Đăng xuất thành công" });
+});

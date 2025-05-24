@@ -1,14 +1,17 @@
 const { createClient } = require("redis");
-const { promisify } = require("util");
-const { gzip, gunzip } = require("zlib");
 
-const gzipPromise = promisify(gzip);
-const gunzipPromise = promisify(gunzip);
+// Kiểm tra biến môi trường
+const checkRedisConfig = () => {
+  if (!process.env.REDIS_URL) {
+    throw new Error("Thiếu biến môi trường REDIS_URL");
+  }
+};
 
 // Tạo Redis client với cấu hình
 const createRedisClient = () => {
+  checkRedisConfig();
   const client = createClient({
-    url: process.env.REDIS_URL || "redis://localhost:6379",
+    url: process.env.REDIS_URL,
     socket: {
       reconnectStrategy: (retries) => {
         const delay = Math.min(retries * 1000, 10000);
@@ -32,6 +35,24 @@ const createRedisClient = () => {
 // Tạo Redis client
 const redisClient = createRedisClient();
 
+// Kết nối Redis với retry logic
+const connectRedis = async (retries = 3, delay = 2000) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      if (redisClient.isReady) {
+        console.log("Redis already connected");
+        return redisClient;
+      }
+      await redisClient.connect();
+      return redisClient;
+    } catch (err) {
+      console.error(`Redis connection attempt ${i + 1} failed:`, err.message);
+      if (i === retries - 1) throw err;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+};
+
 // Kiểm tra trạng thái kết nối định kỳ
 const checkConnection = async () => {
   try {
@@ -46,39 +67,20 @@ const checkConnection = async () => {
 // Kiểm tra kết nối mỗi 30 giây
 setInterval(checkConnection, 30 * 1000);
 
-// Kết nối Redis
-const connectRedis = async () => {
-  try {
-    await redisClient.connect();
-    return redisClient;
-  } catch (err) {
-    console.error("Failed to connect to Redis:", err);
-    return null;
-  }
-};
-
-// Hàm kiểm tra trạng thái kết nối
-const getClient = () => {
-  if (!redisClient.isOpen) {
-    console.warn("Redis client is not connected, attempting to reconnect...");
-    connectRedis().catch((err) => console.error("Redis reconnection failed:", err));
-  }
-  return redisClient;
-};
-
-// Hàm tiện ích để set cache với nén
+// Hàm tiện ích để set cache (không nén)
 const setCache = async (key, value, expirySeconds) => {
   try {
     const valueString = JSON.stringify(value);
-    const compressed = await gzipPromise(valueString);
-    const sizeInKB = Buffer.byteLength(compressed) / 1024;
+    const sizeInKB = Buffer.byteLength(valueString) / 1024;
 
     if (sizeInKB > 500) {
-      console.warn(`Cache value too large (${Math.round(sizeInKB)}KB) for key: ${key}`);
+      console.warn(
+        `Cache value too large (${Math.round(sizeInKB)}KB) for key: ${key}`
+      );
       return false;
     }
 
-    await getClient().setEx(key, expirySeconds, compressed);
+    await redisClient.setEx(key, expirySeconds, valueString);
     return true;
   } catch (err) {
     console.error("Error setting cache:", err);
@@ -86,13 +88,12 @@ const setCache = async (key, value, expirySeconds) => {
   }
 };
 
-// Hàm tiện ích để get cache với giải nén
+// Hàm tiện ích để get cache (không giải nén)
 const getCache = async (key) => {
   try {
-    const data = await getClient().getBuffer(key);
+    const data = await redisClient.get(key);
     if (!data) return null;
-    const decompressed = await gunzipPromise(data);
-    return JSON.parse(decompressed.toString());
+    return JSON.parse(data);
   } catch (err) {
     console.error("Error getting cache:", err);
     return null;
@@ -102,10 +103,12 @@ const getCache = async (key) => {
 // Hàm xóa cache theo pattern
 const clearCachePattern = async (pattern) => {
   try {
-    const keys = await getClient().keys(pattern);
+    const keys = await redisClient.keys(pattern);
     if (keys.length > 0) {
-      await getClient().del(keys);
-      console.log(`Cleared ${keys.length} cache keys matching pattern: ${pattern}`);
+      await redisClient.del(keys);
+      console.log(
+        `Cleared ${keys.length} cache keys matching pattern: ${pattern}`
+      );
     }
     return true;
   } catch (err) {
@@ -117,10 +120,12 @@ const clearCachePattern = async (pattern) => {
 // Hàm dọn dẹp cache
 const cleanupCache = async (pattern) => {
   try {
-    const keys = await getClient().keys(pattern);
+    const keys = await redisClient.keys(pattern);
     if (keys.length > 0) {
-      await getClient().del(keys);
-      console.log(`Cleaned up ${keys.length} cache keys matching pattern: ${pattern}`);
+      await redisClient.del(keys);
+      console.log(
+        `Cleaned up ${keys.length} cache keys matching pattern: ${pattern}`
+      );
     }
     return true;
   } catch (err) {
@@ -129,11 +134,8 @@ const cleanupCache = async (pattern) => {
   }
 };
 
-// Khởi tạo kết nối Redis
-connectRedis().catch((err) => console.error("Initial Redis connection failed:", err));
-
 module.exports = {
-  getClient,
+  getClient: () => redisClient,
   setCache,
   getCache,
   clearCachePattern,

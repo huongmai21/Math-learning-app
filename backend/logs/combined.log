@@ -1,0 +1,138 @@
+{"level":"info","message":"Biến môi trường kiểm tra thành công","timestamp":"2025-05-22T17:10:39.273Z"}
+{"level":"info","message":"Kết nối Redis thành công","timestamp":"2025-05-22T17:10:39.280Z"}
+{"level":"info","message":"Kết nối MongoDB thành công","timestamp":"2025-05-22T17:10:39.368Z"}
+{"level":"info","message":"Khởi tạo server thành công","timestamp":"2025-05-22T17:10:39.369Z"}
+{"level":"info","message":"Server chạy trên cổng 5000","timestamp":"2025-05-22T17:10:39.383Z"}
+{"code":"ENOENT","errno":-4058,"level":"error","message":"Lỗi khi dọn dẹp file tạm: ENOENT: no such file or directory, scandir 'C:\\tmp'","path":"C:\\tmp","stack":"Error: ENOENT: no such file or directory, scandir 'C:\\tmp'\n    at async Object.readdir (node:internal/fs/promises:948:18)\n    at async Timeout.cleanupTempFiles [as _onTimeout] (C:\\Users\\OS\\.vscode\\math-learning-app\\backend\\server.js:85:19)","syscall":"scandir","timestamp":"2025-05-23T00:30:27.673Z"}
+{"level":"info","message":"Biến môi trường kiểm tra thành công","timestamp":"2025-05-23T00:52:06.550Z"}
+{"level":"info","message":"Kết nối Redis thành công","timestamp":"2025-05-23T00:52:06.599Z"}
+{"level":"info","message":"Kết nối MongoDB thành công","timestamp":"2025-05-23T00:52:06.643Z"}
+{"level":"info","message":"Khởi tạo server thành công","timestamp":"2025-05-23T00:52:06.643Z"}
+{"level":"info","message":"Server chạy trên cổng 5000","timestamp":"2025-05-23T00:52:06.647Z"}
+{"level":"info","message":"Biến môi trường kiểm tra thành công","timestamp":"2025-05-23T00:55:30.309Z"}
+{"level":"info","message":"Kết nối Redis thành công","timestamp":"2025-05-23T00:55:30.329Z"}
+{"level":"info","message":"Kết nối MongoDB thành công","timestamp":"2025-05-23T00:55:30.358Z"}
+{"level":"info","message":"Khởi tạo server thành công","timestamp":"2025-05-23T00:55:30.358Z"}
+{"level":"info","message":"Server chạy trên cổng 5000","timestamp":"2025-05-23T00:55:30.362Z"}
+{"level":"info","message":"Đang tắt server...","timestamp":"2025-05-23T00:59:34.726Z"}
+{"level":"info","message":"Biến môi trường kiểm tra thành công","timestamp":"2025-05-23T00:59:37.659Z"}
+{"level":"info","message":"Kết nối Redis thành công","timestamp":"2025-05-23T00:59:37.710Z"}
+{"level":"info","message":"Kết nối MongoDB thành công","timestamp":"2025-05-23T00:59:37.757Z"}
+{"level":"info","message":"Khởi tạo server thành công","timestamp":"2025-05-23T00:59:37.757Z"}
+{"address":"::","code":"EADDRINUSE","errno":-4091,"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","port":5000,"stack":"Error: listen EADDRINUSE: address already in use :::5000\n    at Server.setupListenHandle [as _listen2] (node:net:1898:16)\n    at listenInCluster (node:net:1946:12)\n    at Server.listen (node:net:2044:7)\n    at C:\\Users\\OS\\.vscode\\math-learning-app\\backend\\server.js:252:10\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)","syscall":"listen","timestamp":"2025-05-23T00:59:37.761Z"}
+{"level":"info","message":"Đang tắt server...","timestamp":"2025-05-23T00:59:37.761Z"}
+{"level":"info","message":"Đóng kết nối Redis","timestamp":"2025-05-23T00:59:37.774Z"}
+{"level":"info","message":"Đóng kết nối MongoDB","timestamp":"2025-05-23T00:59:37.790Z"}
+{"level":"info","message":"Biến môi trường kiểm tra thành công","timestamp":"2025-05-23T01:00:05.299Z"}
+{"level":"info","message":"Kết nối Redis thành công","timestamp":"2025-05-23T01:00:05.314Z"}
+{"level":"info","message":"Kết nối MongoDB thành công","timestamp":"2025-05-23T01:00:05.349Z"}
+{"level":"info","message":"Khởi tạo server thành công","timestamp":"2025-05-23T01:00:05.350Z"}
+{"level":"info","message":"Server chạy trên cổng 5000","timestamp":"2025-05-23T01:00:05.354Z"}
+{"level":"info","message":"Biến môi trường kiểm tra thành công","timestamp":"2025-05-23T01:06:13.165Z"}
+{"level":"info","message":"Kết nối Redis thành công","timestamp":"2025-05-23T01:06:13.193Z"}
+{"level":"info","message":"Kết nối MongoDB thành công","timestamp":"2025-05-23T01:06:13.239Z"}
+{"level":"info","message":"Khởi tạo server thành công","timestamp":"2025-05-23T01:06:13.239Z"}
+{"level":"info","message":"Server chạy trên cổng 5000","timestamp":"2025-05-23T01:06:13.242Z"}
+{"level":"info","message":"Biến môi trường kiểm tra thành công","timestamp":"2025-05-23T01:25:31.116Z"}
+{"level":"info","message":"Kết nối Redis thành công","timestamp":"2025-05-23T01:25:31.133Z"}
+{"level":"info","message":"Kết nối MongoDB thành công","timestamp":"2025-05-23T01:25:31.173Z"}
+{"level":"info","message":"Khởi tạo server thành công","timestamp":"2025-05-23T01:25:31.174Z"}
+{"level":"info","message":"Server chạy trên cổng 5000","timestamp":"2025-05-23T01:25:31.178Z"}
+{"level":"info","message":"Đang tắt server...","timestamp":"2025-05-23T01:28:05.131Z"}
+{"level":"info","message":"Biến môi trường kiểm tra thành công","timestamp":"2025-05-23T01:28:18.969Z"}
+{"level":"info","message":"Kết nối Redis thành công","timestamp":"2025-05-23T01:28:18.999Z"}
+{"level":"info","message":"Kết nối MongoDB thành công","timestamp":"2025-05-23T01:28:19.046Z"}
+{"level":"info","message":"Khởi tạo server thành công","timestamp":"2025-05-23T01:28:19.046Z"}
+{"level":"info","message":"Server chạy trên cổng 5000","timestamp":"2025-05-23T01:28:19.050Z"}
+{"level":"info","message":"Biến môi trường kiểm tra thành công","timestamp":"2025-05-23T01:39:43.272Z"}
+{"level":"info","message":"Kết nối Redis thành công","timestamp":"2025-05-23T01:39:43.290Z"}
+{"level":"info","message":"Kết nối MongoDB thành công","timestamp":"2025-05-23T01:39:43.339Z"}
+{"level":"info","message":"Khởi tạo server thành công","timestamp":"2025-05-23T01:39:43.339Z"}
+{"level":"info","message":"Server chạy trên cổng 5000","timestamp":"2025-05-23T01:39:43.343Z"}
+{"level":"info","message":"Đang tắt server...","timestamp":"2025-05-23T01:40:26.599Z"}
+{"level":"info","message":"Biến môi trường kiểm tra thành công","timestamp":"2025-05-23T01:40:37.437Z"}
+{"level":"info","message":"Kết nối Redis thành công","timestamp":"2025-05-23T01:40:37.454Z"}
+{"level":"info","message":"Kết nối MongoDB thành công","timestamp":"2025-05-23T01:40:37.487Z"}
+{"level":"info","message":"Khởi tạo server thành công","timestamp":"2025-05-23T01:40:37.487Z"}
+{"level":"info","message":"Server chạy trên cổng 5000","timestamp":"2025-05-23T01:40:37.490Z"}
+{"level":"info","message":"Biến môi trường kiểm tra thành công","timestamp":"2025-05-23T01:46:48.985Z"}
+{"level":"info","message":"Kết nối Redis thành công","timestamp":"2025-05-23T01:46:49.021Z"}
+{"level":"info","message":"Kết nối MongoDB thành công","timestamp":"2025-05-23T01:46:49.072Z"}
+{"level":"info","message":"Khởi tạo server thành công","timestamp":"2025-05-23T01:46:49.072Z"}
+{"level":"info","message":"Server chạy trên cổng 5000","timestamp":"2025-05-23T01:46:49.076Z"}
+{"level":"info","message":"Biến môi trường kiểm tra thành công","timestamp":"2025-05-23T02:00:45.031Z"}
+{"level":"info","message":"Kết nối Redis thành công","timestamp":"2025-05-23T02:00:45.048Z"}
+{"level":"info","message":"Kết nối MongoDB thành công","timestamp":"2025-05-23T02:00:45.098Z"}
+{"level":"info","message":"Khởi tạo server thành công","timestamp":"2025-05-23T02:00:45.099Z"}
+{"level":"info","message":"Server chạy trên cổng 5000","timestamp":"2025-05-23T02:00:45.103Z"}
+{"level":"info","message":"Biến môi trường kiểm tra thành công","timestamp":"2025-05-23T02:18:31.113Z"}
+{"level":"info","message":"Kết nối Redis thành công","timestamp":"2025-05-23T02:18:31.156Z"}
+{"level":"info","message":"Kết nối MongoDB thành công","timestamp":"2025-05-23T02:18:31.192Z"}
+{"level":"info","message":"Khởi tạo server thành công","timestamp":"2025-05-23T02:18:31.192Z"}
+{"level":"info","message":"Server chạy trên cổng 5000","timestamp":"2025-05-23T02:18:31.205Z"}
+{"level":"info","message":"Đang tắt server...","timestamp":"2025-05-23T02:19:41.115Z"}
+{"level":"info","message":"Biến môi trường kiểm tra thành công","timestamp":"2025-05-23T02:20:11.590Z"}
+{"level":"info","message":"Kết nối Redis thành công","timestamp":"2025-05-23T02:20:11.604Z"}
+{"level":"info","message":"Kết nối MongoDB thành công","timestamp":"2025-05-23T02:20:11.632Z"}
+{"level":"info","message":"Khởi tạo server thành công","timestamp":"2025-05-23T02:20:11.632Z"}
+{"level":"info","message":"Server chạy trên cổng 5000","timestamp":"2025-05-23T02:20:11.635Z"}
+{"level":"info","message":"Đang tắt server...","timestamp":"2025-05-23T02:24:12.505Z"}
+{"level":"info","message":"Biến môi trường kiểm tra thành công","timestamp":"2025-05-23T02:24:34.020Z"}
+{"level":"info","message":"Kết nối Redis thành công","timestamp":"2025-05-23T02:24:34.065Z"}
+{"level":"info","message":"Kết nối MongoDB thành công","timestamp":"2025-05-23T02:24:34.111Z"}
+{"level":"info","message":"Khởi tạo server thành công","timestamp":"2025-05-23T02:24:34.112Z"}
+{"level":"info","message":"Server chạy trên cổng 5000","timestamp":"2025-05-23T02:24:34.115Z"}
+{"level":"info","message":"Biến môi trường kiểm tra thành công","timestamp":"2025-05-23T02:32:08.376Z"}
+{"level":"info","message":"Kết nối Redis thành công","timestamp":"2025-05-23T02:32:08.407Z"}
+{"level":"info","message":"Kết nối MongoDB thành công","timestamp":"2025-05-23T02:32:08.457Z"}
+{"level":"info","message":"Khởi tạo server thành công","timestamp":"2025-05-23T02:32:08.458Z"}
+{"level":"info","message":"Server chạy trên cổng 5000","timestamp":"2025-05-23T02:32:08.462Z"}
+{"level":"info","message":"Đang tắt server...","timestamp":"2025-05-23T02:35:23.280Z"}
+{"level":"info","message":"Biến môi trường kiểm tra thành công","timestamp":"2025-05-24T01:37:27.792Z"}
+{"level":"info","message":"Biến môi trường kiểm tra thành công","timestamp":"2025-05-24T01:59:59.508Z"}
+{"level":"info","message":"Kết nối Redis thành công","timestamp":"2025-05-24T01:59:59.521Z"}
+{"level":"info","message":"Kết nối MongoDB thành công","timestamp":"2025-05-24T01:59:59.557Z"}
+{"level":"info","message":"Khởi tạo server thành công","timestamp":"2025-05-24T01:59:59.558Z"}
+{"level":"info","message":"Server chạy trên cổng 5000","timestamp":"2025-05-24T01:59:59.562Z"}
+{"level":"info","message":"Biến môi trường kiểm tra thành công","timestamp":"2025-05-24T02:21:55.460Z"}
+{"level":"info","message":"Kết nối Redis thành công","timestamp":"2025-05-24T02:21:55.483Z"}
+{"level":"info","message":"Kết nối MongoDB thành công","timestamp":"2025-05-24T02:21:55.511Z"}
+{"level":"info","message":"Khởi tạo server thành công","timestamp":"2025-05-24T02:21:55.512Z"}
+{"level":"info","message":"Server chạy trên cổng 5000","timestamp":"2025-05-24T02:21:55.518Z"}
+{"level":"info","message":"Biến môi trường kiểm tra thành công","timestamp":"2025-05-24T03:15:57.308Z"}
+{"level":"info","message":"Biến môi trường kiểm tra thành công","timestamp":"2025-05-24T03:23:39.734Z"}
+{"level":"info","message":"Kết nối Redis thành công","timestamp":"2025-05-24T03:23:39.751Z"}
+{"level":"info","message":"Kết nối MongoDB thành công","timestamp":"2025-05-24T03:23:39.775Z"}
+{"level":"info","message":"Khởi tạo server thành công","timestamp":"2025-05-24T03:23:39.775Z"}
+{"level":"info","message":"Server chạy trên cổng 5000","timestamp":"2025-05-24T03:23:39.779Z"}
+{"level":"info","message":"Biến môi trường kiểm tra thành công","timestamp":"2025-05-24T03:45:23.883Z"}
+{"level":"info","message":"Kết nối Redis thành công","timestamp":"2025-05-24T03:45:23.899Z"}
+{"level":"info","message":"Kết nối MongoDB thành công","timestamp":"2025-05-24T03:45:23.936Z"}
+{"level":"info","message":"Khởi tạo server thành công","timestamp":"2025-05-24T03:45:23.937Z"}
+{"level":"info","message":"Server chạy trên cổng 5000","timestamp":"2025-05-24T03:45:23.940Z"}
+{"level":"info","message":"Biến môi trường kiểm tra thành công","timestamp":"2025-05-24T03:48:21.273Z"}
+{"level":"info","message":"Kết nối Redis thành công","timestamp":"2025-05-24T03:48:21.349Z"}
+{"level":"info","message":"Kết nối MongoDB thành công","timestamp":"2025-05-24T03:48:21.408Z"}
+{"level":"info","message":"Khởi tạo server thành công","timestamp":"2025-05-24T03:48:21.408Z"}
+{"address":"::","code":"EADDRINUSE","errno":-4091,"level":"error","message":"Uncaught Exception: listen EADDRINUSE: address already in use :::5000","port":5000,"stack":"Error: listen EADDRINUSE: address already in use :::5000\n    at Server.setupListenHandle [as _listen2] (node:net:1898:16)\n    at listenInCluster (node:net:1946:12)\n    at Server.listen (node:net:2044:7)\n    at C:\\Users\\OS\\.vscode\\math-learning-app\\backend\\server.js:252:10\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)","syscall":"listen","timestamp":"2025-05-24T03:48:21.412Z"}
+{"level":"info","message":"Đang tắt server...","timestamp":"2025-05-24T03:48:21.413Z"}
+{"level":"info","message":"Đóng kết nối Redis","timestamp":"2025-05-24T03:48:21.427Z"}
+{"level":"info","message":"Đóng kết nối MongoDB","timestamp":"2025-05-24T03:48:21.440Z"}
+{"level":"info","message":"Đang tắt server...","timestamp":"2025-05-24T03:48:26.324Z"}
+{"level":"info","message":"Biến môi trường kiểm tra thành công","timestamp":"2025-05-24T03:49:28.146Z"}
+{"level":"info","message":"Kết nối Redis thành công","timestamp":"2025-05-24T03:49:28.161Z"}
+{"level":"info","message":"Kết nối MongoDB thành công","timestamp":"2025-05-24T03:49:28.204Z"}
+{"level":"info","message":"Khởi tạo server thành công","timestamp":"2025-05-24T03:49:28.204Z"}
+{"level":"info","message":"Server chạy trên cổng 5000","timestamp":"2025-05-24T03:49:28.209Z"}
+{"level":"info","message":"Đang tắt server...","timestamp":"2025-05-24T03:50:40.284Z"}
+{"level":"info","message":"Biến môi trường kiểm tra thành công","timestamp":"2025-05-24T03:51:17.822Z"}
+{"level":"info","message":"Kết nối Redis thành công","timestamp":"2025-05-24T03:51:17.848Z"}
+{"level":"info","message":"Kết nối MongoDB thành công","timestamp":"2025-05-24T03:51:17.881Z"}
+{"level":"info","message":"Khởi tạo server thành công","timestamp":"2025-05-24T03:51:17.881Z"}
+{"level":"info","message":"Server chạy trên cổng 5000","timestamp":"2025-05-24T03:51:17.884Z"}
+{"level":"info","message":"Biến môi trường kiểm tra thành công","timestamp":"2025-05-24T04:25:01.354Z"}
+{"level":"info","message":"Kết nối Redis thành công","timestamp":"2025-05-24T04:25:01.426Z"}
+{"level":"info","message":"Kết nối MongoDB thành công","timestamp":"2025-05-24T04:25:01.510Z"}
+{"level":"info","message":"Khởi tạo server thành công","timestamp":"2025-05-24T04:25:01.510Z"}
+{"level":"info","message":"Server chạy trên cổng 5000","timestamp":"2025-05-24T04:25:01.524Z"}
+{"code":"ENOENT","errno":-4058,"level":"error","message":"Lỗi khi dọn dẹp file tạm: ENOENT: no such file or directory, scandir 'C:\\tmp'","path":"C:\\tmp","stack":"Error: ENOENT: no such file or directory, scandir 'C:\\tmp'\n    at async Object.readdir (node:internal/fs/promises:948:18)\n    at async Timeout.cleanupTempFiles [as _onTimeout] (C:\\Users\\OS\\.vscode\\math-learning-app\\backend\\server.js:86:19)","syscall":"scandir","timestamp":"2025-05-24T05:53:48.981Z"}

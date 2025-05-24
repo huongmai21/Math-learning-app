@@ -153,6 +153,7 @@ const authSlice = createSlice({
         state.isAuthenticated = true;
       })
       .addCase(refreshToken.rejected, (state, action) => {
+        console.error("refreshToken failed:", action.payload);
         state.loading = false;
         state.error = action.payload.message;
         state.user = null;

@@ -1,9 +1,13 @@
 "use client";
 
-import { useState, useContext, useEffect } from "react";
+import { useState, useContext, useEffect, useRef, useCallback } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { logout } from "../../../redux/slices/authSlice";
+import {
+  logout,
+  refreshToken,
+  refreshUser,
+} from "../../../redux/slices/authSlice";
 import { toast } from "react-toastify";
 import ThemeContext from "../../../context/ThemeContext";
 import {
@@ -13,18 +17,23 @@ import {
   markAllNotificationsAsRead,
   initSocket,
   listenForNotifications,
+  getUnreadCount,
 } from "../../../services/notificationService";
+import { listenForLogout } from "../../../services/authService";
 import useDropdown from "../../../hooks/useDropdown";
 import "./Navbar.css";
 
 const Navbar = () => {
-  const { user, isAuthenticated, loading } = useSelector((state) => state.auth);
+  const { user, isAuthenticated, loading, token } = useSelector(
+    (state) => state.auth
+  );
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
   const { theme, toggleTheme } = useContext(ThemeContext);
 
   const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
 
@@ -83,12 +92,7 @@ const Navbar = () => {
       isDropdown: false,
       requireAuth: false,
     },
-    {
-      title: "Thi đấu",
-      to: "/exams",
-      isDropdown: false,
-      requireAuth: true,
-    },
+    { title: "Thi đấu", to: "/exams", isDropdown: false, requireAuth: true },
     {
       title: "Góc học tập",
       to: "/study-corner",
@@ -103,52 +107,128 @@ const Navbar = () => {
     },
   ];
 
-  // Khởi tạo Socket.IO và lắng nghe thông báo
+  const loadNotifications = useCallback(async () => {
+    if (!user || !token || !isAuthenticated || isLoadingNotifications) return;
+    setIsLoadingNotifications(true);
+    try {
+      const response = await getNotifications(1, 10, true);
+      setNotifications(response.data || []);
+      setUnreadCount(response.unreadCount || 0);
+    } catch (error) {
+      console.error("Error loading notifications:", error);
+      if (error.response?.status === 429) {
+        toast.error("Quá nhiều yêu cầu, vui lòng thử lại sau.", {
+          position: "top-right",
+          autoClose: 3000,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await loadNotifications();
+      } else if (error.response?.status === 401) {
+        toast.error("Phiên đăng nhập hết hạn, vui lòng đăng nhập lại", {
+          position: "top-right",
+          autoClose: 3000,
+        });
+        dispatch(logout());
+        navigate("/auth/login");
+      }
+    } finally {
+      setIsLoadingNotifications(false);
+    }
+  }, [
+    user,
+    token,
+    isAuthenticated,
+    isLoadingNotifications,
+    dispatch,
+    navigate,
+  ]);
+
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (user && token) {
-      const socket = initSocket(token);
+    const debounceTimer = setTimeout(() => {
+      loadNotifications();
+    }, 500);
+    return () => clearTimeout(debounceTimer);
+  }, [loadNotifications]);
+
+  useEffect(() => {
+    const loadUnreadCount = async () => {
+      if (!user || !token || !isAuthenticated) return;
+      try {
+        const count = await getUnreadCount();
+        setUnreadCount(count);
+      } catch (error) {
+        console.error("Error loading unread count:", error);
+        if (error.response?.status === 401) {
+          dispatch(logout());
+          navigate("/auth/login");
+        }
+      }
+    };
+    loadUnreadCount();
+  }, [user, token, isAuthenticated, dispatch, navigate]);
+
+  useEffect(() => {
+    let socket = null;
+    let refreshInterval = null;
+
+    const initializeSocketAndRefresh = async () => {
+      if (!user || !token || !isAuthenticated) {
+        if (
+          location.pathname !== "/auth/login" &&
+          location.pathname !== "/auth/register"
+        ) {
+          navigate("/auth/login");
+        }
+        return;
+      }
+
+      // Kiểm tra token hợp lệ bằng cách gọi API refreshUser
+      try {
+        await dispatch(refreshUser()).unwrap();
+      } catch (error) {
+        console.error("Token invalid or expired:", error);
+        dispatch(logout());
+        navigate("/auth/login");
+        return;
+      }
+
+      socket = initSocket();
       listenForNotifications(user._id, (notification) => {
         setNotifications((prev) => [notification, ...prev].slice(0, 10));
+        setUnreadCount((prev) => prev + 1);
         toast.info(`Thông báo mới: ${notification.message}`, {
           position: "top-right",
         });
       });
 
-      return () => {
-        socket.disconnect();
-      };
-    }
-  }, [user]);
+      listenForLogout((data) => {
+        console.log("Received logout event:", data);
+        dispatch(logout());
+        toast.info(data.message || "Bạn đã đăng xuất", {
+          position: "top-right",
+          autoClose: 3000,
+        });
+        navigate("/auth/login");
+      });
 
-  // Tải thông báo
-  useEffect(() => {
-    const loadNotifications = async () => {
-      const token = localStorage.getItem("token");
-      if (user && token) {
-        setIsLoadingNotifications(true);
-        try {
-          const response = await getNotifications(1, 10, true);
-          setNotifications(response.data || []);
-        } catch (error) {
-          console.error("Error loading notifications:", error);
-          if (error.response?.status === 401) {
-            toast.error("Phiên đăng nhập hết hạn, vui lòng đăng nhập lại", {
-              position: "top-right",
-              autoClose: 3000,
-            });
+      refreshInterval = setInterval(() => {
+        dispatch(refreshToken())
+          .unwrap()
+          .catch(() => {
+            clearInterval(refreshInterval);
             dispatch(logout());
             navigate("/auth/login");
-          }
-        } finally {
-          setIsLoadingNotifications(false);
-        }
-      } else {
-        setNotifications([]);
-      }
+          });
+      }, 24* 60 * 60 * 1000);
     };
-    loadNotifications();
-  }, [user, dispatch, navigate]);
+
+    initializeSocketAndRefresh();
+
+    return () => {
+      if (socket) socket.disconnect();
+      if (refreshInterval) clearInterval(refreshInterval);
+    };
+  }, [user, token, isAuthenticated, dispatch, navigate, location.pathname]);
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
@@ -168,6 +248,8 @@ const Navbar = () => {
         autoClose: 3000,
       });
       console.error("Logout error:", error);
+      dispatch(logout());
+      navigate("/auth/login");
     }
   };
 
@@ -176,6 +258,9 @@ const Navbar = () => {
     try {
       await deleteNotification(id);
       setNotifications(notifications.filter((notif) => notif._id !== id));
+      setUnreadCount((prev) =>
+        notifications.find((n) => n._id === id)?.read ? prev : prev - 1
+      );
       toast.success("Xóa thông báo thành công!", { position: "top-right" });
     } catch (error) {
       toast.error("Không thể xóa thông báo", { position: "top-right" });
@@ -190,9 +275,11 @@ const Navbar = () => {
           notif._id === id ? { ...notif, read: true } : notif
         )
       );
+      setUnreadCount((prev) => prev - 1);
       navigate("/notifications");
     } catch (error) {
       console.error("Error marking notification as read:", error);
+      toast.error("Không thể đánh dấu thông báo", { position: "top-right" });
     }
   };
 
@@ -202,6 +289,7 @@ const Navbar = () => {
       setNotifications(
         notifications.map((notif) => ({ ...notif, read: true }))
       );
+      setUnreadCount(0);
       toast.success("Đã đánh dấu tất cả thông báo là đã đọc!", {
         position: "top-right",
       });
@@ -238,10 +326,7 @@ const Navbar = () => {
           aria-label="Menu điều hướng"
         >
           {menuItems.map((item, index) => {
-            if (item.requireAuth && !isAuthenticated) {
-              return null;
-            }
-
+            if (item.requireAuth && !isAuthenticated) return null;
             return item.isDropdown ? (
               <div
                 key={index}
@@ -277,16 +362,20 @@ const Navbar = () => {
           })}
         </nav>
       </div>
-      {loading ? (
+      {loading && !user ? (
         <div className="loading">Đang tải...</div>
       ) : isAuthenticated && user ? (
         <div className="user-actions">
           <div
             className="user-info"
             ref={profileRef}
-            onClick={toggleProfile}
+            onClick={() => {
+              console.log("Clicking avatar");
+              toggleProfile();
+            }}
             aria-haspopup="true"
             aria-expanded={profileOpen}
+            style={{ cursor: "pointer" }}
           >
             <div className="avatar">
               <img
@@ -372,12 +461,12 @@ const Navbar = () => {
             aria-expanded={notificationsOpen}
           >
             <i className="fa-solid fa-bell notification-icon"></i>
-            {notifications.length > 0 && (
-              <span className="notification-count">{notifications.length}</span>
+            {unreadCount > 0 && (
+              <span className="notification-count">{unreadCount}</span>
             )}
             {notificationsOpen && (
               <div className="notification-dropdown" role="menu">
-                {isLoadingNotifications ? (
+                {isLoadingNotifications && notifications.length === 0 ? (
                   <div className="notification-item">Đang tải thông báo...</div>
                 ) : notifications.length > 0 ? (
                   <>
@@ -393,9 +482,13 @@ const Navbar = () => {
                     {notifications.map((notif) => (
                       <div
                         key={notif._id}
-                        className={`notification-item ${notif.importance}`}
+                        className={`notification-item ${notif.importance} ${
+                          notif.read ? "read" : "unread"
+                        }`}
                         role="menuitem"
-                        onClick={() => handleMarkAsRead(notif._id)}
+                        onClick={() =>
+                          !notif.read && handleMarkAsRead(notif._id)
+                        }
                       >
                         <span className="notification-title">
                           {notif.title}
@@ -407,6 +500,7 @@ const Navbar = () => {
                             className="notification-link"
                             target="_blank"
                             rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
                           >
                             Xem chi tiết
                           </a>

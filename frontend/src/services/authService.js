@@ -1,4 +1,5 @@
 import api from "./api";
+import { initSocket } from "./notificationService"; // Import initSocket từ notificationService
 
 const retryRequest = async (request, retries = 3, delay = 1000) => {
   for (let i = 0; i < retries; i++) {
@@ -25,9 +26,8 @@ export const register = async (userData) => {
 
 export const login = async (credentials) => {
   try {
-    const response = await retryRequest(() =>
-      api.post("/auth/login", credentials)
-    );
+    const response = await retryRequest(() => api.post("/auth/login", credentials));
+    localStorage.setItem("token", response.data.token); // Đảm bảo lưu token
     return response.data;
   } catch (error) {
     console.error("Login error:", error);
@@ -135,7 +135,10 @@ export const autoRefreshToken = async () => {
 
 // Lắng nghe sự kiện đăng xuất từ Socket.IO
 export const listenForLogout = (callback) => {
-  const socket = initSocket(localStorage.getItem("token"));
+  const token = localStorage.getItem("token");
+  if (!token) return;
+
+  const socket = initSocket(token);
   socket.on("logout", (data) => {
     callback(data);
   });

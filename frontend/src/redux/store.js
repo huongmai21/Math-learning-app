@@ -8,6 +8,7 @@ const persistConfig = {
   key: "root",
   storage,
   whitelist: ["auth"], // Chỉ lưu state của auth
+  version: 1,
 };
 
 const persistedReducer = persistReducer(persistConfig, authReducer);
@@ -24,4 +25,8 @@ export const store = configureStore({
     }),
 });
 
-export const persistor = persistStore(store);
+export const persistor = persistStore(store, null, () => {
+  console.log("Persistor initialized successfully");
+});
+
+export default { store, persistor };

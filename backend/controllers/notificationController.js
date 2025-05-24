@@ -108,6 +108,7 @@ exports.markAsRead = asyncHandler(async (req, res, next) => {
     });
 
     await sendNotification(req.user._id, notification);
+    global.io.to(req.user._id.toString()).emit("ackNotifications"); // Thêm sự kiện ack
     res.status(200).json({ success: true, data: notification });
   } catch (error) {
     return next(error);
@@ -125,6 +126,7 @@ exports.markAllAsRead = asyncHandler(async (req, res, next) => {
     });
 
     await sendNotification(req.user._id, { message: "Tất cả thông báo đã được đánh dấu là đã đọc" });
+    global.io.to(req.user._id.toString()).emit("ackNotifications"); // Thêm sự kiện ack
     res.status(200).json({ success: true, message: "Tất cả thông báo đã được đánh dấu là đã đọc" });
   } catch (error) {
     return next(new ErrorResponse("Không thể đánh dấu tất cả thông báo", 500));
@@ -147,6 +149,7 @@ exports.deleteNotification = asyncHandler(async (req, res, next) => {
     });
 
     await sendNotification(req.user._id, { message: "Thông báo đã được xóa" });
+    global.io.to(req.user._id.toString()).emit("ackNotifications"); // Thêm sự kiện ack
     res.status(200).json({ success: true, data: {} });
   } catch (error) {
     return next(error);
@@ -161,6 +164,7 @@ exports.deleteAllNotifications = asyncHandler(async (req, res, next) => {
     });
 
     await sendNotification(req.user._id, { message: "Tất cả thông báo đã được xóa" });
+    global.io.to(req.user._id.toString()).emit("ackNotifications"); // Thêm sự kiện ack
     res.status(200).json({ success: true, message: "Tất cả thông báo đã được xóa" });
   } catch (error) {
     return next(new ErrorResponse("Không thể xóa tất cả thông báo", 500));

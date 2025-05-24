@@ -6,7 +6,6 @@ const redisUtils = require("../config/redis");
 
 exports.authenticateToken = asyncHandler(async (req, res, next) => {
   let token;
-
   if (
     req.headers.authorization &&
     req.headers.authorization.startsWith("Bearer ")
@@ -15,22 +14,21 @@ exports.authenticateToken = asyncHandler(async (req, res, next) => {
   } else if (req.cookies && req.cookies.token) {
     token = req.cookies.token;
   }
+  console.log("Token received:", token); // Debug
 
   if (!token) {
     return next(new ErrorResponse("Không có token, vui lòng đăng nhập", 401));
   }
 
-  try {
-    const isBlacklisted = await redisUtils.getCache(`bl_token:${token}`);
-    if (isBlacklisted) {
-      return next(new ErrorResponse("Token không hợp lệ hoặc đã hết hạn", 401));
-    }
+  const isBlacklisted = await redisUtils.getCache(`bl_token:${token}`);
+  console.log("Is token blacklisted?", isBlacklisted); // Debug
 
+  try {
     let cachedUser = await redisUtils.getCache(`auth_user:${token}`);
+    console.log("Cache lookup for auth_user:", cachedUser); // Debug
     if (cachedUser) {
       const cacheAge = await redisUtils.getClient().ttl(`auth_user:${token}`);
       if (cacheAge < 300) {
-        // Làm mới cache nếu còn dưới 5 phút
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         cachedUser = await User.findById(decoded.id).select("-password");
         if (cachedUser) {
@@ -42,7 +40,9 @@ exports.authenticateToken = asyncHandler(async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("Decoded token:", decoded); // Debug
     const user = await User.findById(decoded.id).select("-password");
+    console.log("User from DB:", user); // Debug
 
     if (!user) {
       return next(new ErrorResponse("Người dùng không tồn tại", 401));
@@ -52,6 +52,7 @@ exports.authenticateToken = asyncHandler(async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
+    console.error("Authentication error:", error); // Debug
     if (error.name === "TokenExpiredError") {
       return next(
         new ErrorResponse("Token đã hết hạn, vui lòng đăng nhập lại", 401)
@@ -79,22 +80,3 @@ exports.checkRole = (roles) =>
     }
     next();
   });
-
-exports.logout = asyncHandler(async (req, res, next) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
-  if (token) {
-    await redisUtils.setCache(
-      `bl_token:${token}`,
-      true,
-      Number.parseInt(process.env.JWT_EXPIRE) || 86400
-    );
-    await redisUtils.getClient().del(`auth_user:${token}`);
-    if (global.io) {
-      global.io
-        .to(req.user._id.toString())
-        .emit("logout", { message: "Bạn đã đăng xuất" });
-    }
-  }
-
-  res.status(200).json({ success: true, message: "Đăng xuất thành công" });
-});

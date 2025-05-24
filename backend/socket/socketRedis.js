@@ -3,11 +3,30 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const { createAdapter } = require("@socket.io/redis-adapter");
 const redisUtils = require("../config/redis");
-const RateLimit = require("socket.io-rate-limiter");
-const { promisify } = require("util");
-const { gzip, gunzip } = require("zlib");
-const gzipPromise = promisify(gzip);
-const gunzipPromise = promisify(gunzip);
+
+// Hàm dọn dẹp dữ liệu cũ trong Redis
+const cleanupOldData = async () => {
+  try {
+    const roomsPattern = `room:*:messages`;
+    const roomKeys = await redisUtils.getClient().keys(roomsPattern);
+    for (const key of roomKeys) {
+      const roomId = key.split(":")[1];
+      const StudyRoom = require("../models/StudyRoom");
+      const room = await StudyRoom.findById(roomId);
+      if (!room || !room.lastActive || Date.now() - new Date(room.lastActive) > 24 * 60 * 60 * 1000) {
+        await redisUtils.getClient().del(key); // Xóa phòng không hoạt động quá 24h
+        await redisUtils.getClient().del(`room:${roomId}:users`);
+        console.log(`Deleted inactive room: ${roomId}`);
+      } else {
+        await redisUtils.getClient().lTrim(key, 0, 49);
+        await redisUtils.getClient().expire(key, 24 * 60 * 60);
+      }
+    }
+    console.log("Cleaned up old messages in Redis");
+  } catch (error) {
+    console.error("Error cleaning up old messages:", error);
+  }
+};
 
 const setupSocketWithRedis = (server) => {
   const io = socketIo(server, {
@@ -20,12 +39,24 @@ const setupSocketWithRedis = (server) => {
     pingInterval: 25000,
   });
 
-  // Cấu hình rate limiting cho Socket.IO
-  const rateLimiter = new RateLimit({
-    windowMs: 60 * 1000, // 1 phút
-    max: 30, // 30 sự kiện/phút
-  });
-  io.use(rateLimiter.middleware());
+  // Chạy dọn dẹp dữ liệu cũ mỗi 5 phút
+  setInterval(cleanupOldData, 5 * 60 * 1000);
+
+  // Rate limiting thủ công
+  const rateLimit = async (socket, event, max = 30, windowMs = 60 * 1000) => {
+    const key = `socket_rate:${socket.user._id}:${event}`;
+    const count = await redisUtils.getClient().incr(key);
+    if (count === 1) {
+      await redisUtils.getClient().expire(key, windowMs / 1000);
+    }
+    if (count > max) {
+      socket.emit("error", {
+        message: `Quá nhiều yêu cầu ${event}, vui lòng thử lại sau.`,
+      });
+      return false;
+    }
+    return true;
+  };
 
   // Tạo Redis adapter
   let pubClient, subClient;
@@ -36,7 +67,6 @@ const setupSocketWithRedis = (server) => {
       .then(() => {
         io.adapter(createAdapter(pubClient, subClient));
         console.log("Socket.IO Redis adapter initialized");
-        // Đăng ký Pub/Sub cho thông báo phòng
         subClient.subscribe("room:*", (message, channel) => {
           const roomId = channel.split(":")[1];
           io.to(`room_${roomId}`).emit("new_message", JSON.parse(message));
@@ -82,9 +112,7 @@ const setupSocketWithRedis = (server) => {
         if (!user) {
           return next(new Error("Authentication error: User not found"));
         }
-        const userString = JSON.stringify(user);
-        const compressed = await gzipPromise(userString);
-        await redisUtils.getClient().setEx(cacheKey, 3600, compressed);
+        await redisUtils.setCache(cacheKey, user, 3600);
       }
       socket.user = user;
       next();
@@ -99,10 +127,11 @@ const setupSocketWithRedis = (server) => {
 
     // Tham gia phòng học
     socket.on("join_room", async (roomId) => {
-      if (!roomId) {
-        socket.emit("error", { message: "Room ID is required" });
+      if (!roomId || typeof roomId !== "string") {
+        socket.emit("error", { message: "Room ID không hợp lệ" });
         return;
       }
+      if (!(await rateLimit(socket, "join_room"))) return;
 
       try {
         await retryOperation(async () => {
@@ -118,7 +147,6 @@ const setupSocketWithRedis = (server) => {
           await redisUtils.getClient().sAdd(roomKey, JSON.stringify(userData));
           await redisUtils.getClient().expire(roomKey, 24 * 60 * 60);
 
-          // Cập nhật MongoDB
           const StudyRoom = require("../models/StudyRoom");
           await StudyRoom.findByIdAndUpdate(roomId, {
             $addToSet: { members: socket.user._id },
@@ -141,10 +169,11 @@ const setupSocketWithRedis = (server) => {
 
     // Rời phòng học
     socket.on("leave_room", async (roomId) => {
-      if (!roomId) {
-        socket.emit("error", { message: "Room ID is required" });
+      if (!roomId || typeof roomId !== "string") {
+        socket.emit("error", { message: "Room ID không hợp lệ" });
         return;
       }
+      if (!(await rateLimit(socket, "leave_room"))) return;
 
       try {
         await retryOperation(async () => {
@@ -161,7 +190,6 @@ const setupSocketWithRedis = (server) => {
             })
           );
 
-          // Cập nhật MongoDB
           const StudyRoom = require("../models/StudyRoom");
           await StudyRoom.findByIdAndUpdate(roomId, {
             $pull: { members: socket.user._id },
@@ -184,8 +212,21 @@ const setupSocketWithRedis = (server) => {
 
     // Gửi tin nhắn
     socket.on("send_message", async ({ roomId, message, attachments = [] }) => {
-      if (!roomId || !message) {
-        socket.emit("error", { message: "Room ID and message are required" });
+      if (
+        !roomId ||
+        typeof roomId !== "string" ||
+        !message ||
+        typeof message !== "string" ||
+        message.length > 1000
+      ) {
+        socket.emit("error", {
+          message: "Room ID, tin nhắn không hợp lệ hoặc quá dài",
+        });
+        return;
+      }
+      if (!(await rateLimit(socket, "send_message"))) return;
+      if (attachments.length > 5) {
+        socket.emit("error", { message: "Quá nhiều tệp đính kèm" });
         return;
       }
 
@@ -203,7 +244,7 @@ const setupSocketWithRedis = (server) => {
             })
           );
           if (!isInRoom) {
-            throw new Error("You are not a member of this room");
+            throw new Error("Bạn không phải thành viên của phòng này");
           }
 
           const messageData = {
@@ -218,15 +259,12 @@ const setupSocketWithRedis = (server) => {
 
           const roomMessagesKey = `room:${roomId}:messages`;
           const messageString = JSON.stringify(messageData);
-          const compressedMessage = await gzipPromise(messageString);
-          await redisUtils.getClient().lPush(roomMessagesKey, compressedMessage);
-          await redisUtils.getClient().lTrim(roomMessagesKey, 0, 99);
+          await redisUtils.getClient().lPush(roomMessagesKey, messageString);
+          await redisUtils.getClient().lTrim(roomMessagesKey, 0, 49); // Giới hạn 50 tin nhắn
           await redisUtils.getClient().expire(roomMessagesKey, 24 * 60 * 60);
 
-          // Sử dụng Pub/Sub để gửi tin nhắn
           await pubClient.publish(`room:${roomId}`, messageString);
 
-          // Cập nhật MongoDB
           const StudyRoom = require("../models/StudyRoom");
           await StudyRoom.findByIdAndUpdate(roomId, {
             $push: {
@@ -242,45 +280,54 @@ const setupSocketWithRedis = (server) => {
         });
       } catch (error) {
         console.error(`Error sending message to room ${roomId}:`, error);
-        socket.emit("error", { message: error.message || "Không thể gửi tin nhắn" });
+        socket.emit("error", {
+          message: error.message || "Không thể gửi tin nhắn",
+        });
       }
     });
 
     // Lấy lịch sử tin nhắn
     socket.on("get_message_history", async (roomId) => {
-      if (!roomId) {
-        socket.emit("error", { message: "Room ID is required" });
+      if (!roomId || typeof roomId !== "string") {
+        socket.emit("error", { message: "Room ID không hợp lệ" });
         return;
       }
+      if (!(await rateLimit(socket, "get_message_history"))) return;
 
       try {
         const roomMessagesKey = `room:${roomId}:messages`;
-        const messages = await redisUtils.getClient().lRange(roomMessagesKey, 0, -1);
-        const messageHistory = await Promise.all(
-          messages.map(async (msg) => {
-            try {
-              const decompressed = await gunzipPromise(Buffer.from(msg));
-              return JSON.parse(decompressed.toString());
-            } catch (e) {
-              console.error("Error parsing message:", e);
-              return null;
-            }
-          })
+        const messages = await redisUtils
+          .getClient()
+          .lRange(roomMessagesKey, 0, 49); // Giới hạn 50 tin nhắn
+        const messageHistory = messages.map((msg) => JSON.parse(msg));
+        socket.emit(
+          "message_history",
+          messageHistory.sort(
+            (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+          )
         );
-        socket.emit("message_history", messageHistory.filter(Boolean).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)));
       } catch (error) {
-        console.error(`Error getting message history for room ${roomId}:`, error);
+        console.error(
+          `Error getting message history for room ${roomId}:`,
+          error
+        );
         socket.emit("error", { message: "Không thể lấy lịch sử tin nhắn" });
       }
     });
 
     // Thông báo đang gõ
-    socket.on("typing", ({ roomId }) => {
-      if (!roomId) return;
-      socket.to(`room_${roomId}`).emit("user_typing", {
-        userId: socket.user._id,
-        username: socket.user.username,
-      });
+    socket.on("typing", async ({ roomId }) => {
+      if (!roomId || typeof roomId !== "string") return;
+      if (!(await rateLimit(socket, "typing"))) return;
+
+      try {
+        socket.to(`room_${roomId}`).emit("user_typing", {
+          userId: socket.user._id,
+          username: socket.user.username,
+        });
+      } catch (error) {
+        console.error(`Error in typing event for room ${roomId}:`, error);
+      }
     });
 
     // Kick user khỏi phòng (chỉ admin)
@@ -289,6 +336,16 @@ const setupSocketWithRedis = (server) => {
         socket.emit("error", { message: "Chỉ admin mới có quyền kick" });
         return;
       }
+      if (
+        !roomId ||
+        !userId ||
+        typeof roomId !== "string" ||
+        typeof userId !== "string"
+      ) {
+        socket.emit("error", { message: "Room ID hoặc User ID không hợp lệ" });
+        return;
+      }
+      if (!(await rateLimit(socket, "kick_user"))) return;
 
       try {
         await retryOperation(async () => {
@@ -300,7 +357,9 @@ const setupSocketWithRedis = (server) => {
 
           const roomKey = `room:${roomId}:users`;
           const users = await redisUtils.getClient().sMembers(roomKey);
-          const userToRemove = users.find((user) => JSON.parse(user).userId === userId);
+          const userToRemove = users.find(
+            (user) => JSON.parse(user).userId === userId
+          );
           if (userToRemove) {
             await redisUtils.getClient().sRem(roomKey, userToRemove);
           }
@@ -317,7 +376,10 @@ const setupSocketWithRedis = (server) => {
           io.to(`room_${roomId}`).emit("user_left", { userId });
         });
       } catch (error) {
-        console.error(`Error kicking user ${userId} from room ${roomId}:`, error);
+        console.error(
+          `Error kicking user ${userId} from room ${roomId}:`,
+          error
+        );
         socket.emit("error", { message: "Không thể kick người dùng" });
       }
     });
@@ -325,9 +387,16 @@ const setupSocketWithRedis = (server) => {
     // Gửi thông báo toàn cục (chỉ admin)
     socket.on("send_global_notification", async (message) => {
       if (socket.user.role !== "admin") {
-        socket.emit("error", { message: "Chỉ admin mới có quyền gửi thông báo toàn cục" });
+        socket.emit("error", {
+          message: "Chỉ admin mới có quyền gửi thông báo toàn cục",
+        });
         return;
       }
+      if (!message || typeof message !== "string" || message.length > 1000) {
+        socket.emit("error", { message: "Tin nhắn không hợp lệ hoặc quá dài" });
+        return;
+      }
+      if (!(await rateLimit(socket, "send_global_notification"))) return;
 
       try {
         const notificationData = {
@@ -338,7 +407,7 @@ const setupSocketWithRedis = (server) => {
 
         const Notification = require("../models/Notification");
         await Notification.create({
-          recipient: null, // null để biểu thị thông báo toàn cục
+          recipient: null,
           sender: socket.user._id,
           type: "system",
           title: "Thông báo hệ thống",
@@ -353,16 +422,26 @@ const setupSocketWithRedis = (server) => {
 
     // Lấy thông báo
     socket.on("getNotifications", async (userId) => {
+      if (!userId || typeof userId !== "string") {
+        socket.emit("error", { message: "User ID không hợp lệ" });
+        return;
+      }
+      if (!(await rateLimit(socket, "getNotifications"))) return;
+
       try {
         const Notification = require("../models/Notification");
-        const notifications = await Notification.find({ recipient: userId, read: false })
+        const notifications = await Notification.find({
+          recipient: userId,
+          read: false,
+        })
           .sort({ createdAt: -1 })
           .limit(10);
 
         const notificationKey = `notifications:${userId}`;
         const notificationString = JSON.stringify(notifications);
-        const compressedNotifications = await gzipPromise(notificationString);
-        await redisUtils.getClient().setEx(notificationKey, 300, compressedNotifications);
+        await redisUtils
+          .getClient()
+          .setEx(notificationKey, 300, notificationString);
 
         io.to(userId).emit("newNotifications", notifications);
 
@@ -400,13 +479,16 @@ const setupSocketWithRedis = (server) => {
             );
             if (exists) {
               const roomId = roomKey.split(":")[1];
-              await redisUtils.getClient().sRem(roomKey, JSON.stringify({
-                userId: socket.user._id,
-                username: socket.user.username,
-                avatar: socket.user.avatar,
-                role: socket.user.role === "admin" ? "admin" : "member",
-                joinedAt: socket.user.joinedAt,
-              }));
+              await redisUtils.getClient().sRem(
+                roomKey,
+                JSON.stringify({
+                  userId: socket.user._id,
+                  username: socket.user.username,
+                  avatar: socket.user.avatar,
+                  role: socket.user.role === "admin" ? "admin" : "member",
+                  joinedAt: socket.user.joinedAt,
+                })
+              );
 
               const StudyRoom = require("../models/StudyRoom");
               await StudyRoom.findByIdAndUpdate(roomId, {
